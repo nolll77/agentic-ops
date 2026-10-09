@@ -29,3 +29,19 @@ class ValidatePanderaSchema(AgentTool):
 
     def _execute(self, table_name: str) -> str:
         return f"[Simulé] Schéma validé pour {table_name}: 0 erreur trouvée."
+
+class ExecuteSqlArgs(BaseModel):
+    query: str = Field(..., description="La requête SQL brute à exécuter (DML/DDL).")
+    database: str = Field(..., description="La base de données cible.")
+
+class ExecuteSql(AgentTool):
+    name = "execute_sql"
+    description = "Exécute une requête SQL directement sur la base de données (Dangereux)."
+    args_schema = ExecuteSqlArgs
+    
+    # [ALERTE MLOPS] Least Privilege
+    requires_approval = True
+    timeout_seconds = 5
+
+    def _execute(self, query: str, database: str) -> str:
+        return f"[Simulé] Exécution SQL '{query}' sur {database} terminée avec succès."

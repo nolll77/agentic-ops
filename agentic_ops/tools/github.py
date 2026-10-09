@@ -13,6 +13,8 @@ class CreateIssue(AgentTool):
     name = "create_github_issue"
     description = "Crée une Issue sur GitHub pour notifier d'une dérive ou d'un incident. Cet outil exécute une action."
     args_schema = CreateIssueArgs
+    requires_approval = True
+    timeout_seconds = 10
 
     def _execute(self, title: str, body: str, risk_id: str) -> str:
         return f"[Simulé] Issue créée: '{title}' (Risque: {risk_id}). ID #42."
