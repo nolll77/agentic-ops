@@ -4,7 +4,9 @@ Remplacer par github_tools.create_issue() en Phase 3.
 """
 
 from __future__ import annotations
+
 import itertools
+
 from agentic_ops.core.contracts import ActionProposal, ExecutionResult
 
 _issue_counter = itertools.count(start=1)

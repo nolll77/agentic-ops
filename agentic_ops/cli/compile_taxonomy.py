@@ -1,6 +1,8 @@
 import re
-import yaml
 import sys
+
+import yaml
+
 
 def parse_markdown_table(filepath):
     risks = []

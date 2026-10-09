@@ -1,4 +1,5 @@
-from typing import Any, Type
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -10,7 +11,7 @@ class AgentTool:
 
     name: str
     description: str
-    args_schema: Type[BaseModel]
+    args_schema: type[BaseModel]
 
     def run(self, **kwargs) -> Any:
         # Validate arguments using the schema before execution

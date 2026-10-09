@@ -5,9 +5,7 @@ Evidence Store systématiques. Zéro import de provider concret.
 """
 
 from __future__ import annotations
-from typing import Optional
 
-from agentic_ops.adapters.protocol import ObservabilityAdapter
 from agentic_ops.core.contracts import (
     ActionProposal,
     ActionType,
@@ -20,6 +18,8 @@ from agentic_ops.core.idempotency import compute_dedup_key
 from agentic_ops.core.policy import PolicyEngine
 from agentic_ops.core.state import StateMachine
 from agentic_ops.runtime import executor as executor_module
+
+from agentic_ops.adapters.protocol import ObservabilityAdapter
 
 
 class Orchestrator:
@@ -53,7 +53,7 @@ class Orchestrator:
         self,
         risk_id: str,
         signal_id: str = "data_drift",
-        forced_action: Optional[ActionType] = None,
+        forced_action: ActionType | None = None,
         detection_window: str = "2026-09-30",
     ) -> Episode:
         sm = StateMachine(initial="DETECTED")
@@ -114,7 +114,7 @@ class Orchestrator:
             f"(règle: {decision.matched_rule}, raisons: {', '.join(decision.reason_codes)})"
         )
 
-        execution: Optional[ExecutionResult] = None
+        execution: ExecutionResult | None = None
         human_approval_required = False
 
         if decision.decision == Decision.ALLOW:

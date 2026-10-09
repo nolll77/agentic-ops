@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import instructor
 import litellm
-from agentic_ops.core.contracts import Diagnosis, ActionProposal
+from agentic_ops.core.contracts import ActionProposal, Diagnosis
 
 
 class RemediationAgent:
