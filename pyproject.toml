@@ -1,0 +1,18 @@
+[project]
+name = "agentic-ops"
+version = "0.1.0"
+description = "A generic, plug-and-play Agentic Control Plane for MLOps Governance"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0.0",
+    "prefect>=2.0.0",
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+agentic-ops = "agentic_ops.cli.main:app"

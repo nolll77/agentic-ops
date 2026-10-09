@@ -1,0 +1,704 @@
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: INFRA-001
+  severity: 5
+  title: Base de données indisponible
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: INFRA-003
+  severity: 5
+  title: Volume `Docker` corrompu
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: INFRA-012
+  severity: 5
+  title: Certificat `SSL` expiré
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: INFRA-018
+  severity: 5
+  title: '`DNS` failure'
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: INFRA-026
+  severity: 5
+  title: Défaillances en cascade (Effet domino système)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: INFRA-032
+  severity: 5
+  title: Panne synchronisée multi-couches
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-005
+  severity: 5
+  title: Désynchronisation training vs serving
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: DATA-011
+  severity: 5
+  title: Ingestion dans le mauvais environnement (staging -> prod)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-023
+  severity: 4
+  title: Dates mal parsées (01/02/2025)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-031
+  severity: 5
+  title: Mauvais alignement temporel (météo future)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: DATA-041
+  severity: 5
+  title: Pipeline vert mais données fausses
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-042
+  severity: 4
+  title: Dérive progressive des données
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: DATA-043
+  severity: 5
+  title: Erreur non détectée pendant des mois
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: DATA-049
+  severity: 5
+  title: Données perdues irrémédiablement
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-050
+  severity: 5
+  title: Erreur silencieuse de logique métier dans la transformation (SQL/Python)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-054
+  severity: 5
+  title: Effet domino de propagation silencieuse de données corrompues en aval
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: DATA-055
+  severity: 5
+  title: Réplication partielle (Tables désynchronisées au sein du même schéma)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: FEAT-009
+  severity: 5
+  title: Window leakage (fuite d'info entre fenêtres)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: FEAT-010
+  severity: 5
+  title: Calcul de feature différent en batch (entraînement) et en ligne (serving)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: FEAT-011
+  severity: 5
+  title: Jointures de features sans point-in-time correctness (fuite de la cible)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: FEAT-016
+  severity: 4
+  title: Imputation / valeur par défaut en serving différente de l'entraînement
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: FEAT-017
+  severity: 5
+  title: Feature quasi-proxy de la cible (fuite par construction)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: FEAT-021
+  severity: 5
+  title: Ordre / schéma des features à l'inférence ≠ entraînement
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-005
+  severity: 4
+  title: Modèle figé dans le passé (obsolescence)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-014
+  severity: 5
+  title: Entraînement abouti mais poids dégénérés (Silent fail)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-015
+  severity: 5
+  title: Data Leakage dans le Split Train/Test
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-016
+  severity: 4
+  title: Échantillonnage d'entraînement non représentatif
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-017
+  severity: 4
+  title: Choix d'une métrique d'évaluation inadaptée au métier
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-018
+  severity: 5
+  title: Train/Test split aléatoire au lieu de temporel (Time leakage)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-020
+  severity: 5
+  title: Overfitting silencieux (Train parfait, Prod catastrophique)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: TRAIN-028
+  severity: 5
+  title: Mauvais recall sur classe rare
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-029
+  severity: 5
+  title: Faux négatifs dangereux
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-033
+  severity: 5
+  title: Incompatibilité de schéma entre l'Artefact Modèle et l'API de Serving
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: TRAIN-035
+  severity: 5
+  title: OOM au chargement du modèle en inférence (Trop lourd)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: TRAIN-047
+  severity: 5
+  title: Rupture totale de stationnarité
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SERV-012
+  severity: 5
+  title: Aucun mode dégradé quand le modèle est indisponible
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SERV-013
+  severity: 5
+  title: Mauvaise version de modèle servie après déploiement (alias / cache)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OBS-004
+  severity: 4
+  title: Drift non détecté
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: OBS-006
+  severity: 4
+  title: Catastrophe lente
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: OBS-011
+  severity: 5
+  title: Perte de visibilité totale
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OBS-012
+  severity: 5
+  title: Effondrement complet de cohérence
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: OBS-013
+  severity: 5
+  title: Illusion de système fonctionnel
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-001
+  severity: 5
+  title: Image `Docker` contenant faille de sécu
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 1
+  id: SEC-002
+  severity: 5
+  title: Déploiement prod au lieu staging (CI error)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-003
+  severity: 5
+  title: Attaque Supply Chain (compromission package)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 1
+  id: SEC-004
+  severity: 5
+  title: Signature logicielle invalide (package corr.)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-006
+  severity: 4
+  title: Secrets / `PII` dans les logs (non obfusqués)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: SEC-007
+  severity: 5
+  title: Feature View expose des données sensibles (PII)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-009
+  severity: 5
+  title: Données sensibles exposées (plaques, PI)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-010
+  severity: 5
+  title: RGPD non respecté
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: SEC-011
+  severity: 5
+  title: Données injectées (data poisoning)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-013
+  severity: 5
+  title: API publique sans authentification
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: SEC-015
+  severity: 5
+  title: Clés exposées dans le code (GitHub, CI, env)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-018
+  severity: 5
+  title: Ports ouverts au monde entier (0.0.0.0/0)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-019
+  severity: 5
+  title: Bucket cloud public (S3/GCS)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-020
+  severity: 5
+  title: Dépendances vérolées (Supply Chain)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-021
+  severity: 5
+  title: Docker image compromise (DockerHub)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-022
+  severity: 5
+  title: Pickle empoisonné (Deserialization attack)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: SEC-025
+  severity: 5
+  title: Data Poisoning (entrainement)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-039
+  severity: 5
+  title: Violation `RGPD` / Non-anonymisation
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-042
+  severity: 5
+  title: Exposition de dashboards internes (Superset)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-043
+  severity: 5
+  title: Absence de Secrets Manager (Vault)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-045
+  severity: 5
+  title: Injection SQL (Requêtes non paramétrées)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: SEC-046
+  severity: 5
+  title: Injection de payload malveillant (API)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: SEC-047
+  severity: 5
+  title: Command Injection (Exécution arbitraire)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-049
+  severity: 5
+  title: Containers en mode privilégié (Root access)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: SEC-050
+  severity: 5
+  title: Porosité des environnements (Dev accède Prod)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 3
+  id: SEC-051
+  severity: 5
+  title: Exfiltration de données (Export massif)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: SEC-052
+  severity: 5
+  title: Compromission du pipeline CI/CD
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: SEC-053
+  severity: 5
+  title: Remplacement d'artefact ML malveillant
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: SEC-054
+  severity: 5
+  title: Cécité sécuritaire (Absence de SIEM)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 5
+  id: GOV-008
+  severity: 4
+  title: Breaking changes silencieux
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-012
+  severity: 5
+  title: Artefact de modèle incomplet/corrompu dans le registre MLflow
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-013
+  severity: 5
+  title: Promotion d'un mauvais modèle suite à erreur humaine (Tagging UI)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-019
+  severity: 5
+  title: Dépendances invisibles inter-pipelines (Non déclarées dans le DAG)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-031
+  severity: 4
+  title: Validation uniquement globale
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-033
+  severity: 4
+  title: Absence de validation par slices
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-064
+  severity: 4
+  title: Confiance excessive dans le modèle
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: GOV-080
+  severity: 5
+  title: Automatisation totale sans garde-fous
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 2
+  id: GOV-087
+  severity: 5
+  title: Modèle non récupérable
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-001
+  severity: 5
+  title: Mauvais modèle en production
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-010
+  severity: 4
+  title: Absence de tests ML spécifiques
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-053
+  severity: 5
+  title: Job d'ingestion terminé sans erreur (Exit 0) mais aucune donnée écrite
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-055
+  severity: 5
+  title: Échec partiel de pipeline ETL sans rollback global
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-059
+  severity: 5
+  title: Job ETL massif provoquant un OOM (Out Of Memory) sur le worker
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: OPS-060
+  severity: 5
+  title: Partitionnement de données inadéquat (Full scan massif)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: ORG-004
+  severity: 5
+  title: Droits internes trop larges (ingénieur supprime tout)
+- allowed_actions:
+  - investigate
+  - create_issue
+  blast_radius: 2
+  detectability: 4
+  id: ORG-006
+  severity: 5
+  title: CI/CD non sécurisé (GitHub Actions compromis)
