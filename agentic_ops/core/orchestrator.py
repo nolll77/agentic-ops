@@ -14,7 +14,7 @@ from agentic_ops.core.contracts import (
     ExecutionResult,
 )
 from agentic_ops.core.evidence import EvidenceStore
-from agentic_ops.core.idempotency import compute_dedup_key
+from agentic_ops.core.idempotency import compute_semantic_fingerprint, acquire_idempotency_lock
 from agentic_ops.core.policy import PolicyEngine
 from agentic_ops.core.state import StateMachine
 from agentic_ops.runtime import executor as executor_module
@@ -63,17 +63,18 @@ class Orchestrator:
         sm = StateMachine(initial="DETECTED")
         signal = self.observability.get_signal(signal_id)
 
-        dedup_key = compute_dedup_key(
-            risk_id=risk_id,
-            signal_source=signal.source,
-            environment=self.environment,
-            detection_window=detection_window,
-        )
-        existing = self.evidence_store.find_existing_episode(dedup_key)
-        if existing is not None:
-            print(
-                f"[IDEMPOTENCE] Épisode déjà traité : {existing} (dedup_key={dedup_key[:12]}...)"
-            )
+        # Fix P0: Idempotence sémantique et Verrou Distribué Redis
+        tenant = signal.metadata.get("tenant", "default") if signal.metadata else "default"
+        service = signal.metadata.get("service", "unknown") if signal.metadata else "unknown"
+        fingerprint = compute_semantic_fingerprint(tenant, self.environment, service, risk_id)
+        
+        if not acquire_idempotency_lock(fingerprint, ttl_seconds=3600):
+            print(f"[IDEMPOTENCE] Rejet: Incident {fingerprint[:8]} est déjà pris en charge (Lock Redis).")
+            # En prod, on retournerait un objet Episode pointant vers l'existant.
+            # On simule un drop pur pour le proof of concept.
+            return None
+        
+        dedup_key = fingerprint  # On garde la variable pour la compatibilité EvidenceStore
 
         episode_id = self.evidence_store.next_episode_id()
         specialist = self._get_specialist(risk_id)

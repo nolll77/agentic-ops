@@ -4,6 +4,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from agentic_ops.core.evidence import EvidenceStore
 from agentic_ops.core.contracts import ActionProposal, Decision, DecisionEnum
+from agentic_ops.core.distributed import RedisClient
 from agentic_ops.core.telemetry import POLICY_DECISIONS, SHADOW_POLICY_DIVERGENCES
 
 class PolicyEngine:
@@ -64,31 +65,25 @@ class PolicyEngine:
                 if not is_shadow: POLICY_DECISIONS.labels(decision="REQUIRE_APPROVAL", action_type=action_name).inc()
                 return Decision(decision=DecisionEnum.REQUIRE_APPROVAL, matched_rule=action_name, reason_codes=["blast_radius_exceeded"])
                 
-        # Conditions de Rate Limiting
+        # Conditions de Rate Limiting Atomique (Redis INCR) Fix P0 Audit
         if "rate_limit" in conditions:
             limit_str = conditions["rate_limit"]
             if limit_str.endswith("/hour"):
                 try:
                     max_count = int(limit_str.split("/")[0])
-                    cutoff = datetime.utcnow() - timedelta(hours=1)
-                    recent_count = 0
-                    for file_path in self.evidence_store.store_dir.glob("*.json"):
-                        if file_path.name == "_index.json": continue
-                        try:
-                            import json
-                            with open(file_path, "r") as f:
-                                ep = json.load(f)
-                            if ep.get("action_proposal", {}).get("type") == action_name:
-                                ep_time_str = ep.get("timestamp_utc", "")
-                                ep_time = datetime.fromisoformat(ep_time_str.replace('Z', '+00:00').split('+')[0])
-                                if ep_time > cutoff and ep.get("policy_evaluation", {}).get("decision") == "ALLOW":
-                                    recent_count += 1
-                        except Exception:
-                            pass
-                            
-                    if recent_count >= max_count:
+                    redis = RedisClient.get_client()
+                    
+                    # Clé granulaire (idéalement enrichie avec namespace/cibles)
+                    rl_key = f"ratelimit:{action_name}:global"
+                    
+                    # INCR atomique
+                    current = redis.incr(rl_key)
+                    if current == 1:
+                        redis.expire(rl_key, 3600)  # Expire dans 1 heure
+                        
+                    if current > max_count:
                         if not is_shadow: POLICY_DECISIONS.labels(decision="REQUIRE_APPROVAL", action_type=action_name).inc()
-                        return Decision(decision=DecisionEnum.REQUIRE_APPROVAL, matched_rule=action_name, reason_codes=["rate_limit_exceeded"])
+                        return Decision(decision=DecisionEnum.REQUIRE_APPROVAL, matched_rule=action_name, reason_codes=["rate_limit_exceeded_atomic"])
                 except ValueError:
                     pass
 
