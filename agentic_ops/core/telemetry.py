@@ -1,10 +1,20 @@
 from prometheus_client import Counter, Gauge
+import logging
+
+logger = logging.getLogger("Telemetry")
+
+# [ALERTE MLOPS] Règle stricte anti-Déni de Service (Audit Scenario 9) :
+# Ne JAMAIS utiliser d'identifiants uniques (UUID, episode_id, timestamp) 
+# comme labels Prometheus. Cela provoquerait une "Cardinality Explosion" 
+# saturant la RAM du serveur de monitoring. Toujours utiliser des valeurs 
+# finies (énumérations, types, statuts).
+
 
 # Définition des métriques MLOps critiques
 INCIDENTS_TOTAL = Counter(
     "agentic_ops_incidents_total",
     "Nombre total d'incidents interceptés par le control plane",
-    ["risk_id", "source"]
+    ["risk_type", "source"]
 )
 
 STATE_TRANSITIONS = Counter(
@@ -22,7 +32,7 @@ POLICY_DECISIONS = Counter(
 LLM_CONFIDENCE = Gauge(
     "agentic_ops_llm_confidence_score",
     "Score de confiance remonté par l'Agent Spécialiste",
-    ["agent_name", "risk_id"]
+    ["agent_name", "risk_type"]
 )
 
 CIRCUIT_BREAKER_STATUS = Gauge(
