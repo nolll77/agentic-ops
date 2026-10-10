@@ -14,7 +14,8 @@ _issue_counter = itertools.count(start=1)
 _issue_counter_lock = Lock()
 
 
-def execute(action: ActionProposal) -> ExecutionResult:
+from typing import Any
+def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
     if action.type.value == "create_issue":
         with _issue_counter_lock:
             n = next(_issue_counter)
@@ -32,6 +33,8 @@ def execute(action: ActionProposal) -> ExecutionResult:
         )
     
     if action.type.value == "promote_model":
+        if registry:
+            registry.promote_model(action.parameters.get("version"))
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.promote_model",
@@ -39,6 +42,8 @@ def execute(action: ActionProposal) -> ExecutionResult:
         )
 
     if action.type.value == "rollback":
+        if registry:
+            registry.rollback_model(action.parameters.get("version"))
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.rollback_model",

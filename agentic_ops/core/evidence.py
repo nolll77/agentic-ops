@@ -38,8 +38,8 @@ class EvidenceStore:
         # Injection du lien cryptographique
         episode["previous_hash"] = previous_hash
         
-        # Sérialisation canonique (tri des clés, pas d'espaces)
-        canonical_json = json.dumps(episode, sort_keys=True, separators=(',', ':'))
+        # Sérialisation canonique via crypto
+        canonical_json = get_canonical_json(episode)
         
         # Hachage SHA-256
         current_hash = hashlib.sha256(canonical_json.encode('utf-8')).hexdigest()
@@ -67,8 +67,8 @@ class EvidenceStore:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 ep = json.load(f)
-            stored_hash = ep.get("episode_hash")
-            ep.pop("episode_hash", None)
+            stored_hash = ep.get("hash")
+            ep.pop("hash", None)
             ep.pop("cryptographic_signature", None)
             from agentic_ops.core.crypto import get_canonical_json
             canonical = get_canonical_json(ep)

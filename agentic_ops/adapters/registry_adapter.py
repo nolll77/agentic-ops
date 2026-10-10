@@ -10,6 +10,8 @@ class ModelRegistryAdapter(Protocol):
     def get_model(self, version_id: str) -> Optional[ModelVersion]: ...
     def validate_promotion(self, version_id: str) -> bool: ...
 
+
+
     def _deactivate_current(self):
         if self.active_version_id and self.active_version_id in self._store:
             self._store[self.active_version_id].deployment_status = ModelDeploymentStatusEnum.DEPLOYED
@@ -47,6 +49,8 @@ class SimulatedModelRegistry:
             
         mv.registry_status = ModelRegistryStatusEnum.REJECTED
         return False
+
+
 
 
     def _deactivate_current(self):
