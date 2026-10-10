@@ -78,6 +78,43 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
     except Exception as e:
         return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Erreur Kubernetes: {e}")
 
+
+def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
+    # Récupération de l'URL cible depuis les variables de la Sandbox
+    prefect_url = os.environ.get("CAC_MLOPS_PREFECT_URL", "http://100.117.99.62:4200")
+    # L'ID du déploiement Prefect pour le pipeline d'entraînement
+    deployment_id = action.parameters.get("deployment_id", "default_train_id")
+    
+    url = f"{prefect_url}/api/deployments/{deployment_id}/create_flow_run"
+    
+    try:
+        # Envoi physique de l'ordre d'écriture vers le serveur de production (via Tailscale)
+        # Timeout très strict (Fail-Closed en cas de coupure réseau)
+        r = httpx.post(url, json={"state": {"type": "SCHEDULED"}}, timeout=15.0)
+        r.raise_for_status()
+        run_id = r.json().get("id")
+        return ExecutionResult(status="SUCCESS", executor="prefect.retrain", result_ref=str(run_id), details="Pipeline Prefect déclenché avec succès sur le serveur distant.")
+    except Exception as e:
+        return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Échec réseau Tailscale ou API Prefect: {e}")
+
+def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
+    mlflow_url = os.environ.get("CAC_MLOPS_MLFLOW_URL", "http://100.117.99.62:5001")
+    url = f"{mlflow_url}/api/2.0/mlflow/registered-models/alias"
+    
+    # Payload pour promouvoir la version X sous l'alias @Production
+    payload = {
+        "name": "lgbm_accidents",
+        "alias": "Production",
+        "version": str(action.parameters.get("version", "1"))
+    }
+    
+    try:
+        r = httpx.post(url, json=payload, timeout=10.0)
+        r.raise_for_status()
+        return ExecutionResult(status="SUCCESS", executor="mlflow.promote", details="Modèle officiellement promu en @Production sur MLflow.")
+    except Exception as e:
+        return ExecutionResult(status="FAILED", executor="mlflow.promote", details=f"Échec API MLflow: {e}")
+
 def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
     # 1. GitHub Issue
     if action.type.value == "create_issue":
@@ -108,6 +145,21 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
             details=f"Action '{action.type.value}' simulée : aucun effet externe",
         )
     
+
+    # 3. MLOps: Déclenchement de l'entraînement Prefect
+    if action.type.value == "TRIGGER_RETRAINING":
+        if SIMULATION_MODE:
+            return ExecutionResult(status="SIMULATED", executor="local_simulated.prefect", details="Trigger Prefect simulé.")
+        else:
+            return execute_real_prefect_retrain(action)
+
+    # 4. MLOps: Promotion du Modèle MLflow
+    if action.type.value == "PROMOTE_MODEL":
+        if SIMULATION_MODE:
+            return ExecutionResult(status="SIMULATED", executor="local_simulated.mlflow", details="Promotion MLflow simulée.")
+        else:
+            return execute_real_mlflow_promote(action)
+
     if action.type.value == "promote_model":
         if registry:
             success = registry.promote_model(action.parameters.get("version"))
