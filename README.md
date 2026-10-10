@@ -11,78 +11,68 @@ Contrairement aux frameworks d'agents classiques (LangChain, AutoGen) qui privil
 
 ---
 
-## 🏗️ Architecture Globale
+## 🏗️ Architecture Globale (Hexagonale)
 
-Le système repose sur une **Architecture Hexagonale** (Ports & Adapters) couplée à une **Machine à États Finis (FSM)**.
+Le système repose sur une **Architecture Hexagonale** couplée à une **Machine à États Finis (FSM)**.
 
-1. **Orchestrator (FSM)** : Coordonne le cycle de vie strict d'un incident (`SIGNAL_RECEIVED` → `DIAGNOSIS` → `PLANNING` → `APPROVAL` → `EXECUTION` → `RESOLVED`).
-2. **Policy Engine** : Le cerveau de la gouvernance. Évalue chaque proposition d'action de l'IA contre un manifeste YAML strict (`autonomy_policy.yaml`) pour décider si l'action est autorisée, refusée, ou nécessite une approbation humaine.
-3. **Trust Ledger (Evidence Store)** : Le registre cryptographique immuable (WORM). Chaque transition d'état et décision est logguée, hachée, et signée.
-4. **Agent Tools (Sandboxing)** : Outils mis à disposition des LLMs, confinés au niveau de l'OS.
+1. **Orchestrator (FSM)** : Coordonne le cycle de vie strict d'un incident (`DETECTED` → `INVESTIGATING` → `DIAGNOSED` → `PLANNED` → `AWAITING_APPROVAL` / `EXECUTING` → `RESOLVED` / `DENIED`).
+2. **Policy Engine** : Le cerveau de la gouvernance. Évalue chaque proposition d'action contre un manifeste YAML strict (`autonomy_policy.yaml`) pour décider de l'autonomie permise.
+3. **Trust Ledger (Evidence Store)** : Registre cryptographique immuable (WORM). Chaque décision crée un hachage canonique avec chaînage du précédent (Merkle).
+4. **Executor & Model Registry (Simulated)** : Exécute les actions approuvées, modifie strictement le cycle de vie du modèle (`ModelRegistryStatusEnum`, `ModelDeploymentStatusEnum`).
+5. **Agent Tools (Sandboxing)** : Outils mis à disposition des LLMs, confinés au niveau de l'OS avec un timeout implacable.
 
 ---
 
-## 🔥 Fonctionnalités Clés & Sécurité (Hardening)
+## 🔥 Fonctionnalités Clés & Hardening (Red-Teaming)
 
-Ce dépôt a subi un audit architectural offensif (*Red-Teaming*) exhaustif et a été corrigé pour résister aux failles des systèmes distribués critiques.
+Ce dépôt a subi un audit architectural offensif (*Red-Teaming*) exhaustif et a été corrigé avec une politique absolue du "Fail-Closed" sur la chaîne d'exécution.
 
-### 1. Sécurité Distribuée & Concurrence (Redis)
-- **Rate Limiting Atomique** : Limite le nombre d'actions destructrices (ex: `restart_pod: 10/hour`). Utilise des pipelines atomiques Redis (`INCR` + `EXPIRE`) pour garantir qu'aucune *Race Condition* ne survient en environnement multi-réplicas.
-- **Idempotence Sémantique** : L'Orchestrateur utilise des verrous distribués Redis (`SET NX EX`) basés sur l'empreinte sémantique de l'incident (`tenant:env:service:risk_id`). Élimine les risques de double exécution après un crash.
-- **Fail-Closed Governance** : Le `PolicyEngine` parse les règles de sécurité via des schémas Pydantic stricts. La moindre faute de frappe dans le YAML ou l'indisponibilité du cache Redis fait crasher le système (Fail-Safe), empêchant une autorisation par défaut.
+### 1. Gouvernance E2E & Model Registry
+- **Contrôle Strict (Incontournable)** : L'`Orchestrator` gère le cycle de vie MLOps. Si l'action `PROMOTE_MODEL` est classée `REQUIRE_APPROVAL`, l'orchestrateur s'arrête physiquement. **Aucune action n'est soumise à l'exécuteur**.
+- **Réhydratation Asynchrone (HITL)** : L'approbation humaine déclenche `orchestrator.resume_episode()` qui valide cryptographiquement l'approbateur, reprend la machine d'état et transmet l'ordre à l'Exécuteur.
+- **Model Registry Gatekeeping** : L'Exécuteur pilote directement le Registre de Modèle. Ce dernier refuse silencieusement les promotions non valides (ex: F1 < 0.85 ou schéma incompatible), forçant l'Exécuteur à renvoyer un statut `FAILED` détectable (et non un faux `SIMULATED`). Seule une version de modèle peut être `ACTIVE` à la fois.
 
-### 2. Isolation & Sandboxing des Outils
-- **OS-Level Isolation** : L'exécution d'un "Tool" par l'IA ne se fait pas dans un thread, mais dans un sous-processus isolé (`multiprocessing.Process`). 
-- **Timeouts Stricts** : En cas de dépassement, le processus enfant subit un `process.terminate()` implacable, empêchant l'accumulation de tâches bloquées et les fuites de ressources.
-- **K8s RBAC Whitelisting** : L'adaptateur d'exécution Kubernetes bloque toute tentative d'élévation de privilèges (ex: modification du `serviceAccountName`) via une liste blanche stricte de requêtes JSON Patch.
+### 2. Traçabilité Cryptographique (Trust Ledger WORM)
+- **Chaîne de blocs (Previous Hash)** : L'`EvidenceStore` attribue à chaque épisode un `previous_hash` garantissant l'ordonnancement chronologique strict.
+- **Canonicalisation** : L'état complet (Pydantic `mode='json'`) est encodé via `get_canonical_json` avec un hachage SHA-256.
+- **Anti-Falsification (Tamper-Evident)** : Un pirate qui tenterait de forcer l'état WORM (`state_trace` = `APPROVE`) invalidera la signature au sein de `verify_episode()`. Interdiction formelle de réécrire un ID d'épisode localement.
 
-### 3. Traçabilité Cryptographique WORM
-- **Canonicalisation** : Tous les événements (Episodes) sont sérialisés de manière canonique (`sort_keys=True`).
-- **Signature KMS Asymétrique** : Les historiques d'incidents sont signés cryptographiquement (`HMAC-SHA512`) avec une clé privée.
-- **WORM Abstraction** : Conçu pour s'interfacer avec AWS S3 Object Lock ou GCP Retention Policy. Il est mathématiquement impossible de forger ou d'altérer l'historique des actions de l'IA sans invalider la chaîne.
+### 3. Sécurité Distribuée & Concurrence (Redis)
+- **Rate Limiting Atomique** : Limite le nombre d'actions destructrices via pipelines atomiques Redis (`INCR` + `EXPIRE`). Aucune *Race Condition* en multi-réplicas.
+- **Idempotence Sémantique** : Verrous distribués Redis (`SET NX EX`) basés sur l'empreinte sémantique (`tenant:env:service:risk_id`). Élimine les doubles exécutions.
+- **Webhook Slack Sécurisé** : L'approbation humaine via Slack (Block Kit) exige la validation cryptographique `HMAC-SHA256` et bloque les requêtes âgées de plus de 5 minutes (Anti Replay-Attack).
 
-### 4. Human-In-The-Loop (HITL) Asynchrone
-- **Webhook Slack Sécurisé** : L'approbation humaine asynchrone repose sur un webhook FastAPI qui vérifie cryptographiquement l'origine via `X-Slack-Signature` et `HMAC-SHA256`.
-- **Anti Replay-Attacks** : Blocage des requêtes âgées de plus de 5 minutes.
-- **Allowlist Décisionnelle** : Seules les décisions pures (`APPROVE`, `DENY`) sont acceptées, avec vérification de l'atomicité de la consommation de l'approbation.
-
-### 5. Résilience Financière & Organisationnelle
-- **FinOps Circuit Breaker** : Suivi des appels LLM en temps réel. Coupe l'accès aux API OpenAI/Anthropic en cas de "Monitoring Storm" (ex: Datadog envoie 1000 alertes/min) pour protéger le budget, basculant sur une remédiation déterministe.
-- **Shadow Mode (A/B Testing de Sécurité)** : Possibilité de tester une nouvelle politique de sécurité stricte "à blanc". L'Orchestrateur évalue le `shadow_policy.yaml` en parallèle du manifeste primaire et loggue les divergences sans jamais consommer les quotas de production.
-- **Organizational Memory (RAG)** : L'IA ne devine pas. Elle effectue une recherche vectorielle dans la base des *Runbooks* et des *Post-Mortems* passés de l'entreprise avant de proposer un plan de remédiation.
+### 4. Résilience Financière & Organisationnelle
+- **FinOps Circuit Breaker** : Coupe l'accès aux API LLM en cas de "Monitoring Storm" (ex: boucle infinie d'alertes) pour protéger le budget, basculant sur une remédiation déterministe (`CREATE_ISSUE`).
+- **Shadow Mode (A/B Testing de Sécurité)** : L'Orchestrateur évalue le `shadow_policy.yaml` en parallèle du manifeste primaire et consigne les divergences sans jamais modifier la production.
+- **Isolation d'Exécution OS-Level** : Chaque outil LLM s'exécute dans un processus distinct (`multiprocessing.Process`) avec un Timeout impitoyable évitant l'OOM ou le hanging process.
 
 ---
 
 ## 📊 Télémétrie & Observabilité
 
-L'application expose des métriques de niveau SRE via **Prometheus** :
+Exposition de métriques de niveau SRE via **Prometheus** (sans explosion de cardinalité) :
 - `agentic_ops_fsm_transitions_total` : Suivi de la Machine à États.
 - `agentic_ops_policy_decisions_total` : Ratio des `ALLOW`, `DENY`, et `REQUIRE_APPROVAL`.
 - `agentic_ops_circuit_breaker_status` : Déclenchement du coupe-circuit FinOps.
-*(Note : Conception stricte évitant la Cardinality Explosion. Aucun UUID n'est passé en label).*
 
 ---
 
-## 🚀 Installation & Utilisation
+## 🚀 Installation & Tests (E2E Validation)
 
 ```bash
-# 1. Cloner et préparer l'environnement
+# 1. Préparation de l'environnement
 git clone https://github.com/nolll77/agentic-ops.git
 cd agentic-ops-core
 uv venv .venv
 source .venv/bin/activate
 uv pip install -e .
 
-# 2. Exécuter la suite de régression de sécurité (Red-Team)
-PYTHONPATH=. pytest tests/security/
+# 2. Exécuter l'Intégration Continue de Sécurité E2E (Red-Team)
+PYTHONPATH=. pytest tests/
+# > Vérifie l'immutabilité WORM, le Fail-Closed de la Gouvernance, 
+# > et l'incapacité de contournement de l'Orchestrateur.
 
 # 3. Lancer la TUI d'Audit du Trust Ledger
 python -m agentic_ops.cli.trust_ledger list
 ```
-
-## 🛡️ Tests de Sécurité (Test-Driven Security)
-
-La robustesse de ce Control Plane est vérifiée par une **Security Regression Suite** dédiée (`tests/security/`), issue d'un audit de Red-Teaming, incluant :
-- Détection des falsifications d'Evidence Store (`test_episode_tampering_is_detectable`).
-- Invariants de concurrence locale sur l'Exécuteur.
-- Comportement Fail-Closed du moteur de gouvernance.
