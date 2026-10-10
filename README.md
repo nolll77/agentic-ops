@@ -214,6 +214,42 @@ flowchart TD
 > Si vous souhaitez voir concrètement comment `Agentic-Ops` se branche en tant que "cerveau" sur une plateforme MLOps d'exécution mature (comme le projet `cac_mlops`), consultez le guide dédié : **[Guide d'Intégration Spécifique : Agentic-Ops 🤝 CAC MLOps](INTEGRATION_CAC_MLOPS.md)**.
 > Ce document montre étape par étape comment relier les alertes Grafana, la lecture MLflow et l'exécution Prefect/Kubernetes.
 
+
+### Liste des Actions Physiques (Pouvoirs de Mutation)
+
+Le module d'exécution (`Executor`) est le seul composant autorisé à réaliser des écritures. Ces actions sont strictement soumises à la désactivation du mode simulation (`SIMULATION_MODE=False`) et à l'approbation humaine (si requise par la politique).
+
+#### 1. Intégration Code & Audit (API GitHub)
+*Action d'alerte et de traçabilité asynchrone.*
+- **Action ciblée** : `CREATE_ISSUE`
+- **Mécanisme** : Forge une requête HTTP POST sécurisée avec un Token d'accès vers l'API de GitHub.
+- **Résultat** : Crée instantanément un ticket de remédiation (Issue) sur le dépôt distant, taggé avec `mlops-incident`, détaillant le diagnostic de l'Agent.
+
+#### 2. Remédiation d'Infrastructure (API Kubernetes)
+*Action de protection d'urgence (Coupe-circuit).*
+- **Action ciblée** : `SCALE_TO_ZERO`
+- **Mécanisme** : Utilise le client officiel Python `kubernetes` pour se connecter au cluster de production et patcher le déploiement d'un pod.
+- **Sécurité Fail-Closed** : L'exécuteur est bridé par une *Whitelist*. Il refusera formellement d'altérer un namespace ou un conteneur non explicitement autorisé.
+- **Résultat** : Éteint totalement une API de prédiction défaillante pour stopper une hémorragie de mauvaises décisions, avec une vérification *Read-After-Write* post-exécution.
+
+#### 3. Orchestration MLOps (API Prefect via Tunnel)
+*Action de ré-entraînement.*
+- **Action ciblée** : `TRIGGER_RETRAINING`
+- **Mécanisme** : Cible l'infrastructure distante via le réseau superposé (ex: Tailscale) et envoie un appel formel `POST /api/deployments/{id}/create_flow_run`.
+- **Résultat** : Force l'orchestrateur distant à lancer le pipeline d'ingestion de données et de réentraînement du modèle d'apprentissage automatique.
+
+#### 4. Promotion de Modèle (API MLflow via Tunnel)
+*Action de mise en production.*
+- **Action ciblée** : `PROMOTE_MODEL`
+- **Mécanisme** : Interagit avec l'API REST du Model Registry (`POST /api/2.0/mlflow/registered-models/alias`) via le réseau superposé.
+- **Résultat** : Assigne l'alias `@Production` à un nouveau modèle candidat, déclenchant ainsi le basculement du trafic d'inférence.
+
+#### Actions en mode "Dry-Run" (Simulées)
+Certaines actions exploratoires ou à risque asymétrique sont maintenues en simulation stricte (journalisées dans le registre WORM sans exécution réseau) :
+- `ROLLBACK` : Rétrograder une version d'image ou de modèle.
+- `INVESTIGATE` : Consigner formellement une enquête sans altération.
+
+
 ## 🚀 Installation & Tests (E2E Validation)
 
 ```bash
