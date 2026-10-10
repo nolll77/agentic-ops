@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  agentic-ops:
+    build: .
+    container_name: agentic-ops-sandbox
+    network_mode: "host" # Indispensable pour que le conteneur voie l'interface Tailscale (tun0) de votre Mac
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - CAC_MLOPS_API_URL=http://100.117.99.62:8000
+      - CAC_MLOPS_PREFECT_URL=http://100.117.99.62:4200
+      - CAC_MLOPS_MLFLOW_URL=http://100.117.99.62:5001
+      - REDIS_HOST=127.0.0.1
+      - REDIS_PORT=6379
+      - SLACK_SIGNING_SECRET=votre_secret_slack_super_interne # À remplacer par le vrai secret Slack
+    volumes:
+      - ./state:/app/state # Persistance locale du Trust Ledger WORM
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentic-ops-redis
+    network_mode: "host" # Partage le même localhost que l'agent
+    restart: unless-stopped
