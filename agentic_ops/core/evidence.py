@@ -62,3 +62,17 @@ class EvidenceStore:
             json.dump(index, f, indent=2)
             
         return str(file_path)
+
+    def verify_episode(self, file_path: str) -> bool:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                ep = json.load(f)
+            stored_hash = ep.get("episode_hash")
+            ep.pop("episode_hash", None)
+            ep.pop("cryptographic_signature", None)
+            from agentic_ops.core.crypto import get_canonical_json
+            canonical = get_canonical_json(ep)
+            calculated = hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+            return calculated == stored_hash
+        except Exception:
+            return False

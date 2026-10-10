@@ -6,15 +6,18 @@ Remplacer par github_tools.create_issue() en Phase 3.
 from __future__ import annotations
 
 import itertools
+from threading import Lock
 
 from agentic_ops.core.contracts import ActionProposal, ExecutionResult
 
 _issue_counter = itertools.count(start=1)
+_issue_counter_lock = Lock()
 
 
 def execute(action: ActionProposal) -> ExecutionResult:
     if action.type.value == "create_issue":
-        n = next(_issue_counter)
+        with _issue_counter_lock:
+            n = next(_issue_counter)
         return ExecutionResult(
             status="SUCCESS",
             executor="local_simulated.create_issue",

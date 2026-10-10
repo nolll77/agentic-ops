@@ -10,6 +10,9 @@ import logging
 logger = logging.getLogger("PolicyEngine")
 from agentic_ops.core.telemetry import POLICY_DECISIONS, SHADOW_POLICY_DIVERGENCES
 
+class PolicyUnavailable(RuntimeError):
+    pass
+
 class PolicyEngine:
     """Moteur déterministe granulaire avec support du mode Shadow (A/B testing)."""
     
@@ -104,7 +107,7 @@ class PolicyEngine:
                             return Decision(decision=DecisionEnum.DENY, matched_rule=action_name, reason_codes=["rate_limit_exceeded_hard_cap"])
                 except Exception as e:
                     logger.error(f"Erreur évaluation quota: {e}")
-                    return Decision(decision=DecisionEnum.DENY, matched_rule=action_name, reason_codes=["rate_limit_system_unavailable"])
+                    raise PolicyUnavailable("Rate-limit backend unavailable") from e
 
         # Arbitrage selon le niveau d'autonomie
         if autonomy_level == "autonomous":
