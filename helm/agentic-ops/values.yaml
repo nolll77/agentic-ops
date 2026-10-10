@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: nolll77/agentic-ops
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  name: "agentic-ops-sa"
+
+# RBAC Permissions for the KubernetesExecutionAdapter
+rbac:
+  create: true
+  # Set to true if the agent needs cluster-wide access instead of namespace-scoped
+  clusterRole: false
+  rules:
+    - apiGroups: ["", "apps"]
+      resources: ["pods", "deployments"]
+      verbs: ["get", "list", "watch", "patch", "update"]
+
+env:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  # Keys will be injected via Secret in a real deployment
+  # DATADOG_API_KEY: ""
+  # OPENAI_API_KEY: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
