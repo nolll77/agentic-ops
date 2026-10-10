@@ -24,3 +24,8 @@ LLM_CONFIDENCE = Gauge(
     "Score de confiance remonté par l'Agent Spécialiste",
     ["agent_name", "risk_id"]
 )
+
+CIRCUIT_BREAKER_STATUS = Gauge(
+    'agentic_ops_circuit_breaker_status',
+    'Statut du Circuit Breaker FinOps (0=OK, 1=Tripped)'
+)

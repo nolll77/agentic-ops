@@ -20,6 +20,10 @@ from agentic_ops.core.state import StateMachine
 from agentic_ops.runtime import executor as executor_module
 
 from agentic_ops.adapters.protocol import ObservabilityAdapter
+from agentic_ops.core.circuit_breaker import global_circuit_breaker
+from agentic_ops.core.telemetry import CIRCUIT_BREAKER_STATUS
+from agentic_ops.core.contracts import Diagnosis, Finding
+
 
 
 class Orchestrator:
@@ -77,9 +81,24 @@ class Orchestrator:
         # INVESTIGATING
         sm.transition("INVESTIGATING")
         print(f"[{sm.current}] specialist = {specialist.name}")
-
-        # DIAGNOSED
-        diagnosis = specialist.diagnose(risk_id, signal)
+        
+        # SecOps / FinOps Circuit Breaker Check
+        global_circuit_breaker.record_call()
+        CIRCUIT_BREAKER_STATUS.set(1 if global_circuit_breaker.is_tripped() else 0)
+        
+        if global_circuit_breaker.is_tripped():
+            diagnosis = Diagnosis(
+                risk_id=risk_id,
+                agent="CIRCUIT_BREAKER_FALLBACK",
+                confidence=1.0,
+                findings=[Finding(description="LLM Circuit Breaker activé. Mode dégradé.")]
+            )
+            forced_action = ActionType.CREATE_ISSUE
+            print("[CIRCUIT BREAKER] Mode dégradé forcé : CREATE_ISSUE")
+        else:
+            # DIAGNOSED
+            diagnosis = specialist.diagnose(risk_id, signal)
+            
         sm.transition("DIAGNOSED")
         print(f"[{sm.current}] {diagnosis.findings[0].description}")
 
