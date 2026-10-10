@@ -120,7 +120,7 @@ class Orchestrator:
         if forced_action is not None:
             action_type = forced_action
             action = ActionProposal(
-                type=action_type,
+                type=action_type, target="unknown",
                 risk_id=risk_id,
                 requested_by=specialist.name,
                 reversible=action_type
