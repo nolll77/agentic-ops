@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 from agentic_ops.core.evidence import EvidenceStore
 from agentic_ops.core.contracts import ActionProposal, Decision, DecisionEnum
 from agentic_ops.core.distributed import RedisClient
+from agentic_ops.core.governance_schemas import PolicyManifest
+import logging
+logger = logging.getLogger("PolicyEngine")
 from agentic_ops.core.telemetry import POLICY_DECISIONS, SHADOW_POLICY_DIVERGENCES
 
 class PolicyEngine:
@@ -23,10 +26,20 @@ class PolicyEngine:
         
     def _load_policies(self, path: Path) -> dict:
         if not path.exists():
+            logger.warning(f"Fichier de politique manquant: {path}")
             return {}
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-            return data.get("rules", {})
+        try:
+            with open(path, "r") as f:
+                data = yaml.safe_load(f)
+                
+            # [ALERTE MLOPS] Validation Pydantic Stricte (Crash-Early)
+            manifest = PolicyManifest.model_validate(data)
+            return {k: v.model_dump() for k, v in manifest.rules.items()}
+            
+        except Exception as e:
+            logger.critical(f"🚨 ERREUR FATALE DE GOUVERNANCE: Le fichier {path} est invalide.")
+            logger.critical(str(e))
+            raise RuntimeError(f"Fail-Safe: Arrêt du Control Plane. Politique de sécurité corrompue ({path}).") from e
 
     def evaluate(self, action: ActionProposal) -> Decision:
         # 1. Évaluation Primaire (Celle qui sera appliquée)
