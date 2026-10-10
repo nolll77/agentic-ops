@@ -39,6 +39,8 @@ class DecisionEnum(str, Enum):
 class Decision(BaseModel):
     decision: DecisionEnum
     matched_rule: str
+    shadow_decision: Optional[str] = None
+    shadow_divergence: bool = False
     reason_codes: List[str] = Field(default_factory=list)
 
 class Finding(BaseModel):

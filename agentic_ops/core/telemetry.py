@@ -29,3 +29,9 @@ CIRCUIT_BREAKER_STATUS = Gauge(
     'agentic_ops_circuit_breaker_status',
     'Statut du Circuit Breaker FinOps (0=OK, 1=Tripped)'
 )
+
+SHADOW_POLICY_DIVERGENCES = Counter(
+    'agentic_ops_shadow_policy_divergences_total',
+    'Divergences détectées entre la policy Primaire et la Shadow Policy',
+    ['action_type', 'primary_decision', 'shadow_decision']
+)

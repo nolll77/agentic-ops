@@ -1,0 +1,23 @@
+policy_version: "v2.0_experimental"
+rules:
+  investigate:
+    autonomy: autonomous
+  create_issue:
+    autonomy: autonomous
+    conditions:
+      blast_radius_max: 2
+  propose_retrain:
+    autonomy: autonomous
+  execute_retrain:
+    autonomy: human_approval_required
+  deploy_staging:
+    autonomy: human_approval_required
+  deploy_prod:
+    autonomy: human_approval_required
+  rollback_prod:
+    autonomy: human_approval_required
+  database_write:
+    autonomy: human_approval_required
+  restart_pod:
+    # SHADOW MODE: We test degrading restart_pod to human approval
+    autonomy: human_approval_required
