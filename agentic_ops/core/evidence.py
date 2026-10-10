@@ -2,6 +2,7 @@ import json
 import os
 import hashlib
 from datetime import datetime
+from agentic_ops.core.crypto import get_canonical_json, sign_payload
 from pathlib import Path
 from typing import Dict, Any
 
