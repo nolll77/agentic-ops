@@ -12,9 +12,9 @@ rules:
     autonomy: human_approval_required
   deploy_staging:
     autonomy: human_approval_required
-  deploy_prod:
+  promote_model:
     autonomy: human_approval_required
-  rollback_prod:
+  rollback:
     autonomy: human_approval_required
   database_write:
     autonomy: human_approval_required

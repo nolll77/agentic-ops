@@ -16,6 +16,7 @@ class ActionType(str, Enum):
     RESTART_POD = "restart_pod"
     SCALE_UP = "scale_up"
     ROLLBACK = "rollback"
+    PROMOTE_MODEL = "promote_model"
 
 class ActionProposal(BaseModel):
     type: ActionType
@@ -64,3 +65,23 @@ class Episode(BaseModel):
     policy_evaluation: Decision
     human_approval_required: bool
     execution: Optional[ExecutionResult] = None
+
+
+class ModelRegistryStatusEnum(str, Enum):
+    REGISTERED = "REGISTERED"
+    VALIDATED = "VALIDATED"
+    REJECTED = "REJECTED"
+    ARCHIVED = "ARCHIVED"
+
+class ModelDeploymentStatusEnum(str, Enum):
+    CANDIDATE = "CANDIDATE"
+    DEPLOYED = "DEPLOYED"
+    ACTIVE = "ACTIVE"
+    FAILED = "FAILED"
+
+class ModelVersion(BaseModel):
+    version_id: str
+    metrics: Dict[str, float]
+    schema_compatible: bool
+    registry_status: ModelRegistryStatusEnum = ModelRegistryStatusEnum.REGISTERED
+    deployment_status: ModelDeploymentStatusEnum = ModelDeploymentStatusEnum.CANDIDATE
