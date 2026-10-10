@@ -1,0 +1,28 @@
+{
+  "episode_id": "EP-CHAOS-d6c18601",
+  "timestamp_utc": "2026-10-09T21:14:11.267867",
+  "mode": "SHADOW",
+  "risk_id": "INFRA-001",
+  "signal": {
+    "source": "datadog.healthcheck",
+    "status": "FAIL",
+    "latency_ms": 5000
+  },
+  "diagnosis": {
+    "agent": "specialist_mock",
+    "confidence": 0.95,
+    "findings": [
+      "Signal critique re\u00e7u depuis datadog.healthcheck",
+      "PostgreSQL timeout d\u00e9tect\u00e9, r\u00e9plica injoignable."
+    ]
+  },
+  "action_proposal": {
+    "type": "create_issue",
+    "reversible": true
+  },
+  "policy_evaluation": {
+    "decision": "DENY",
+    "reason": "SHADOW_MODE_ACTIVE"
+  },
+  "ground_truth_matched": true
+}

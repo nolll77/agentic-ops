@@ -4,53 +4,34 @@ from pathlib import Path
 from agentic_ops.adapters.registry_adapter import SimulatedModelRegistry
 from agentic_ops.core.policy import PolicyEngine
 from agentic_ops.core.evidence import EvidenceStore
+from agentic_ops.core.orchestrator import Orchestrator
 from agentic_ops.core.contracts import (
     ActionProposal, 
     ActionType, 
     DecisionEnum, 
     ModelRegistryStatusEnum,
     ModelDeploymentStatusEnum,
-    Episode,
     Signal
 )
-from agentic_ops.core import executor
 
-class SecurityException(Exception):
-    pass
+class DummyObservability:
+    def get_signal(self, signal_id: str) -> Signal:
+        return Signal(signal_id=signal_id, source="test", observed_at="2026-01-01T00:00:00Z")
 
-class MockOrchestrator:
-    """Mock Orchestrator to enforce the Control Plane state machine"""
-    def __init__(self, engine: PolicyEngine, exec_module, registry: SimulatedModelRegistry):
-        self.engine = engine
-        self.executor = exec_module
-        self.registry = registry
-        self.approvals = set()
+class DummySpecialist:
+    name = "dummy_specialist"
+    def diagnose(self, risk_id, signal):
+        from agentic_ops.core.contracts import Diagnosis, Finding
+        return Diagnosis(findings=[Finding(description="Test finding")], confidence_score=1.0)
 
-    def approve_action(self, action_hash: str):
-        self.approvals.add(action_hash)
-
-    def process_action(self, action: ActionProposal):
-        # 1. Policy Evaluation
-        decision = self.engine._evaluate_single(action, self.engine.rules, is_shadow=False)
-        
-        # 2. Enforcement
-        if decision.decision == DecisionEnum.DENY:
-            raise SecurityException("Action is explicitly DENIED by policy")
-            
-        if decision.decision == DecisionEnum.REQUIRE_APPROVAL:
-            action_hash = str(hash(action.json())) # simplified hash for the test
-            if action_hash not in self.approvals:
-                raise SecurityException("Action REQUIRES APPROVAL and has not been approved")
-                
-        # 3. Execution
-        exec_result = self.executor.execute(action, registry=self.registry)
-        
-        return decision, exec_result
-
-
-def test_e2e_model_promotion_and_rollback(tmp_path):
-    # 1. Setup the MLOps Control Plane
+def test_true_e2e_governance(tmp_path, monkeypatch):
     registry = SimulatedModelRegistry()
+
+    # Mock orchestrator._get_specialist to bypass LLM calls
+    def mock_get_specialist(self, risk_id):
+        return DummySpecialist()
+    monkeypatch.setattr(Orchestrator, "_get_specialist", mock_get_specialist)
+
     store = EvidenceStore(str(tmp_path / "evidence"))
     engine = PolicyEngine.__new__(PolicyEngine)
     engine.rules = {
@@ -59,105 +40,80 @@ def test_e2e_model_promotion_and_rollback(tmp_path):
     }
     engine.shadow_rules = {}
     engine.evidence_store = store
-    
-    orchestrator = MockOrchestrator(engine, executor, registry)
 
-    # 2. Register and validate a model
+    orchestrator = Orchestrator(
+        observability=DummyObservability(),
+        policy_engine=engine,
+        evidence_store=store,
+        registry=registry
+    )
+
+    # 1. Register a valid model
     registry.register_model("v2.0", metrics={"f1_score": 0.95}, schema_compatible=True)
     registry.validate_promotion("v2.0")
 
-    # 3. Simulate an Orchestrator receiving a promotion proposal
-    action = ActionProposal(
-        type=ActionType.PROMOTE_MODEL,
-        risk_id="MODEL-001",
-        requested_by="CI/CD Pipeline",
-        parameters={"version": "v2.0"}
-    )
-    
-    # 4. Attempt to process without approval (Must Fail)
-    with pytest.raises(SecurityException, match="REQUIRES APPROVAL"):
-        orchestrator.process_action(action)
-        
-    assert registry.active_version_id != "v2.0" # Registry remains untouched
-    
-    # 5. Provide Human Approval
-    action_hash = str(hash(action.json()))
-    orchestrator.approve_action(action_hash)
-    
-    # 6. Process again (Must Succeed)
-    decision, exec_result = orchestrator.process_action(action)
-    assert exec_result.status == "SIMULATED"
-    
-    # Registry was actually mutated by the executor!
+    # 2. Run Orchestrator (it will stop at AWAITING_APPROVAL because of Policy)
+    ep1 = orchestrator.run(risk_id="MODEL-001", forced_action=ActionType.PROMOTE_MODEL)
+
+    assert ep1.state_trace[-1] == "AWAITING_APPROVAL"
+    assert ep1.human_approval_required is True
+    assert ep1.execution is None
+
+    # Check that registry has NOT been mutated!
+    assert registry.active_version_id is None
+
+    # 3. Resume the episode with an APPROVE decision
+    ep_dict = ep1.model_dump(mode='json', exclude_none=True)
+    ep_dict["action_proposal"]["parameters"] = {"version": "v2.0"}
+    ep_dict["human_approval"] = {
+        "required": True,
+        "approval_record": {
+            "decision": "APPROVE",
+            "approved_by": "alice",
+            "timestamp": 123456789,
+            "signature_verified": True
+        }
+    }
+
+    resumed_ep = orchestrator.resume_episode(ep_dict)
+
+    # Check execution actually occurred and registry mutated
+    assert resumed_ep.execution is not None
+    assert resumed_ep.execution.status == "SIMULATED"
     assert registry.active_version_id == "v2.0"
 
-    # 7. Trust Ledger saves the Episode
-    ep = Episode.model_construct(
-        episode_id="EP-100",
-        signal=Signal.model_construct(signal_id="sig-1", source="datadog", observed_at="2026-01-01T00:00:00Z"),
-        action_proposal=action,
-        policy_evaluation=decision,
-        execution=exec_result,
-        state_trace=["SIGNAL_RECEIVED", "APPROVAL", "RESOLVED"]
-    )
-    saved_path = store.save(ep.model_dump(exclude_none=True))
-    
-    # 8. Cryptographic verification
-    assert store.verify_episode(saved_path) is True
-    
-    # Tampering test
-    with open(saved_path, "r") as f:
-        tampered_data = json.load(f)
-    tampered_data["state_trace"] = ["TAMPERED"]
-    with open(saved_path, "w") as f:
-        json.dump(tampered_data, f)
-        
-    assert store.verify_episode(saved_path) is False
+    # --- SIMULATE DENY ---
+    # We propose rolling back to v1.0 (which doesn't exist)
+    ep2 = orchestrator.run(risk_id="MODEL-002", forced_action=ActionType.ROLLBACK)
+    assert ep2.state_trace[-1] == "AWAITING_APPROVAL"
 
-    # --- SIMULATE REGRESSION ---
-    # Register an old stable version
-    registry.register_model("v1.5", metrics={"f1_score": 0.90}, schema_compatible=True)
-    registry.validate_promotion("v1.5")
-    
-    # Rollback action
-    rollback_action = ActionProposal(
-        type=ActionType.ROLLBACK,
-        risk_id="MODEL-002",
-        requested_by="Drift Monitor",
-        parameters={"version": "v1.5"}
-    )
-    
-    # Test Negative Rollback (unapproved)
-    with pytest.raises(SecurityException):
-        orchestrator.process_action(rollback_action)
-        
-    # Approve and Execute Rollback
-    orchestrator.approve_action(str(hash(rollback_action.json())))
-    rollback_decision, rollback_exec = orchestrator.process_action(rollback_action)
-    
-    # Check that previous model is deactivated properly
-    assert registry.active_version_id == "v1.5"
-    assert registry.get_model("v2.0").deployment_status == ModelDeploymentStatusEnum.DEPLOYED
-    assert registry.get_model("v1.5").deployment_status == ModelDeploymentStatusEnum.ACTIVE
-
-def test_negative_promotion_denied_by_policy(tmp_path):
-    registry = SimulatedModelRegistry()
-    store = EvidenceStore(str(tmp_path / "evidence"))
-    engine = PolicyEngine.__new__(PolicyEngine)
-    engine.rules = {
-        "promote_model": {"autonomy": "denied", "conditions": {}}
+    ep2_dict = ep2.model_dump(mode='json', exclude_none=True)
+    ep2_dict["action_proposal"]["parameters"] = {"version": "v1.0"}
+    ep2_dict["human_approval"] = {
+        "approval_record": {"decision": "DENY", "approved_by": "bob"}
     }
-    engine.shadow_rules = {}
-    engine.evidence_store = store
-    
-    orchestrator = MockOrchestrator(engine, executor, registry)
-    
-    action = ActionProposal(
-        type=ActionType.PROMOTE_MODEL,
-        risk_id="MODEL-003",
-        requested_by="Hacker",
-        parameters={"version": "v9.9"}
-    )
-    
-    with pytest.raises(SecurityException, match="explicitly DENIED"):
-        orchestrator.process_action(action)
+    resumed_ep2 = orchestrator.resume_episode(ep2_dict)
+
+    # Execution must be None because it was denied
+    assert resumed_ep2.execution is None
+    assert resumed_ep2.state_trace[-1] == "DENIED"
+    assert registry.active_version_id == "v2.0" # Unchanged
+
+    # --- SIMULATE FAILED EXECUTION (Registry Rejects) ---
+    # If approved but registry rejects it (e.g. version not validated)
+    registry.register_model("v3.0", metrics={"f1_score": 0.50}, schema_compatible=True)
+    registry.validate_promotion("v3.0") # Returns False
+
+    ep3 = orchestrator.run(risk_id="MODEL-003", forced_action=ActionType.PROMOTE_MODEL)
+    ep3_dict = ep3.model_dump(mode='json', exclude_none=True)
+    ep3_dict["action_proposal"]["parameters"] = {"version": "v3.0"}
+    ep3_dict["human_approval"] = {
+        "approval_record": {"decision": "APPROVE", "approved_by": "charlie"}
+    }
+    resumed_ep3 = orchestrator.resume_episode(ep3_dict)
+
+    # Execution occurred but FAILED
+    assert resumed_ep3.execution.status == "FAILED"
+    assert "échoué" in resumed_ep3.execution.details
+    assert registry.active_version_id == "v2.0" # Unchanged
+

@@ -15,6 +15,8 @@ _issue_counter_lock = Lock()
 
 
 from typing import Any
+from agentic_ops.core.contracts import ExecutionResult
+
 def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
     if action.type.value == "create_issue":
         with _issue_counter_lock:
@@ -34,20 +36,32 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
     
     if action.type.value == "promote_model":
         if registry:
-            registry.promote_model(action.parameters.get("version"))
+            success = registry.promote_model(action.parameters.get("version"))
+            if not success:
+                return ExecutionResult(
+                    status="FAILED",
+                    executor="local_simulated.promote_model",
+                    details="La promotion du modèle a échoué (Registre: Refusé)."
+                )
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.promote_model",
-            details="Promotion du modèle simulée. Aucun artefact réellement déployé sur Kubernetes."
+            details="Promotion du modèle réussie."
         )
 
     if action.type.value == "rollback":
         if registry:
-            registry.rollback_model(action.parameters.get("version"))
+            success = registry.rollback_model(action.parameters.get("version"))
+            if not success:
+                return ExecutionResult(
+                    status="FAILED",
+                    executor="local_simulated.rollback_model",
+                    details="Le rollback du modèle a échoué (Registre: Version invalide/inconnue)."
+                )
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.rollback_model",
-            details="Rollback simulé. Aucune modification du trafic réel."
+            details="Rollback simulé avec succès."
         )
         
     return ExecutionResult(

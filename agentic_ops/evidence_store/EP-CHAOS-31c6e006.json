@@ -1,0 +1,27 @@
+{
+  "episode_id": "EP-CHAOS-31c6e006",
+  "timestamp_utc": "2026-10-09T21:14:11.270935",
+  "mode": "SHADOW",
+  "risk_id": "MODEL-005",
+  "signal": {
+    "source": "mlflow.model_registry",
+    "days_since_train": 45
+  },
+  "diagnosis": {
+    "agent": "specialist_mock",
+    "confidence": 0.95,
+    "findings": [
+      "Signal critique re\u00e7u depuis mlflow.model_registry",
+      "Staleness d\u00e9tect\u00e9. Mod\u00e8le obsol\u00e8te."
+    ]
+  },
+  "action_proposal": {
+    "type": "propose_retrain",
+    "reversible": true
+  },
+  "policy_evaluation": {
+    "decision": "DENY",
+    "reason": "SHADOW_MODE_ACTIVE"
+  },
+  "ground_truth_matched": true
+}

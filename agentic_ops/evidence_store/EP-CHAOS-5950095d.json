@@ -1,0 +1,28 @@
+{
+  "episode_id": "EP-CHAOS-5950095d",
+  "timestamp_utc": "2026-10-09T21:14:11.269002",
+  "mode": "SHADOW",
+  "risk_id": "DATA-042",
+  "signal": {
+    "source": "evidently.drift_monitor",
+    "psi_score": 0.35,
+    "feature": "age"
+  },
+  "diagnosis": {
+    "agent": "specialist_mock",
+    "confidence": 0.95,
+    "findings": [
+      "Signal critique re\u00e7u depuis evidently.drift_monitor",
+      "Data Drift majeur (PSI > 0.2) sur 'age'."
+    ]
+  },
+  "action_proposal": {
+    "type": "propose_retrain",
+    "reversible": true
+  },
+  "policy_evaluation": {
+    "decision": "DENY",
+    "reason": "SHADOW_MODE_ACTIVE"
+  },
+  "ground_truth_matched": true
+}
