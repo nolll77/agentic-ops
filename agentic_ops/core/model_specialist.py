@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import instructor
 import litellm
+from tenacity import retry, stop_after_attempt, wait_exponential
 from agentic_ops.core.contracts import Diagnosis, Signal
 
 
@@ -17,6 +18,8 @@ class ModelSpecialist:
         self.model_name = model_name
         self.client = instructor.from_litellm(litellm.completion)
 
+    # [ALERTE MLOPS] P1: Résilience face aux pannes LLM (Retry Backoff)
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     def diagnose(
         self, risk_id: str, signal: Signal, context_info: str = ""
     ) -> Diagnosis:
