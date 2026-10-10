@@ -1,4 +1,5 @@
 from typing import List
+from agentic_ops.core.telemetry import STATE_TRANSITIONS
 
 class StateMachine:
     """FSM canonique pour le cycle de vie de résolution d'incident MLOps."""
@@ -14,5 +15,6 @@ class StateMachine:
     def transition(self, next_state: str):
         if next_state not in self.VALID_STATES:
             raise ValueError(f"État invalide: {next_state}")
+        STATE_TRANSITIONS.labels(from_state=self.current, to_state=next_state).inc()
         self.current = next_state
         self.trace.append(next_state)
