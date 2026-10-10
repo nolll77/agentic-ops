@@ -47,6 +47,8 @@ class Finding(BaseModel):
 class Diagnosis(BaseModel):
     findings: List[Finding]
     confidence_score: float
+    risk_id: Optional[str] = None
+    agent: Optional[str] = None
 
 class Episode(BaseModel):
     episode_id: str

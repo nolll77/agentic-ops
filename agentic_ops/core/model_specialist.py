@@ -28,9 +28,9 @@ class ModelSpecialist:
 
         Signal observé :
         - ID: {signal.signal_id}
-        - Valeur: {signal.value} (Seuil: {signal.threshold})
+        - Valeur: {signal.metadata.get('value', 'N/A')} (Seuil: {signal.metadata.get('threshold', 'N/A')})
         - Source: {signal.source}
-        - Dimensions: {signal.dimensions}
+        - Dimensions: {signal.metadata.get('dimensions', 'N/A')}
 
         Contexte supplémentaire :
         {context_info}
