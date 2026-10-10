@@ -250,6 +250,41 @@ Certaines actions exploratoires ou à risque asymétrique sont maintenues en sim
 - `INVESTIGATE` : Consigner formellement une enquête sans altération.
 
 
+
+## 🔌 Interfaçage Universel (Agnostic MLOps Control Plane)
+
+**Agentic-Ops** a été pensé dès le premier jour comme un plan de contrôle agnostique. Il ne dépend pas du code source du modèle qu'il surveille. Il n'a besoin que de trois choses pour piloter une infrastructure tierce :
+1. Un accès réseau sécurisé (ex: *Tailscale*).
+2. Un point de terminaison pour recevoir les alertes (ex: *Webhook Grafana*).
+3. Des points de terminaison pour déclencher les actions (ex: *API Prefect, MLflow, Kubernetes*).
+
+À titre de démonstration, voici comment **Agentic-Ops** peut se greffer "Plug & Play" sur la majorité des architectures MLOps de l'écosystème **DataScientest** (sans modifier leur code source) pour leur apporter l'auto-guérison :
+
+| N° | Projet DataScientest | Type & Enjeu | Métriques Observées (Grafana) | Actions Agentiques Possibles |
+|:---|:---|:---|:---|:---|
+| **1** | [Rakuten (Catalogue)](https://github.com/YBengala/MultiModalAI-MLOps) | Multimodal | F1-Score, Drift Textuel/Image | `TRIGGER_RETRAINING`, `SCALE_UP` |
+| **2** | [Vélib' Paris](https://github.com/search?q=DataScientest+Velib) | Séries Temp. | RMSE, Drift Météorologique | `RESTART_PIPELINE`, `PROMOTE_MODEL` |
+| **3** | [Olist E-Commerce](https://github.com/search?q=DataScientest+Olist) | Clustering | Score Silhouette, Feature Drift | `TRIGGER_RETRAINING`, `CREATE_ISSUE` |
+| **4** | [Fraude Bancaire](https://github.com/search?q=DataScientest+Fraud) | Isolation Forest | Recall/Précision, Volume Rejets | `SCALE_TO_ZERO` (Coupe-circuit API) |
+| **5** | [Pneumonia X-Ray](https://github.com/search?q=DataScientest+Pneumonia) | Computer Vision | Taux Faux Négatifs, RAM GPU | `SCALE_UP`, `ROLLBACK` |
+| **6** | [Disaster Tweets](https://github.com/search?q=DataScientest+Tweets) | NLP (BERT) | Taux de mots OOV, Accuracy | `CREATE_ISSUE`, `TRIGGER_RETRAINING` |
+| **7** | [Wildfires (Feux US)](https://github.com/search?q=DataScientest+Wildfire) | Spatial | R2 Score, Drift Températures | `TRIGGER_RETRAINING` |
+| **8** | [Maintenance IoT](https://github.com/search?q=DataScientest+Maintenance) | XGBoost | Missing Values Rate | `SCALE_TO_ZERO` (Si capteur HS) |
+| **9** | [Fake News Detection](https://github.com/search?q=DataScientest+Fake+News) | NLP | F1-Score, Concept Drift | `TRIGGER_RETRAINING` |
+| **10** | [Churn Telco](https://github.com/search?q=DataScientest+Churn) | Classification | ROC-AUC, Drift sur facturation | `PROMOTE_MODEL`, `TRIGGER_RETRAINING` |
+| **11** | [Real Estate (Immo)](https://github.com/search?q=DataScientest+Real+Estate) | Régression | MAPE, Drift Taux d'intérêt | `TRIGGER_RETRAINING` |
+| **12** | [Recos de Films](https://github.com/search?q=DataScientest+Recommendation) | Collaborative | CTR, Score de Diversité | `RESTART_PODS` (Vider cache Redis) |
+| **13** | [Traffic Signs](https://github.com/search?q=DataScientest+Traffic) | CNN temps réel | Temps Inférence (< 50ms) | `ROLLBACK` (si latence critique) |
+| **14** | [Wine Quality](https://github.com/search?q=DataScientest+Wine) | Classification | Accuracy, Shift chimique (pH) | `TRIGGER_RETRAINING` |
+| **15** | [Vols (Flight Delays)](https://github.com/search?q=DataScientest+Flight) | PySpark | RMSE, Valeurs nulles | `CREATE_ISSUE` (Data Quality alerte) |
+| **16** | [Don du Sang](https://github.com/search?q=DataScientest+Blood) | Imbalanced | Recall, Taux Erreur 500 | `RESTART_PODS` |
+| **17** | [Énergie Forecast](https://github.com/search?q=DataScientest+Energy) | Prophet / ARIMA | MAPE, Drift Saisonnier | `TRIGGER_RETRAINING` |
+| **18** | [Urban Sounds](https://github.com/search?q=DataScientest+Sound) | Spectrogrammes | Accuracy, Bruit ambiant | `CREATE_ISSUE` (Calibrer micros) |
+| **19** | [Masques COVID](https://github.com/search?q=DataScientest+Covid) | YOLO (Objet) | Latence Inférence, Faux Pos. | `ROLLBACK`, `SCALE_UP` |
+| **20** | [Chatbot Documentaire](https://github.com/search?q=DataScientest+RAG) | RAG / LLM | Taux Hallucination, Coûts $ | `SCALE_TO_ZERO` (Stop hémorragie $) |
+
+> *Cette universalité démontre la véritable valeur de l'approche **Agentic-Ops** : séparer l'intelligence cognitive et la supervision (Agentic-Ops) de la chaîne d'exécution MLOps (le projet cible).*
+
 ## 🚀 Installation & Tests (E2E Validation)
 
 ```bash
