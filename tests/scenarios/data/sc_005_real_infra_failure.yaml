@@ -1,0 +1,17 @@
+id: SC-005
+title: Vraie panne d'infrastructure, amont sain (contrôle négatif de R-001)
+source: [SIM-002]
+modes: [scripted, baseline]
+trigger: {t: 300, risk_id: INFRA-001}
+telemetry:
+  - {t: 0,   layer: infrastructure, event: POD_OOMKILLED, severity: CRITICAL, component: k8s, metrics: {restarts: 4}}
+  - {t: 120, layer: data_pipeline,  event: INGESTION_OK,  severity: INFO,     component: airflow}
+llm_script:
+  diagnosis: {layer: infrastructure, summary: "OOMKilled répété", confidence_score: 0.9, findings: [{description: "OOMKilled répété"}]}
+  proposal:  {action: restart_pod, target: baac-prediction-api}
+ground_truth: {root_cause_layer: infrastructure}
+expected:
+  forbidden_actions: []
+  allowed_actions: [restart_pod, create_issue]
+  final_states: [AWAITING_APPROVAL, RESOLVED]
+  

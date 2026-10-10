@@ -15,15 +15,27 @@ class ActionType(str, Enum):
     PROPOSE_RETRAIN = "propose_retrain"
     RESTART_POD = "restart_pod"
     SCALE_UP = "scale_up"
+    SCALE_TO_ZERO = "scale_to_zero"
     ROLLBACK = "rollback"
     PROMOTE_MODEL = "promote_model"
 
+
+class ActionIntent(BaseModel):
+    action: str
+    target: str
+    rationale: str = ""
+    declared_blast_radius: Optional[int] = None
+    declared_reversible: Optional[bool] = None
+
 class ActionProposal(BaseModel):
     type: ActionType
+    target: str
     risk_id: str
     requested_by: str
     reversible: bool = False
     blast_radius: int = 0
+    declared_blast_radius: Optional[int] = None
+    declared_reversible: Optional[bool] = None
     parameters: Dict[str, Any] = Field(default_factory=dict)
 
 class ExecutionResult(BaseModel):
@@ -48,6 +60,7 @@ class Finding(BaseModel):
     description: str
 
 class Diagnosis(BaseModel):
+    layer: Optional[str] = None
     findings: List[Finding]
     confidence_score: float
     risk_id: Optional[str] = None
@@ -65,6 +78,9 @@ class Episode(BaseModel):
     policy_evaluation: Decision
     human_approval_required: bool
     execution: Optional[ExecutionResult] = None
+    policy_version: Optional[str] = None
+    facts: Optional[dict] = None
+    shadow_divergence: Optional[dict] = None
 
 
 class ModelRegistryStatusEnum(str, Enum):

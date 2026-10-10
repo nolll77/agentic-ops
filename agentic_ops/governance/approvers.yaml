@@ -1,0 +1,7 @@
+schema_version: 1
+groups:
+  sre-oncall:        [U01AAAAAAA, U01BBBBBBB]
+  ml-system-owner:   [U02CCCCCCC]
+levels:
+  L2: {eligible: [sre-oncall, ml-system-owner], required_groups: []}
+  L3: {eligible: [sre-oncall, ml-system-owner], required_groups: [ml-system-owner]}

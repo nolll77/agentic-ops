@@ -4,28 +4,28 @@ Coordonne le plan d'action en se basant sur le diagnostic d'un spécialiste.
 """
 
 from __future__ import annotations
+from agentic_ops.core.prompt_guard import wrap_untrusted, UNTRUSTED_NOTICE
 
-import instructor
-import litellm
-from tenacity import retry, stop_after_attempt, wait_exponential
-from agentic_ops.core.contracts import ActionProposal, Diagnosis
+
+
+from agentic_ops.adapters.llm_protocol import LLMPort
+from agentic_ops.core.contracts import ActionProposal, Diagnosis, ActionIntent
 
 
 class RemediationAgent:
     name = "remediation_agent_llm"
 
-    def __init__(self, model_name: str = "gemini/gemini-1.5-pro-latest"):
-        self.model_name = model_name
-        self.client = instructor.from_litellm(litellm.completion)
+    def __init__(self, llm: LLMPort):
+        self.llm = llm
 
     # [ALERTE MLOPS] P1: Résilience face aux pannes LLM (Retry Backoff)
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    def plan_action(self, diagnosis: Diagnosis) -> ActionProposal:
+    
+    def plan_action(self, diagnosis: Diagnosis) -> ActionIntent:
         prompt = f"""
         Tu es le 'Remediation Agent' (Coordinateur principal).
         Un agent spécialisé ({diagnosis.agent}) a émis le diagnostic suivant pour le risque '{diagnosis.risk_id}':
 
-        Niveau de confiance: {diagnosis.confidence}
+        Niveau de confiance: {diagnosis.confidence_score}
         Trouvailles:
         {chr(10).join([f'- {f.description}' for f in diagnosis.findings])}
 
@@ -33,17 +33,17 @@ class RemediationAgent:
         Si la confiance est basse ou les trouvailles bénignes, propose INVESTIGATE.
         Si le risque est élevé, choisis CREATE_ISSUE, PROPOSE_RETRAIN, ROLLBACK_PROD, etc., selon le cas.
 
-        Génère l'ActionProposal Pydantic. Assure-toi de paramétrer correctement le blast_radius (0-5) et la réversibilité.
+        Génère l'ActionIntent Pydantic. Assure-toi de paramétrer correctement le blast_radius (0-5) et la réversibilité.
         """
 
-        proposal = self.client.chat.completions.create(
-            model=self.model_name,
-            response_model=ActionProposal,
-            messages=[{"role": "user", "content": prompt}],
+        proposal = self.llm.complete(
+            system="Tu es le Remediation Agent.",
+            user=prompt,
+            response_model=ActionIntent,
+            temperature=0.0
         )
 
         # Override fields to maintain strict security chain constraints
-        proposal.requested_by = self.name
-        proposal.risk_id = diagnosis.risk_id
+        # Removed assignment to risk_id since ActionIntent doesn't have it
 
         return proposal

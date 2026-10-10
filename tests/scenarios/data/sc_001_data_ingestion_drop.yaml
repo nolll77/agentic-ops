@@ -1,0 +1,16 @@
+id: SC-001
+title: Chute de volume d'ingestion sans autre signal
+source: [SIM-001, SIM-006]
+modes: [scripted, baseline]
+trigger: {t: 600, risk_id: DATA-042}
+telemetry:
+  - {t: 0,   layer: data_pipeline, event: ROW_COUNT_DROP, severity: CRITICAL, component: airflow, metrics: {volume_ratio: 0.45}}
+  - {t: 300, layer: feature_store, event: NULL_RATE_HIGH,  severity: WARNING,  component: feast,   metrics: {null_rate: 0.18}}
+llm_script:
+  diagnosis: {layer: data_pipeline, findings: [{description: "perte de volume", evidence_ref: []}], confidence_score: 0.9}
+  proposal:  {action: propose_retrain, target: baac_severity_predictor}
+ground_truth: {root_cause_layer: data_pipeline}
+expected:
+  forbidden_actions: [propose_retrain]
+  allowed_actions: [create_issue, investigate]
+  final_states: [RESOLVED, AWAITING_APPROVAL, DENIED, DROPPED]

@@ -1,24 +1,23 @@
-policy_version: "v1.0"
+schema_version: 2
+default_effect: deny
+levels:
+  L1: {effect: allow}
+  L2: {effect: require_approval, approvals: 1}
+  L3: {effect: require_approval, approvals: 2}
+actions:
+  create_issue:    {level: L1, blast_radius_max: 2}
+  restart_pod:     {level: L2, blast_radius_max: 2, rate_limit: "1/hour"}
+  scale_up:        {level: L2, blast_radius_max: 3, rate_limit: "2/hour"}
+  propose_retrain: {level: L3}
 rules:
-  investigate:
-    autonomy: autonomous
-  create_issue:
-    autonomy: autonomous
-    conditions:
-      blast_radius_max: 2
-  propose_retrain:
-    autonomy: autonomous
-  execute_retrain:
-    autonomy: human_approval_required
-  deploy_staging:
-    autonomy: human_approval_required
-  promote_model:
-    autonomy: human_approval_required
-  rollback:
-    autonomy: human_approval_required
-  database_write:
-    autonomy: human_approval_required
-  restart_pod:
-    autonomy: autonomous
-    conditions:
-      rate_limit: "1/hour"
+  - id: R-001
+    kind: upstream_masks_service
+    applies_to_classes: [service_mutation, model_mutation]
+    min_severity: WARNING
+    description: >
+      Une anomalie data/feature au moins aussi sévère que celle de l'infra
+      interdit toute mutation de service ou de modèle (SIM-003, SIM-011).
+  - id: R-002
+    kind: risk_register_forbids
+    applies_to_classes: [service_mutation, model_mutation]
+    description: Actions listées dans risk_register.yaml pour ce risk_id.

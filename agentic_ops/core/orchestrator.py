@@ -5,6 +5,11 @@ Evidence Store systématiques. Zéro import de provider concret.
 """
 
 from __future__ import annotations
+from agentic_ops.adapters.llm_protocol import LLMPort
+
+
+from agentic_ops.core.approvals import FrozenProposal
+from agentic_ops.core.policy_engine import evaluate, EvalContext, ProposalView
 
 from agentic_ops.core.contracts import (
     DecisionEnum,
@@ -23,6 +28,10 @@ from agentic_ops.core import executor as executor_module
 from agentic_ops.adapters.protocol import ObservabilityAdapter
 from agentic_ops.core.circuit_breaker import global_circuit_breaker
 from agentic_ops.core.telemetry import CIRCUIT_BREAKER_STATUS
+
+from agentic_ops.core.approvals import FrozenProposal
+from agentic_ops.core.policy_engine import evaluate, EvalContext, ProposalView
+
 from agentic_ops.core.contracts import Diagnosis, Finding
 from typing import Any
 
@@ -35,27 +44,26 @@ class Orchestrator:
         policy_engine: PolicyEngine,
         evidence_store: EvidenceStore,
         environment: str = "staging",
-        registry: Any = None
+        registry: Any = None,
+        llm: LLMPort = None
     ):
         self.observability = observability
         self.policy_engine = policy_engine
         self.evidence_store = evidence_store
         self.environment = environment
         self.registry = registry
+        self.llm = llm
 
     def _get_specialist(self, risk_id: str):
         if "MODEL" in risk_id.upper():
             from agentic_ops.core.model_specialist import ModelSpecialist
-
-            return ModelSpecialist()
+            return ModelSpecialist(llm=self.llm)
         elif "INFRA" in risk_id.upper():
             from agentic_ops.core.infra_specialist import InfraSpecialist
-
-            return InfraSpecialist()
+            return InfraSpecialist(llm=self.llm)
         else:
             from agentic_ops.core.specialist import DataSpecialist
-
-            return DataSpecialist()
+            return DataSpecialist(llm=self.llm)
 
     def run(
         self,
@@ -105,7 +113,7 @@ class Orchestrator:
             diagnosis = specialist.diagnose(risk_id, signal)
             
         sm.transition("DIAGNOSED")
-        print(f"[{sm.current}] {diagnosis.findings[0].description}")
+        print(f"[{sm.current}] {diagnosis.findings[0].description if diagnosis.findings else 'No findings'}")
 
         # PLANNED
         if forced_action is not None:
@@ -125,14 +133,33 @@ class Orchestrator:
         else:
             from agentic_ops.core.remediation_agent import RemediationAgent
 
-            remediation_agent = RemediationAgent()
-            action = remediation_agent.plan_action(diagnosis)
+            remediation_agent = RemediationAgent(llm=self.llm)
+            intent = remediation_agent.plan_action(diagnosis)
+            action = ActionProposal(
+                type=ActionType(intent.action),
+                target=intent.target,
+                risk_id=risk_id,
+                requested_by=specialist.name,
+                declared_blast_radius=intent.declared_blast_radius,
+                declared_reversible=intent.declared_reversible,
+            )
 
         sm.transition("PLANNED")
         print(f"[{sm.current}] action = {action.type.value}")
 
         # POLICY
-        decision = self.policy_engine.evaluate(action)
+        # Temporary episode mock for policy_engine to inject attributes
+        class EpMock:
+            policy_version = None
+            facts = None
+            shadow_divergence = None
+        ep_mock = EpMock()
+        decision = self.policy_engine.decide(
+            proposal=action,
+            signal=signal,
+            episode=ep_mock,
+            observability=self.observability,
+        )
         print(
             f"[POLICY] {decision.decision.value} "
             f"(règle: {decision.matched_rule}, raisons: {', '.join(decision.reason_codes)})"
@@ -169,6 +196,9 @@ class Orchestrator:
             action_proposal=action,
             policy_evaluation=decision,
             human_approval_required=human_approval_required,
+            policy_version=ep_mock.policy_version,
+            facts=ep_mock.facts,
+            shadow_divergence=ep_mock.shadow_divergence,
             execution=execution,
         )
 
@@ -216,3 +246,19 @@ class Orchestrator:
         
         self.evidence_store.save(episode_dict)
         return Episode(**episode_dict)
+
+    def request_approval(self, ep, verdict, proposal):
+        # STUB for PR4
+        pass
+
+    def current_proposal_hash(self, ep) -> str:
+        # STUB for PR4
+        pass
+
+    def resume_from_claim(self, p: FrozenProposal):
+        # STUB for PR4
+        pass
+
+    def close_episode(self, episode_id, reason):
+        # STUB for PR4
+        pass

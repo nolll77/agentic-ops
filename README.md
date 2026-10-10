@@ -9,6 +9,21 @@
 
 Contrairement aux frameworks d'agents classiques (LangChain, AutoGen) qui privilégient l'autonomie absolue, Agentic-Ops est bâti sur les piliers du **SRE (Site Reliability Engineering)** : Déterminisme, Observabilité, Sécurité Distribuée (Fail-Closed) et Human-in-the-Loop (HITL) asynchrone.
 
+### 5. Décision Déterministe sur les Faits (PR2)
+- **Policy Engine V2** : Le LLM (Remediation Agent) ne propose plus qu'un `ActionIntent` (action, cible). Le moteur de politiques (PolicyEngine) calcule lui-même les attributs de risque (blast_radius, reversible) en s'appuyant sur un `action_catalog.yaml` et un `risk_register.yaml` déterministes.
+- **System Facts** : L'état réel du cluster (télémétrie, pods OOM, drift détecté) est calculé formellement via `compute_facts()` sans passer par la subjectivité du LLM, empêchant les hallucinations de contourner les règles.
+
+
+### 6. Harnais Adversarial & Confinement (PR3)
+- **Prompt Guard** : Isolation cryptographique (`<untrusted_data>`) des logs et payloads pour empêcher les attaques d'injection de prompt (Prompt Injection).
+- **Red Team Scenarios** : Tests E2E stricts (`known_gaps.yaml`) validant que l'orchestrateur refuse toute action ciblée forgée par un LLM corrompu.
+
+### 7. Dépôt d'Approbation Transactionnel (PR4)
+- **State Machine Atomique (SQLite WAL)** : L'approbation humaine est gérée via un verrou `BEGIN IMMEDIATE` pour empêcher la faille de la "Double Exécution" (Double Clic).
+- **Anti-Rejeu & Cryptographie** : Les webhooks Slack sont vérifiés via `HMAC-SHA256` sur le corps brut. Chaque signature est stockée avec un TTL (Fenêtre anti-rejeu).
+- **Gouvernance as Code** : Les approbateurs sont explicitement définis dans `approvers.yaml` avec vérification de groupes distincts pour les décisions L3.
+
+
 ---
 
 ## 🏗️ Architecture Globale (Hexagonale)
@@ -45,6 +60,8 @@ agentic-ops-core/
 │   │   └── shadow_policy.yaml   # A/B testing des politiques de sécurité (analyse de divergence).
 │   └── entrypoints/
 │       └── slack_webhook.py   # HITL : Réception des validations humaines (HMAC-SHA256, Anti-replay attack max 5m).
+├── docs/
+│   └── mlops_simulation_scenarios_registry.md # 📚 Registre des scénarios de simulation MLOps
 ├── tests/
 │   ├── integration/
 │   │   └── test_registry_e2e.py # Preuve formelle E2E du blocage de l'Orchestrateur sans intervention humaine.
@@ -89,6 +106,61 @@ Exposition de métriques de niveau SRE via **Prometheus** (sans explosion de car
 
 ---
 
+
+## 🔌 Intégration avec une Plateforme MLOps Existante
+
+**Agentic-Ops n'est pas une plateforme MLOps de plus, c'est un "Control Plane" (un cerveau) agnostique.** Il se branche sur vos outils existants via une Architecture Orientée Événements (Event-Driven) et des API REST. Il agit exactement comme un ingénieur SRE qui surveillerait les dashboards et déclencherait les pipelines.
+
+L'intégration se déroule en 3 phases physiques :
+
+1. **Les Capteurs (Inbound - Comment réveiller l'Agent) :**
+   Les outils d'observabilité (Evidently AI, Prometheus, Datadog) envoient des alertes via **Webhooks HTTP** vers l'API d'Agentic-Ops contenant un `risk_id` (ex: `DATA-042`).
+2. **Le Contexte (Read-Only - Comment l'Agent enquête) :**
+   Les agents spécialisés utilisent les SDKs (MLflow, Kubernetes, DVC) en mode **Lecture Seule** pour analyser le registre de modèles, les métriques ou les logs des pods.
+3. **Les Actuateurs (Outbound - Comment l'Agent répare) :**
+   Une fois la décision validée par le *Policy Engine* (et le *Human-in-the-Loop*), le module `Executor` traduit l'intention en appels d'API mutantes (déclencher un DAG Airflow, changer un tag MLflow, redémarrer un déploiement K8s).
+
+### Architecture d'Intégration (Flux E2E)
+
+```mermaid
+flowchart TD
+    subgraph Plateforme MLOps
+        Evidently[Moniteur Dérive : Evidently/Prometheus]
+        MLflow[Model Registry : MLflow]
+        Airflow[Pipeline Orchestrator : Airflow]
+        K8s[Inférence : Kubernetes]
+    end
+
+    subgraph Agentic-Ops Control Plane
+        API[Webhook API Listener]
+        FSM[Orchestrator FSM]
+        Agents[Agents LLM Spécialisés]
+        Policy[Policy Engine & Risk Register]
+        Exec[Executor & Adapters]
+    end
+
+    subgraph Humain
+        Slack[Slack HITL]
+    end
+
+    Evidently -- "1. Alerte Webhook (Drift détecté)" --> API
+    API --> FSM
+    FSM --> Agents
+    Agents -- "2. Lecture (API REST)" --> MLflow
+    Agents -- "2. Lecture (Logs)" --> K8s
+    Agents --> Policy
+    Policy -- "3. REQUIRE_APPROVAL" --> Slack
+    Slack -- "4. Approve (Webhook signé)" --> FSM
+    FSM --> Exec
+    Exec -- "5. Action (REST API)" --> Airflow
+```
+
+
+> [!TIP]
+> **🚀 Pour la Soutenance (Intégration croisée)** : 
+> Si vous souhaitez voir concrètement comment `Agentic-Ops` se branche en tant que "cerveau" sur une plateforme MLOps d'exécution mature (comme le projet `cac_mlops`), consultez le guide dédié : **[Guide d'Intégration Spécifique : Agentic-Ops 🤝 CAC MLOps](INTEGRATION_CAC_MLOPS.md)**.
+> Ce document montre étape par étape comment relier les alertes Grafana, la lecture MLflow et l'exécution Prefect/Kubernetes.
+
 ## 🚀 Installation & Tests (E2E Validation)
 
 ```bash
@@ -106,4 +178,3 @@ PYTHONPATH=. pytest tests/
 
 # 3. Lancer la TUI d'Audit du Trust Ledger
 python -m agentic_ops.cli.trust_ledger list
-```
