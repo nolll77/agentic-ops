@@ -23,6 +23,37 @@ Le système repose sur une **Architecture Hexagonale** couplée à une **Machine
 
 ---
 
+
+## 📂 Structure du Projet (ASCII Tree)
+
+L'architecture applicative est reflétée par cette structure de dossiers formelle, où chaque composant joue un rôle critique dans la chaîne de sécurité :
+
+```text
+agentic-ops-core/
+├── agentic_ops/
+│   ├── core/
+│   │   ├── orchestrator.py    # FSM principale. Stoppe physiquement sur REQUIRE_APPROVAL, gère la reprise (resume_episode).
+│   │   ├── policy.py          # Moteur de gouvernance (Pydantic), évalue les manifestes de droits.
+│   │   ├── executor.py        # Dernier kilomètre. Mute le Model Registry. Bloque et retourne FAILED en cas de rejet métier.
+│   │   ├── evidence.py        # Trust Ledger WORM. Sérialisation canonique, chaînage de blocs (previous_hash).
+│   │   ├── distributed.py     # Idempotence et Rate Limiting via Redis (Pipelines atomiques & Locks).
+│   │   └── circuit_breaker.py # Protection FinOps contre le Monitoring Storm (bascule en mode dégradé).
+│   ├── adapters/
+│   │   └── registry_adapter.py # Protocole et simulation du Gatekeeper (ex: rejet automatique si F1 < 0.85).
+│   ├── governance/
+│   │   ├── autonomy_policy.yaml # Manifeste MLOps strict de production (exigences d'approbation).
+│   │   └── shadow_policy.yaml   # A/B testing des politiques de sécurité (analyse de divergence).
+│   └── entrypoints/
+│       └── slack_webhook.py   # HITL : Réception des validations humaines (HMAC-SHA256, Anti-replay attack max 5m).
+├── tests/
+│   ├── integration/
+│   │   └── test_registry_e2e.py # Preuve formelle E2E du blocage de l'Orchestrateur sans intervention humaine.
+│   └── security/
+│       ├── test_trust_ledger.py # Détection de falsification de la blockchain WORM (Anti-tampering).
+│       └── test_executor.py     # Tests des invariants de sécurité (Sandboxing, OS-Level isolation).
+└── pyproject.toml             # Manifeste des dépendances (Pydantic, FastAPI, Redis, etc.)
+```
+
 ## 🔥 Fonctionnalités Clés & Hardening (Red-Teaming)
 
 Ce dépôt a subi un audit architectural offensif (*Red-Teaming*) exhaustif et a été corrigé avec une politique absolue du "Fail-Closed" sur la chaîne d'exécution.
