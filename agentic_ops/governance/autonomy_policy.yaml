@@ -18,3 +18,7 @@ rules:
     autonomy: human_approval_required
   database_write:
     autonomy: human_approval_required
+  restart_pod:
+    autonomy: autonomous
+    conditions:
+      rate_limit: "1/hour"
