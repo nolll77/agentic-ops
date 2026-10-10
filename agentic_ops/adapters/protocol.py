@@ -9,3 +9,7 @@ class ObservabilityAdapter(Protocol):
 class ExecutionAdapter(Protocol):
     """Interface to execute remediation actions on an external system."""
     def execute(self, action: ActionProposal) -> ExecutionResult: ...
+
+class NotificationAdapter(Protocol):
+    """Interface pour les notifications et requêtes d'approbation humaines (HITL)."""
+    def request_approval(self, episode: dict) -> None: ...
