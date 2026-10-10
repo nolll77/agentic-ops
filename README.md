@@ -122,6 +122,44 @@ Exposition de métriques de niveau SRE via **Prometheus** (sans explosion de car
 ---
 
 
+
+### 4. Séparation des Pouvoirs (Isolation Cognitive vs Exécutive)
+
+L'une des vulnérabilités majeures des frameworks d'agents autonomes classiques est de donner les "clés du réseau" à l'IA. Agentic-Ops résout ce problème par une séparation stricte des privilèges :
+
+- **Phase d'Enquête (L'IA lit) :** Les agents LLM ont un accès **strictement restreint à la lecture seule** (Mode Pull). Ils interrogent les bases de métriques et les logs pour poser un diagnostic. Ils sont physiquement incapables d'altérer la production. Ils se contentent de rédiger une "intention de modification" textuelle.
+- **Phase d'Exécution (Le Code écrit) :** L'agent IA s'arrête. C'est le programme Python rigide (l'Exécuteur), totalement déterministe, qui prend le relais **uniquement** après l'approbation humaine. C'est lui, et lui seul, qui détient les clés API et qui déclenche les mutations (Mode Push).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Platform as Plateforme MLOps
+    participant Agent as Agent LLM (Enquêteur)
+    participant FSM as Orchestrator & Policy
+    participant Human as Humain (Slack)
+    participant Exec as Executor Python (Actionneur)
+
+    Note over Platform, Exec: Phase 1 : Enquête (Lecture Seule)
+    Platform->>FSM: Alerte Webhook (Inbound)
+    FSM->>Agent: Réveille l'Agent
+    Agent->>Platform: Requêtes REST (GET Logs, GET Metrics)
+    Platform-->>Agent: JSON (État du système)
+    Agent-->>FSM: Intention : "Je propose de relancer l'entraînement"
+
+    Note over FSM, Exec: Phase 2 : Le Garde-Fou (Block & Attente)
+    FSM->>FSM: Policy Engine intercepte
+    FSM->>Human: Demande d'approbation Slack
+    Note over Agent: L'Agent LLM est désactivé
+    
+    Note over Human, Exec: Phase 3 : Validation & Exécution (Écriture)
+    Human-->>FSM: Clic sur [ APPROUVER ]
+    FSM->>Exec: Ordre formel & déterministe
+    Exec->>Platform: Requête mutante (POST /deploy /retrain)
+    Platform-->>Exec: Succès de l'opération
+    Exec-->>FSM: Scellage dans le Trust Ledger
+```
+
+
 ## 🔌 Intégration avec une Plateforme MLOps Existante
 
 **Agentic-Ops n'est pas une plateforme MLOps de plus, c'est un "Control Plane" (un cerveau) agnostique.** Il se branche sur vos outils existants via une Architecture Orientée Événements (Event-Driven) et des API REST. Il agit exactement comme un ingénieur SRE qui surveillerait les dashboards et déclencherait les pipelines.
