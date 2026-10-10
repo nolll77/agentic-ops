@@ -31,14 +31,14 @@ def execute(action: ActionProposal) -> ExecutionResult:
             details=f"Action '{action.type.value}' simulée : aucun effet externe",
         )
     
-    if action_type == "promote_model":
+    if action.type.value == "promote_model":
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.promote_model",
             details="Promotion du modèle simulée. Aucun artefact réellement déployé sur Kubernetes."
         )
 
-    if action_type == "rollback":
+    if action.type.value == "rollback":
         return ExecutionResult(
             status="SIMULATED",
             executor="local_simulated.rollback_model",

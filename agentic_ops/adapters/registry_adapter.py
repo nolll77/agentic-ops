@@ -9,6 +9,11 @@ class ModelRegistryAdapter(Protocol):
     def register_model(self, version_id: str, metrics: Dict[str, float], schema_compatible: bool) -> ModelVersion: ...
     def get_model(self, version_id: str) -> Optional[ModelVersion]: ...
     def validate_promotion(self, version_id: str) -> bool: ...
+
+    def _deactivate_current(self):
+        if self.active_version_id and self.active_version_id in self._store:
+            self._store[self.active_version_id].deployment_status = ModelDeploymentStatusEnum.DEPLOYED
+            
     def promote_model(self, version_id: str) -> bool: ...
     def rollback_model(self, fallback_version_id: str) -> bool: ...
 
@@ -43,20 +48,28 @@ class SimulatedModelRegistry:
         mv.registry_status = ModelRegistryStatusEnum.REJECTED
         return False
 
+
+    def _deactivate_current(self):
+        if self.active_version_id and self.active_version_id in self._store:
+            self._store[self.active_version_id].deployment_status = ModelDeploymentStatusEnum.DEPLOYED
+            
     def promote_model(self, version_id: str) -> bool:
         mv = self.get_model(version_id)
         if not mv or mv.registry_status != ModelRegistryStatusEnum.VALIDATED:
             return False
             
+        self._deactivate_current()
         mv.deployment_status = ModelDeploymentStatusEnum.ACTIVE
         self.active_version_id = version_id
         return True
 
     def rollback_model(self, fallback_version_id: str) -> bool:
         mv = self.get_model(fallback_version_id)
-        if not mv or not mv.schema_compatible:
+        # Fix 2: Un rollback ne peut se faire que vers une version qui a été validée
+        if not mv or mv.registry_status != ModelRegistryStatusEnum.VALIDATED:
             return False
             
+        self._deactivate_current()
         # Re-activate fallback version
         mv.deployment_status = ModelDeploymentStatusEnum.ACTIVE
         self.active_version_id = fallback_version_id
