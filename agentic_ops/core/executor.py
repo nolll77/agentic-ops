@@ -147,14 +147,14 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
     
 
     # 3. MLOps: Déclenchement de l'entraînement Prefect
-    if action.type.value == "TRIGGER_RETRAINING":
+    if action.type.value.upper() == "TRIGGER_RETRAINING" or action.type.value.lower() == "propose_retrain":
         if SIMULATION_MODE:
             return ExecutionResult(status="SIMULATED", executor="local_simulated.prefect", details="Trigger Prefect simulé.")
         else:
             return execute_real_prefect_retrain(action)
 
     # 4. MLOps: Promotion du Modèle MLflow
-    if action.type.value == "PROMOTE_MODEL":
+    if action.type.value.upper() == "PROMOTE_MODEL" or action.type.value.lower() == "promote_model":
         if SIMULATION_MODE:
             return ExecutionResult(status="SIMULATED", executor="local_simulated.mlflow", details="Promotion MLflow simulée.")
         else:

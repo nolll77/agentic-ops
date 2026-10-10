@@ -9,7 +9,7 @@ Agentic-Ops agit comme le **cerveau** (SRE autonome) tandis que `cac_mlops` four
 ## 1. Vision Globale : L'Alliance des Deux Architectures
 
 ### A. La Couche d'Exécution (Le projet `cac_mlops`)
-Le projet de ton collègue est une architecture de Data Engineering et de MLOps classique, très robuste, qui gère la matière première et la mise en production :
+Le projet de l'infrastructure distante est une architecture de Data Engineering et de MLOps classique, très robuste, qui gère la matière première et la mise en production :
 - **Data Engineering** : Validation des données (Pandera), Versioning (DVC / S3).
 - **ML Engineering** : Entraînement (LightGBM), Tracking & Model Registry (MLflow).
 - **Orchestration** : Exécution des pipelines (Prefect) et CI/CD (GitHub Actions).
@@ -27,7 +27,7 @@ Notre projet vient se brancher "par-dessus" cette infrastructure. Il intercepte 
 
 ```mermaid
 flowchart TD
-    %% Définition de la couche d'exécution (Le projet de ton collègue)
+    %% Définition de la couche d'exécution (Le projet de l'infrastructure distante)
     subgraph CAC_MLOPS ["🛠️ Couche Data Eng & MLOps (cac_mlops)"]
         direction TB
         subgraph Données
@@ -104,7 +104,7 @@ Actuellement, `cac_mlops` envoie des emails via Grafana lorsqu'Evidently détect
      --data '{"receiver":"local-test","status":"firing","alerts":[{"status":"firing","labels":{"alertname":"LocalSmokeTest","severity":"info"}}]}'
    ```
    Le récepteur doit répondre `202` avec `{"status":"received","alerts_received":1}`. À ce stade, il journalise uniquement le nombre d'alertes et ne lance aucune action ni connexion aux services distants.
-2. N'exposer le récepteur à Grafana qu'après ce test et après avoir choisi/configuré un accès réseau autorisé. Une écoute sur `127.0.0.1` n'est joignable que depuis ce Mac.
+2. N'exposer le récepteur à Grafana qu'après ce test et après avoir choisi/configuré un accès réseau autorisé. Une écoute sur `127.0.0.1` n'est joignable que depuis cette machine.
 3. Ouvrir le **Grafana** de `cac_mlops`.
 4. Naviguer vers **Alerting** ➔ **Contact points**.
 5. Créer un nouveau Point de Contact :
@@ -143,7 +143,7 @@ Une fois le diagnostic établi et l'action validée mathématiquement par notre 
 
    def trigger_prefect_retrain():
        url = "http://<ip-tailscale-prefect>:4200/api/deployments/<id-du-deploiement>/create_flow_run"
-       headers = {"Authorization": "Bearer TA_CLEF_PREFECT"}
+       headers = {"Authorization": "Bearer VOTRE_CLEF_PREFECT"}
        requests.post(url, headers=headers, json={})
    ```
 
