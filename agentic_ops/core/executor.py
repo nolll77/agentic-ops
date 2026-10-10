@@ -20,7 +20,7 @@ ALLOWED_K8S_DEPLOYMENTS = ["fastapi-model-demo", "worker-demo"]
 
 def create_real_github_issue(action: ActionProposal) -> ExecutionResult:
     token = os.environ.get("GITHUB_TOKEN")
-    repo = os.environ.get("GITHUB_REPO", "nolll77/cac_mlops")
+    repo = os.environ.get("GITHUB_REPO", "nolll77/mlops-target-infrastructure")
     
     if not token:
         return ExecutionResult(status="FAILED", executor="github", details="GITHUB_TOKEN manquant pour l'API réelle.")
@@ -81,7 +81,7 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
 
 def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
     # Récupération de l'URL cible depuis les variables de la Sandbox
-    prefect_url = os.environ.get("CAC_MLOPS_PREFECT_URL", "http://100.117.99.62:4200")
+    prefect_url = os.environ.get("TARGET_PREFECT_URL", "http://100.117.99.62:4200")
     # L'ID du déploiement Prefect pour le pipeline d'entraînement
     deployment_id = action.parameters.get("deployment_id", "default_train_id")
     
@@ -98,7 +98,7 @@ def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Échec réseau Tailscale ou API Prefect: {e}")
 
 def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
-    mlflow_url = os.environ.get("CAC_MLOPS_MLFLOW_URL", "http://100.117.99.62:5001")
+    mlflow_url = os.environ.get("TARGET_MLFLOW_URL", "http://100.117.99.62:5001")
     url = f"{mlflow_url}/api/2.0/mlflow/registered-models/alias"
     
     # Payload pour promouvoir la version X sous l'alias @Production

@@ -211,7 +211,7 @@ flowchart TD
 
 > [!TIP]
 > **🚀 Pour la Soutenance (Intégration croisée)** : 
-> Si vous souhaitez voir concrètement comment `Agentic-Ops` se branche en tant que "cerveau" sur une plateforme MLOps d'exécution mature (comme le projet `cac_mlops`), consultez le guide dédié : **[Guide d'Intégration Spécifique : Agentic-Ops 🤝 CAC MLOps](INTEGRATION_CAC_MLOPS.md)**.
+> Si vous souhaitez voir concrètement comment `Agentic-Ops` se branche en tant que "cerveau" sur une plateforme MLOps d'exécution mature (comme un projet cible), consultez le guide dédié : **[Guide d'Intégration Spécifique : Agentic-Ops 🤝 Plateforme Cible](INTEGRATION_GUIDE.md)**.
 > Ce document montre étape par étape comment relier les alertes Grafana, la lecture MLflow et l'exécution Prefect/Kubernetes.
 
 

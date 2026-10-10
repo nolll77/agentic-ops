@@ -17,7 +17,7 @@ Au fur et à mesure que l'architecture a gagné en maturité, il est devenu évi
 Pour respecter les principes SRE de "Séparation des Responsabilités" (Separation of Concerns) et de **Zero-Trust**, le Control Plane autonome a été extrait dans ce dépôt dédié : `agentic-ops-core`.
 
 Cette scission a permis :
-1. **L'Agnosticisme** : Agentic-Ops peut désormais se brancher sur n'importe quel projet MLOps (y compris le dépôt de production `cac_mlops`), et non plus seulement sur le repo historique `car_accident`.
+1. **L'Agnosticisme** : Agentic-Ops peut désormais se brancher sur n'importe quel projet MLOps (y compris le dépôt de production `plateforme_cible`), et non plus seulement sur le repo historique `car_accident`.
 2. **Le Durcissement** : L'implémentation de politiques de sécurité draconiennes (Policy-as-Code, Evidence Store, Prompt Guard).
 
 ---
@@ -46,7 +46,7 @@ flowchart TD
         Sec_Agents["Agents Spécialisés Sécurisés"]
     end
 
-    subgraph Dépôts_Cibles ["Dépôts d'Exécution Tiers (cac_mlops, etc.)"]
+    subgraph Dépôts_Cibles ["Dépôts d'Exécution Tiers (plateforme_cible, etc.)"]
         direction TB
         External_Pipelines["Pipelines Airflow / Prefect"]
         External_K8s["Clusters Kubernetes"]
