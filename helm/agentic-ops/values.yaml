@@ -3,29 +3,29 @@ replicaCount: 1
 image:
   repository: nolll77/agentic-ops
   pullPolicy: IfNotPresent
-  tag: "latest"
+  # MLOps Pure: Épinglage de version plutôt que latest
+  tag: "v0.1.0"
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
   name: "agentic-ops-sa"
 
-# RBAC Permissions for the KubernetesExecutionAdapter
 rbac:
   create: true
-  # Set to true if the agent needs cluster-wide access instead of namespace-scoped
   clusterRole: false
   rules:
-    - apiGroups: ["", "apps"]
-      resources: ["pods", "deployments"]
-      verbs: ["get", "list", "watch", "patch", "update"]
+    # Read-only pour les logs et pods (Contexte Agent)
+    - apiGroups: [""]
+      resources: ["pods", "pods/log"]
+      verbs: ["get", "list", "watch"]
+    # Patch uniquement pour le restart de Déploiement (Exécution Restreinte)
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs: ["get", "patch"]
 
 env:
   ENVIRONMENT: "production"
   LOG_LEVEL: "INFO"
-  # Keys will be injected via Secret in a real deployment
-  # DATADOG_API_KEY: ""
-  # OPENAI_API_KEY: ""
 
 resources:
   limits:
@@ -34,3 +34,17 @@ resources:
   requests:
     cpu: 250m
     memory: 256Mi
+
+probes:
+  liveness:
+    httpGet:
+      path: /healthz
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  readiness:
+    httpGet:
+      path: /ready
+      port: 8000
+    initialDelaySeconds: 5
+    periodSeconds: 10

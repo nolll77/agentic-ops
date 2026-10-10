@@ -31,6 +31,12 @@ Contrairement aux frameworks d'agents classiques (LangChain, AutoGen) qui privil
 - **Verrous d'Idempotence (Redis)** : Pour prévenir la double exécution d'une réparation sur deux réplicas, un verrou distribué atomique est posé sur l'empreinte sémantique de l'incident. Ce verrou a une durée de vie (TTL) et est lié cryptographiquement au processus "propriétaire" (UUID) pour empêcher qu'un autre noeud ne libère un verrou expiré (Vol de verrou).
 - **Fail-Closed en Production** : Si le coordinateur de concurrence (Redis) devient injoignable, le système passe en arrêt d'urgence plutôt que de basculer silencieusement sur un cache local non distribué.
 
+### 10. Durcissement Opérationnel & CI/CD (PR7)
+- **RBAC Kubernetes Restreint** : Le ServiceAccount Kubernetes du Control Plane fonctionne selon le principe du moindre privilège. Il a uniquement les droits `get/list/watch` sur les Pods (pour la lecture des logs) et `patch` sur les Deployments (uniquement pour forcer le redémarrage d'un modèle fautif).
+- **Fiabilité Kubernetes (Probes)** : Le Chart Helm intègre des `livenessProbe` et `readinessProbe` pointant vers une API FastAPI native pour assurer que le pod est sain et prêt à recevoir le trafic Slack Webhook.
+- **Dépendances & CI Matrix** : L'environnement Python est déterministe avec une matrice de test GitHub Actions sur Python 3.10, 3.11, et 3.12, validant le comportement sur toutes les cibles modernes. L'image Docker est fixée par tag.
+
+
 
 
 ---
