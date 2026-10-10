@@ -8,9 +8,6 @@ H7: {p0: P0-4, why: "resume_episode non atomique (double clic)"}
 H8: {p0: P0-4, why: "approvals_required=2 non appliqué"}
 C1: {p0: P0-5, why: "aucun journal d'intention avant EXECUTING"}
 C2: {p0: P0-5, why: "reprise après crash: double exécution possible"}
-E1: {p0: P0-5, why: "troncature de fin de chaîne indétectable"}
-E2: {p0: P0-5, why: "chaîne réécrivable sans clé (pas de HMAC)"}
-E3: {p0: P0-5, why: "forks de chaîne sous écriture concurrente"}
 T1: {p0: P0-2, why: "le timeout ne rend pas la main (with ThreadPoolExecutor)"}
 T2: {p0: P0-2, why: "un timeout d'outil mutant est reporté FAILED au lieu de UNKNOWN"}
 R1: {p0: P0-6, why: "rate limit non atomique"}
