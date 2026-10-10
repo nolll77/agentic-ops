@@ -8534,6 +8534,12 @@ if __name__ == "__main__":
 
 ```mermaid
 graph TD
+
+    %% Style global pour lisibilité (Thème Clair forcé)
+    classDef default fill:#ffffff,stroke:#333333,stroke-width:2px,color:#000000;
+    classDef agentic fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000000;
+    classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
+    classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
     %% Subgraph 1: Data Ingestion Layer
     subgraph Data_Layer ["1. DATA INGESTION LAYER"]
         A1["PostgreSQL BAAC Source"] -->|"Raw Stream"| A2["Airflow DAG Ingestion"]

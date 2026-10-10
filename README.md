@@ -131,6 +131,7 @@ L'une des vulnérabilités majeures des frameworks d'agents autonomes classiques
 - **Phase d'Exécution (Le Code écrit) :** L'agent IA s'arrête. C'est le programme Python rigide (l'Exécuteur), totalement déterministe, qui prend le relais **uniquement** après l'approbation humaine. C'est lui, et lui seul, qui détient les clés API et qui déclenche les mutations (Mode Push).
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'noteBkgColor': '#fff59d', 'noteTextColor': '#000000'}}}%%
 sequenceDiagram
     autonumber
     participant Platform as Plateforme MLOps
@@ -177,6 +178,12 @@ L'intégration se déroule en 3 phases physiques :
 
 ```mermaid
 flowchart TD
+
+    %% Style global pour lisibilité (Thème Clair forcé)
+    classDef default fill:#ffffff,stroke:#333333,stroke-width:2px,color:#000000;
+    classDef agentic fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000000;
+    classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
+    classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
     subgraph Plateforme MLOps
         Evidently[Moniteur Dérive : Evidently/Prometheus]
         MLflow[Model Registry : MLflow]
