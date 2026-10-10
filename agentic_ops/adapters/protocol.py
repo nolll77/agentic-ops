@@ -13,3 +13,7 @@ class ExecutionAdapter(Protocol):
 class NotificationAdapter(Protocol):
     """Interface pour les notifications et requêtes d'approbation humaines (HITL)."""
     def request_approval(self, episode: dict) -> None: ...
+
+class KnowledgeAdapter(Protocol):
+    """Interface pour interroger la base de connaissance MLOps (RAG)."""
+    def search_runbooks(self, risk_id: str, query: str) -> str: ...
