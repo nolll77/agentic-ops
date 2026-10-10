@@ -10,7 +10,12 @@ logger = logging.getLogger("SlackWebhook")
 
 app = FastAPI(title="AgenticOps HITL Webhook")
 
-SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "dummy_secret_for_tests")
+import os
+SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET")
+if not SLACK_SIGNING_SECRET and os.environ.get("ENVIRONMENT") == "production":
+    raise RuntimeError("Fail-Safe: SLACK_SIGNING_SECRET est obligatoire en production.")
+SLACK_SIGNING_SECRET = SLACK_SIGNING_SECRET or "dummy_secret_for_tests"
+
 
 async def verify_slack_signature(request: Request):
     """
@@ -60,6 +65,9 @@ async def process_slack_interaction(request: Request, orchestrator: Any = None, 
         user_name = interaction["user"]["username"]
         
         decision, episode_id = action_value.split("_", 1)
+        if decision not in {"APPROVE", "DENY"}:
+            logger.critical(f"🚨 TENTATIVE D'INJECTION WEBHOOK : Décision '{decision}' interdite.")
+            raise HTTPException(status_code=400, detail="Décision inconnue")
         logger.info(f"Interaction reçue : {decision} pour {episode_id} par {user_name}")
         
         if evidence_store is None or orchestrator is None:

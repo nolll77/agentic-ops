@@ -23,9 +23,9 @@ def execute(action: ActionProposal) -> ExecutionResult:
         )
     if action.type.value in ("investigate", "propose_retrain"):
         return ExecutionResult(
-            status="SUCCESS",
+            status="SIMULATED",
             executor="local_simulated.noop",
-            details=f"Action '{action.type.value}' enregistrée sans effet externe",
+            details=f"Action '{action.type.value}' simulée : aucun effet externe",
         )
     return ExecutionResult(
         status="SKIPPED",

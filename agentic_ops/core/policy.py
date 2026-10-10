@@ -89,16 +89,22 @@ class PolicyEngine:
                     # Clé granulaire (idéalement enrichie avec namespace/cibles)
                     rl_key = f"ratelimit:{action_name}:global"
                     
-                    # INCR atomique
-                    current = redis.incr(rl_key)
-                    if current == 1:
-                        redis.expire(rl_key, 3600)  # Expire dans 1 heure
+                    if is_shadow:
+                        pass # Le mode Shadow ne consomme pas le quota de production (P0)
+                    else:
+                        # Transaction atomique (INCR + EXPIRE) via pipeline (P1)
+                        pipe = redis.pipeline()
+                        pipe.incr(rl_key)
+                        pipe.expire(rl_key, 3600, nx=True)
+                        results = pipe.execute()
+                        current = results[0]
                         
-                    if current > max_count:
-                        if not is_shadow: POLICY_DECISIONS.labels(decision="REQUIRE_APPROVAL", action_type=action_name).inc()
-                        return Decision(decision=DecisionEnum.REQUIRE_APPROVAL, matched_rule=action_name, reason_codes=["rate_limit_exceeded_atomic"])
-                except ValueError:
-                    pass
+                        if current > max_count:
+                            POLICY_DECISIONS.labels(decision="DENY", action_type=action_name).inc()
+                            return Decision(decision=DecisionEnum.DENY, matched_rule=action_name, reason_codes=["rate_limit_exceeded_hard_cap"])
+                except Exception as e:
+                    logger.error(f"Erreur évaluation quota: {e}")
+                    return Decision(decision=DecisionEnum.DENY, matched_rule=action_name, reason_codes=["rate_limit_system_unavailable"])
 
         # Arbitrage selon le niveau d'autonomie
         if autonomy_level == "autonomous":
