@@ -80,7 +80,8 @@ class Orchestrator:
         service = signal.metadata.get("service", "unknown") if signal.metadata else "unknown"
         fingerprint = compute_semantic_fingerprint(tenant, self.environment, service, risk_id)
         
-        if not acquire_idempotency_lock(fingerprint, ttl_seconds=3600):
+        lock_owner = acquire_idempotency_lock(fingerprint, ttl_seconds=3600)
+        if not lock_owner:
             print(f"[IDEMPOTENCE] Rejet: Incident {fingerprint[:8]} est déjà pris en charge (Lock Redis).")
             # En prod, on retournerait un objet Episode pointant vers l'existant.
             # On simule un drop pur pour le proof of concept.

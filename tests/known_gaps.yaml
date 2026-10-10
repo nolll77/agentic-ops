@@ -10,7 +10,6 @@ C1: {p0: P0-5, why: "aucun journal d'intention avant EXECUTING"}
 C2: {p0: P0-5, why: "reprise après crash: double exécution possible"}
 T1: {p0: P0-2, why: "le timeout ne rend pas la main (with ThreadPoolExecutor)"}
 T2: {p0: P0-2, why: "un timeout d'outil mutant est reporté FAILED au lieu de UNKNOWN"}
-R1: {p0: P0-6, why: "rate limit non atomique"}
 B1: {p0: P1,   why: "circuit breaker en mémoire: non partagé entre réplicas"}
 B2: {p0: P1,   why: "budget breaker global: une tempête DATA affame un INFRA critique"}
 B3: {p0: P1,   why: "une tempête génère une issue par alerte"}
