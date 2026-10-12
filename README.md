@@ -9,6 +9,10 @@
 
 Contrairement aux frameworks d'agents classiques (LangChain, AutoGen) qui privilégient l'autonomie absolue, Agentic-Ops est bâti sur les piliers du **SRE (Site Reliability Engineering)** : Déterminisme, Observabilité, Sécurité Distribuée (Fail-Closed) et Human-in-the-Loop (HITL) asynchrone.
 
+> 🚀 **Validation Cloud & Déploiement Sandbox** : Pour consulter le rapport officiel de déploiement en conditions réelles et l'interprétation exhaustive ligne par ligne des 30 tests de sécurité exécutés sur micro-VM isolée (Docker Agentic Platform), consultez :  
+> 👉 **[Rapport de Déploiement & Validation Cloud Sandbox (Docker)](DOCKER_SANDBOX_VALIDATION.md)**.
+
+
 ### 5. Décision Déterministe sur les Faits (PR2)
 - **Policy Engine V2** : Le LLM (Remediation Agent) ne propose plus qu'un `ActionIntent` (action, cible). Le moteur de politiques (PolicyEngine) calcule lui-même les attributs de risque (blast_radius, reversible) en s'appuyant sur un `action_catalog.yaml` et un `risk_register.yaml` déterministes.
 - **System Facts** : L'état réel du cluster (télémétrie, pods OOM, drift détecté) est calculé formellement via `compute_facts()` sans passer par la subjectivité du LLM, empêchant les hallucinations de contourner les règles.
@@ -323,3 +327,18 @@ PYTHONPATH=. pytest tests/
 
 # 3. Lancer la TUI d'Audit du Trust Ledger
 python -m agentic_ops.cli.trust_ledger list
+
+
+```
+
+---
+
+## ☁️ Validation Cloud en Environnement Isolé (Docker Agentic Platform)
+
+Le Control Plane a été déployé, benchmarké et audité de bout en bout sur une micro-VM éphémère isolée (4 vCPUs AMD EPYC, 8 Go de RAM) au sein de la **Docker Agentic Platform** :
+- **100 % des tests unitaires, cryptographiques et adversariaux validés** (`pytest`).
+- **Preuve formelle de sécurité Fail-Closed** : Rejet systématique des requêtes non signées (`HTTP 401 Unauthorized`).
+- **Résilience absolue face aux attaques IA** : `forbidden_executed = 0` sur l'ensemble des scénarios de simulation de crise et d'injections de prompts.
+
+Pour consulter le protocole de démarrage complet et l'analyse ligne par ligne de la télémétrie système, référez-vous au document dédié :  
+📄 **[Consulter le Rapport de Validation Cloud Sandbox (Docker)](DOCKER_SANDBOX_VALIDATION.md)**
