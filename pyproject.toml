@@ -18,7 +18,8 @@ dependencies = [
     "litellm>=1.0.0",
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
-    "hypothesis>=6.0.0"
+    "hypothesis>=6.0.0",
+    "fakeredis>=2.20.0"
 ]
 
 [project.optional-dependencies]
@@ -26,7 +27,8 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.12.0",
     "fakeredis>=2.20.0",
-    "hypothesis>=6.0.0"
+    "hypothesis>=6.0.0",
+    "fakeredis>=2.20.0"
 ]
 
 [build-system]
