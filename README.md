@@ -9,7 +9,7 @@
 
 Contrairement aux frameworks d'agents classiques (LangChain, AutoGen) qui privilégient l'autonomie absolue, Agentic-Ops est bâti sur les piliers du **SRE (Site Reliability Engineering)** : Déterminisme, Observabilité, Sécurité Distribuée (Fail-Closed) et Human-in-the-Loop (HITL) asynchrone.
 
-> 🚀 **Validation Cloud & Déploiement Sandbox** : Pour consulter le rapport officiel de déploiement en conditions réelles et l'interprétation exhaustive ligne par ligne des 30 tests de sécurité exécutés sur micro-VM isolée (Docker Agentic Platform), consultez :  
+> **Validation Cloud et Deploiement Sandbox** : Pour consulter le rapport officiel de déploiement en conditions réelles et l'interprétation exhaustive ligne par ligne des 30 tests de sécurité exécutés sur micro-VM isolée (Docker Agentic Platform), consultez :  
 > 👉 **[Rapport de Déploiement & Validation Cloud Sandbox (Docker)](DOCKER_SANDBOX_VALIDATION.md)**.
 
 
@@ -333,7 +333,7 @@ python -m agentic_ops.cli.trust_ledger list
 
 ---
 
-## ☁️ Validation Cloud en Environnement Isolé (Docker Agentic Platform)
+## Validation Cloud en Environnement Isole (Docker Agentic Platform)
 
 Le Control Plane a été déployé, benchmarké et audité de bout en bout sur une micro-VM éphémère isolée (4 vCPUs AMD EPYC, 8 Go de RAM) au sein de la **Docker Agentic Platform** :
 - **100 % des tests unitaires, cryptographiques et adversariaux validés** (`pytest`).
