@@ -35,3 +35,4 @@ packages = ["agentic_ops"]
 
 [project.scripts]
 agentic-ops = "agentic_ops.cli.main:app"
+agentic-start = "agentic_ops.cli.main:start_server"
