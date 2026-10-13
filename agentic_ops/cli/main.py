@@ -277,8 +277,43 @@ def run_diagnostic_command(command: DiagnosticCommand):
     t0 = time.time()
 
     if command in (DiagnosticCommand.sandbox_phase_a_vitals, DiagnosticCommand.system_info):
-        uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
-        free_out = subprocess.run(["free", "-h"], capture_output=True, text=True).stdout.strip()
+        try:
+            uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
+        except Exception as exc:
+            uname = f"Unknown ({exc})"
+
+        mem_lines = []
+        try:
+            free_out = subprocess.run(["free", "-h"], capture_output=True, text=True).stdout.strip()
+            if free_out:
+                mem_lines.append(free_out)
+        except Exception:
+            pass
+
+        if not mem_lines and os.path.exists("/proc/meminfo"):
+            try:
+                with open("/proc/meminfo", "r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        if line.startswith(("MemTotal:", "MemFree:", "MemAvailable:", "Buffers:", "Cached:", "SwapTotal:", "SwapFree:")):
+                            mem_lines.append(line.strip())
+            except Exception:
+                pass
+
+        for cg_path, label in (
+            ("/sys/fs/cgroup/memory.current", "Cgroup Memory Current"),
+            ("/sys/fs/cgroup/memory.max", "Cgroup Memory Max"),
+        ):
+            if os.path.exists(cg_path):
+                try:
+                    with open(cg_path, "r", encoding="utf-8") as f:
+                        val = f.read().strip()
+                        if val.isdigit():
+                            mem_lines.append(f"{label:22s}: {int(val) / (1024 * 1024):.1f} MiB ({val} bytes)")
+                        else:
+                            mem_lines.append(f"{label:22s}: {val}")
+                except Exception:
+                    pass
+
         cpu_model = "Unknown"
         if os.path.exists("/proc/cpuinfo"):
             try:
@@ -301,8 +336,8 @@ def run_diagnostic_command(command: DiagnosticCommand):
             f"Tailscale (:1055)    : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 1055) else 'CLOSED'}",
             f"Approval DB Path     : {db_path} (exists={os.path.exists(db_path)})",
             "",
-            "--- Memory Allocation (free -h) ---",
-            free_out or "(free -h not available on this OS)",
+            "--- Memory & Cgroup Telemetry (/proc/meminfo & cgroup v2) ---",
+            "\n".join(mem_lines) if mem_lines else "(memory telemetry unavailable)",
         ]
         return "\n".join(info) + "\n"
 
