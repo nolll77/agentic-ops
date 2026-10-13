@@ -666,7 +666,7 @@ Au-delà de son branchement effectif sur [`jakatt/cac_mlops`](https://github.com
 À titre d'illustration, voici comment **Agentic-Ops** peut se greffer "Plug & Play" sur diverses architectures MLOps de production open-source (sans modifier leur code source) pour leur apporter l'auto-guérison :
 
 <p align="center">
-  <img src="docs/assets/liora_datascientest_logo.png" alt="Liora (ex DataScientest)" width="180" />
+  <img src="docs/assets/liora_datascientest_logo.png" alt="Liora (ex DataScientest)" width="126" />
 </p>
 
 | N° | Projet Cible | Type & Enjeu | Écosystème MLOps | Métriques de Télémétrie | Scénario d'Auto-Guérison Agentic-Ops |
