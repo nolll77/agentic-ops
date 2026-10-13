@@ -26,12 +26,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md start_sandbox.sh ./
 COPY scripts/ ./scripts/
 COPY agentic_ops/ ./agentic_ops/
+COPY tests/ ./tests/
+COPY docs/ ./docs/
 COPY state/ ./state/
 
-# Installation via l'installateur sécurisé 'uv' (incluant httpx[socks])
+# Installation via l'installateur sécurisé 'uv' (incluant httpx[socks] et pytest pour la console de diagnostic)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv pip install --system --no-cache -e . && \
-    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]'
+    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock fakeredis
 
 # Règle du moindre privilège : utilisateur sans privilèges root
 RUN useradd -m -u 10001 agentic_user && \

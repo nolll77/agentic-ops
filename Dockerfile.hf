@@ -31,12 +31,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md start_sandbox.sh ./
 COPY scripts/ ./scripts/
 COPY agentic_ops/ ./agentic_ops/
+COPY tests/ ./tests/
+COPY docs/ ./docs/
 COPY state/ ./state/
 
-# Install dependencies (including httpx[socks]) via uv
+# Install dependencies (including httpx[socks] and pytest for diagnostic console) via uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv pip install --system --no-cache -e . && \
-    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]'
+    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock fakeredis
 
 # Non-root user compatible with Hugging Face Spaces (UID 1000)
 RUN useradd -m -u 1000 agentic_user && \
