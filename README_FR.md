@@ -665,6 +665,10 @@ Au-delà de son branchement effectif sur [`jakatt/cac_mlops`](https://github.com
 
 À titre d'illustration, voici comment **Agentic-Ops** peut se greffer "Plug & Play" sur diverses architectures MLOps de production open-source (sans modifier leur code source) pour leur apporter l'auto-guérison :
 
+<p align="center">
+  <img src="docs/assets/liora_datascientest_logo.png" alt="Liora (ex DataScientest)" width="180" />
+</p>
+
 | N° | Projet Cible | Type & Enjeu | Écosystème MLOps | Métriques de Télémétrie | Scénario d'Auto-Guérison Agentic-Ops |
 |:---|:---|:---|:---|:---|:---|
 | **0** | **[CAC MLOps Platform](https://github.com/jakatt/cac_mlops)** | **Gravité Accidents (Branchement Réel)** | **`Prefect`, `MLflow`, `Loki`, `Prometheus`, `Evidently`, `Tailscale`** | **`cac_mlops_drift_share`, F1-Score (`lgbm_accidents`), Alertes LogQL** | **`INVESTIGATE_LOGS` -> `TRIGGER_RETRAINING` -> `PROMOTE_MODEL` -> `ROLLBACK`** |
