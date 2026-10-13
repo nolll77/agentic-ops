@@ -32,9 +32,6 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
    - **Statut du Tunnel Maillé Tailscale (`100.85.198.81`)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
-
-   [![Agentic-Ops SRE & Docker Sandbox Cognitive Web Console](docs/assets/screenshots/cognitive_web_console_live.png)](https://agentic-ops-5ebv.onrender.com/console)
-
 2. **Rapport de Validation Cloud Sandbox (`Docker Agentic Platform`)** :
    Déploiement sur micro-VM isolée et interprétation ligne par ligne des 30 tests unitaires, adversariaux et cryptographiques :  
    **[Consulter le Rapport de Déploiement et Validation Cloud Sandbox (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**
