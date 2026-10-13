@@ -44,47 +44,16 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
 
 ---
 
-## Visual Presentation Deck Explaining this Repository (6 Slides)
+## Presentation Slides Explaining this Repository (6 Slides)
 
-The following **6 architectural presentation slides** synthesize how this `Agentic-Ops` repository plugs into the production MLOps platform ([`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)) and operates end-to-end.
+- **Online Google Slides Presentation**: **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)** *(Local archive in repository: **[`docs/PRESENTATION_SLIDES.md`](docs/PRESENTATION_SLIDES.md)**)*
 
-- **Online Google Slides Deck (Fallback / Full-Screen Viewer)**: **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)**
-
-### Slide 1 — Agentic-Ops Flow & SecOps Governance (`Flux Agentic-Ops & Gouvernance SecOps`)
-- **Explication (FR)** : `Agentic-Ops` surveille les modèles d'IA et les systèmes qui les font fonctionner. Il consulte les informations sans rien modifier en production. Il repère les problèmes et transmet son diagnostic à un humain.
-- **Explanation (EN)**: `Agentic-Ops` monitors AI models and the systems that run them. It inspects telemetry in strict read-only mode (`100% HTTP GET` over `Tailscale`) without modifying anything in production, detects issues, and forwards its diagnosis to a human operator.
-
-![Slide 1 — Flux Agentic-Ops & Gouvernance SecOps](docs/assets/slides/slide_01_flux_agentic_ops.png)
-
-### Slide 2 — From Raw Signal to Cognitive Diagnosis (`Du Signal Brut au Diagnostic Cognitif`)
-- **Explication (FR)** : Le système rassemble les alertes et les informations techniques pour comprendre le problème. Il isole les messages suspects pour éviter qu'ils donnent de fausses instructions à l'IA. Il cherche ensuite si le problème vient des machines ou des données, puis propose une solution.
-- **Explanation (EN)**: The system aggregates alerts (`Grafana` / `Datadog` webhooks) and technical telemetry (`Loki`, `Prometheus`, `MLflow`, `Prefect`) into a single snapshot. It quarantines untrusted logs (`<untrusted_telemetry>`) to prevent prompt injection, determines whether the root cause stems from infrastructure (`INFRA-001`) or upstream data (`ML-014`), and proposes a typed remediation plan.
-
-![Slide 2 — Du Signal Brut au Diagnostic Cognitif](docs/assets/slides/slide_02_signal_brut_diagnostic.png)
-
-### Slide 3 — AI Proposes, Code Authorizes (`L'IA Propose, le Code Autorise`)
-- **Explication (FR)** : L'IA propose une action, mais des règles programmées décident si elle est autorisée. Les actions interdites sont bloquées et les actions sensibles attendent une validation humaine. Lors des tests présentés, aucune des six actions interdites proposées par l'IA n'a été exécutée.
-- **Explanation (EN)**: The AI agent proposes an action, but deterministic code (`FSM` + `PolicyEngine` rules `L0`–`L3` and `R-001`) decides whether it is permitted. Forbidden actions are blocked immediately (`DENY`) and sensitive actions wait for human approval (`AWAITING_APPROVAL`). Across the 10 Red-Team scenarios, 0 of the 6 forbidden actions proposed by a trapped LLM were executed (`forbidden_executed = 0`).
-
-![Slide 3 — L'IA Propose, le Code Autorise](docs/assets/slides/slide_03_ia_propose_code_autorise.png)
-
-### Slide 4 — Humans Decide, the Ledger Proves (`L'Humain Décide, le Registre Prouve`)
-- **Explication (FR)** : Pour une action sensible, l'ingénieur reçoit un message `Slack` avec le diagnostic et les preuves. Il peut approuver ou refuser, et une vérification de sécurité protège sa réponse contre les fausses approbations. Le système garde un historique qui permet de détecter toute modification après coup.
-- **Explanation (EN)**: For any sensitive (`L2`/`L3`) action, the on-call engineer receives an interactive `Slack` notification containing the diagnosis and telemetry evidence to `[APPROVE]` or `[DENY]`. Cryptographic `HMAC-SHA256` verification (`300s` replay window) rejects spoofed approvals in `2 ms` (`HTTP 401`), and every decision is sealed in a tamper-evident `SHA-256` `WORM` ledger (`verify_chain()`).
-
-![Slide 4 — L'Humain Décide, le Registre Prouve](docs/assets/slides/slide_04_humain_decide_registre_prouve.png)
-
-### Slide 5 — 24/7 Live Production & Graceful Degradation (`Production Live 24/7 & Mode Dégradé`)
-- **Explication (FR)** : Le service est présenté comme fonctionnant en continu sur la plateforme `Render`. Il utilise une connexion privée pour récupérer les informations du serveur surveillé. Si ce serveur est éteint, le service reste disponible pour les tests et les contrôles, mais sans les informations en direct.
-- **Explanation (EN)**: The service runs continuously 24/7 on `Render` (`Redis :6379`, `tailscaled :1055` with `TS_STATE_B64`, `FastAPI :8001`, `SQLite WAL`) and uses a private `Tailscale` tunnel to pull telemetry from the monitored `VPS`. If the remote `VPS` is powered off, `Agentic-Ops` degrades gracefully to `status="offline"` while keeping 100% of its governance and test suites operational.
-
-![Slide 5 — Production Live 24/7 & Mode Dégradé](docs/assets/slides/slide_05_production_live_mode_degrade.png)
-
-### Slide 6 — Live Demonstration: The Glass-Box Console (`Démonstration Live : la Console Glass-Box`)
-- **Explication (FR)** : Une console web permet de lancer les démonstrations avec douze boutons. Des couleurs aident à comprendre ce qui est testé et pourquoi chaque test réussit. Le bilan présenté est de 42 tests réussis, sans action interdite exécutée ni modification de la production.
-- **Explanation (EN)**: An interactive Web Console (`/console`) lets evaluators trigger all demonstrations via 12 audit buttons (`Phases A to F`), with 5 color-coded pedagogical tags (`ROLE`, `AGENT`, `SLACK`, `PROD`, `HOW_IT_PASSES`) explaining line by line what is tested and why it succeeds—certifying **42 passed tests, 0 forbidden actions executed, and 0 production mutations**.
-
-![Slide 6 — Démonstration Live : la Console Glass-Box](docs/assets/slides/slide_06_demonstration_live_console_glass_box.png)
+1. **`Slide 1` (`Flux Agentic-Ops & Gouvernance SecOps`)**: `Agentic-Ops` monitors AI models and the systems that run them in strict read-only mode without modifying anything in production, detects issues, and forwards its diagnosis to a human operator.
+2. **`Slide 2` (`Du Signal Brut au Diagnostic Cognitif`)**: The system gathers alerts and technical telemetry to understand the issue, isolates suspicious messages (`<untrusted_telemetry>`) so they cannot inject false instructions into the AI, determines whether the root cause comes from infrastructure or data, and proposes a solution.
+3. **`Slide 3` (`L'IA Propose, le Code Autorise`)**: The AI proposes an action, but programmed deterministic rules (`FSM` + `PolicyEngine`) decide whether it is authorized—blocking forbidden actions (`0/6` forbidden actions executed across the test suite) and holding sensitive actions for human approval.
+4. **`Slide 4` (`L'Humain Décide, le Registre Prouve`)**: For any sensitive action, the engineer receives a `Slack` message with the diagnosis and evidence to approve or deny (protected by `HMAC-SHA256` against forged approvals), while a cryptographic `WORM` ledger detects any post-hoc tampering.
+5. **`Slide 5` (`Production Live 24/7 & Mode Dégradé`)**: The service runs continuously on `Render` and uses a private `Tailscale` connection to pull telemetry from the monitored server, remaining fully available for tests and governance checks even if the remote server is powered off (`status="offline"`).
+6. **`Slide 6` (`Démonstration Live : la Console Glass-Box`)**: An interactive Web Console (`/console`) launches all demonstrations via 12 buttons with color-coded guides explaining what is tested and why each test passes, certifying 42 passed tests with zero forbidden actions executed and zero production modifications.
 
 ---
 
