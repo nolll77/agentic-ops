@@ -9,6 +9,9 @@ echo "=========================================================="
 # Never export global HTTP_PROXY/HTTPS_PROXY before starting tailscaled.
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 
+# Ensure runtime state directory exists (on Render/HF Spaces, /tmp is mounted fresh at runtime)
+mkdir -p /tmp/state
+
 # 1. Start local Redis daemon if available (for distributed locks & rate limiting)
 if command -v redis-server >/dev/null 2>&1; then
     echo "[1/4] Starting local Redis server on 127.0.0.1:6379..."

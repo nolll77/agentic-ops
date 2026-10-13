@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib, json, sqlite3
+import hashlib, json, os, sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS seen_signatures(sig TEXT PRIMARY KEY, ts REAL NOT NUL
 class ApprovalRepo:
     def __init__(self, path: str, clock: Callable[[], float]):
         self.path, self.clock = path, clock
+        if path != ":memory:":
+            os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         with self._conn() as c:
             c.execute("PRAGMA journal_mode=WAL"); c.executescript(_SCHEMA)
 

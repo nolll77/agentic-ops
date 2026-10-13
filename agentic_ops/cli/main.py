@@ -24,8 +24,9 @@ app.add_middleware(
 )
 
 # HITL (Human-In-The-Loop) state initialization for /slack/interactive
-os.makedirs("state", exist_ok=True)
 db_path = os.environ.get("APPROVAL_DB_PATH", "state/approvals.db")
+if db_path != ":memory:":
+    os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
 clock = time.time
 repo = ApprovalRepo(db_path, clock)
 
