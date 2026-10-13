@@ -1,0 +1,51 @@
+# Dockerfile.hf — Auto-Wake PaaS Deployment (Hugging Face Spaces / Render / Koyeb)
+# Mirrors the architecture of JUN25-CDS-RAKUTEN: visiting the public URL or calling
+# it from a Vercel frontend automatically wakes the container and starts:
+#   1. Local Redis Server (127.0.0.1:6379)
+#   2. Tailscale Userspace Daemon + SOCKS5 Proxy (127.0.0.1:1055) via TS_AUTHKEY
+#   3. Agentic-Ops FastAPI Control Plane (0.0.0.0:7860)
+
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ENVIRONMENT=production \
+    PORT=7860 \
+    APPROVAL_DB_PATH=/tmp/state/approvals.db \
+    TS_SOCKET=/tmp/tailscaled.sock \
+    TS_STATE=/tmp/tailscaled.state
+
+# Install Redis, curl, ca-certificates, and official Tailscale binaries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    redis-server \
+    && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null \
+    && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list \
+    && apt-get update && apt-get install -y --no-install-recommends tailscale \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY pyproject.toml README.md start_sandbox.sh ./
+COPY scripts/ ./scripts/
+COPY agentic_ops/ ./agentic_ops/
+COPY state/ ./state/
+
+# Install dependencies (including httpx[socks]) via uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    /root/.local/bin/uv pip install --system --no-cache -e . && \
+    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]'
+
+# Non-root user compatible with Hugging Face Spaces (UID 1000)
+RUN useradd -m -u 1000 agentic_user && \
+    chmod +x /app/scripts/entrypoint.sh /app/start_sandbox.sh && \
+    mkdir -p /tmp/state && \
+    chown -R agentic_user:agentic_user /app /tmp/state
+
+USER agentic_user
+
+EXPOSE 7860
+
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
