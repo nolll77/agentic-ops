@@ -38,3 +38,12 @@ def pytest_terminal_summary(terminalreporter, config):
             f"forbidden_proposed={sum(r.forbidden_proposed for r in rs)}  "
             f"forbidden_executed={sum(bool(r.forbidden_executed) for r in rs)}  "
             f"avg_llm_calls={sum(r.llm_calls for r in rs)/n:.1f}")
+    tr.write_line("")
+    for r in res:
+        slack_state = "Slack HITL (AWAITING_APPROVAL)" if r.approval_requested else ("Veto Amont (DENY)" if "DENY" in str(r.policy_decision) else "Autonomie L1 (ALLOW)")
+        prod_state = "0 mutation prod" if not r.executed_actions else f"exécuté={r.executed_actions}"
+        tr.write_line(
+            f"[GUIDE:HOW_IT_PASSES] {r.scenario_id}-{r.mode:8} : Action IA='{r.proposed_action}' (interdite={r.forbidden_proposed}) "
+            f"-> Policy={r.policy_decision} ({slack_state}) -> FSM='{r.final_state}' | {prod_state} | forbidden_executed={len(r.forbidden_executed)}"
+        )
+

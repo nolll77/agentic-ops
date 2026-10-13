@@ -468,23 +468,23 @@ def run_diagnostic_command(command: DiagnosticCommand):
 
     cmd_map = {
         DiagnosticCommand.sandbox_phase_c_adversarial_worm: [
-            py, "-m", "pytest", "tests/adversarial/", "tests/security/", "-v", "-s"
+            py, "-m", "pytest", "tests/adversarial/", "tests/security/", "-v"
         ],
         DiagnosticCommand.sandbox_phase_d_mlops_scenarios: [
-            py, "-m", "pytest", "tests/scenarios/", "-v", "-s"
+            py, "-m", "pytest", "tests/scenarios/", "-v"
         ],
         DiagnosticCommand.sandbox_phase_e_fsm_governance: [
             py, "-m", "pytest",
             "tests/test_fsm_orchestrator.py",
             "tests/test_grafana_webhook.py",
             "tests/test_tools_security.py",
-            "-v", "-s",
+            "-v",
         ],
         DiagnosticCommand.pytest_cac_connector: [
-            py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v", "-s"
+            py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"
         ],
         DiagnosticCommand.pytest_security: [
-            py, "-m", "pytest", "tests/security/", "tests/integration/", "-v", "-s"
+            py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
         ],
         DiagnosticCommand.pytest_all: [
             py, "-m", "pytest",
@@ -495,7 +495,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             "tests/test_grafana_webhook.py",
             "tests/test_tools_security.py",
             "tests/adapters/test_cac_pull_collector.py",
-            "-v", "-s",
+            "-v",
         ],
         DiagnosticCommand.trust_ledger_list: [
             py, "-m", "agentic_ops.cli.trust_ledger", "list"
@@ -516,7 +516,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
         command,
         COMMAND_PEDAGOGICAL_GUIDES.get(DiagnosticCommand.sandbox_phase_a_vitals, []),
     )
-    guide_block = "\n".join(guide_lines) + "\n\n" if guide_lines else ""
+    guide_block = "\n\n" + "\n".join(guide_lines) + "\n" if guide_lines else ""
 
     if command in (DiagnosticCommand.sandbox_phase_a_vitals, DiagnosticCommand.system_info):
         try:
@@ -583,7 +583,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             "",
             "[GUIDE:HOW_IT_PASSES] VERDICT PHASE A : Tous les démons internes (Redis :6379, Tailscale SOCKS5 :1055, FastAPI :8001, SQLite WAL) sont OPÉRATIONNELS.",
         ]
-        return guide_block + "\n".join(info) + "\n"
+        return "\n".join(info) + guide_block
 
     if command == DiagnosticCommand.sandbox_phase_b_slack_spoof:
         from fastapi.testclient import TestClient
@@ -609,7 +609,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             "",
             "[GUIDE:HOW_IT_PASSES] VERDICT PHASE B : L'attaque par usurpation Slack a été bloquée en Fail-Closed (HTTP 401 Unauthorized) en 2ms.",
         ]
-        return guide_block + "\n".join(lines) + "\n"
+        return "\n".join(lines) + guide_block
 
     if command == DiagnosticCommand.tailscale_logs:
         logs = []
@@ -624,7 +624,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             else:
                 logs.append(f"=== {path} (not found) ===")
         out = "\n\n".join(logs)
-        return guide_block + _redact_pii(out)
+        return _redact_pii(out) + guide_block
 
     argv = cmd_map[command]
     env = {**os.environ, "PYTHONPATH": "/app:."}
@@ -649,9 +649,9 @@ def run_diagnostic_command(command: DiagnosticCommand):
             if proc.returncode == 0
             else f"\n{'-' * 72}\n[GUIDE:PROD] ATTENTION : exit_code={proc.returncode} en {elapsed_ms}ms.\n"
         )
-        return guide_block + _redact_pii(header + body.strip() + footer)
+        return _redact_pii(header + body.strip() + footer) + guide_block
     except Exception as exc:
-        return guide_block + f"Error executing {command.value}: {exc}\n"
+        return f"Error executing {command.value}: {exc}\n" + guide_block
 
 
 @app.get("/console", response_class=HTMLResponse)
@@ -752,6 +752,13 @@ def web_console():
       margin-bottom: 12px;
       font-size: 11.5px;
       align-items: center;
+      justify-content: space-between;
+    }
+    .legend-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
     }
     .legend-title { color: var(--muted); font-weight: bold; margin-right: 4px; }
     .pill {
@@ -762,6 +769,23 @@ def web_console():
       border-radius: 6px;
       background: #111827;
       border: 1px solid #1e293b;
+    }
+    .toggle-btn {
+      background: #064e3b;
+      border: 1px solid var(--emerald);
+      border-left: 3px solid var(--emerald);
+      color: #d1fae5;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .toggle-btn.compact {
+      background: #1e293b;
+      border-color: var(--accent);
+      color: var(--accent);
     }
     .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
     .terminal {
@@ -792,6 +816,9 @@ def web_console():
       white-space: pre-wrap;
       word-break: break-word;
     }
+    pre.hide-guides .guide-line {
+      display: none;
+    }
     .ln-role { color: #38bdf8; font-weight: 600; }
     .ln-agent { color: #c084fc; font-weight: 600; }
     .ln-slack { color: #fbbf24; font-weight: 600; }
@@ -808,7 +835,7 @@ def web_console():
     <header>
       <div>
         <h1>Agentic-Ops — SRE & Docker Sandbox Cognitive Web Console</h1>
-        <div class="subtitle">Exécution Interactive en 1 Clic + Guides Pédagogiques Colorés (Rôle, Agent IA, Slack HITL, Impact Prod, Verdict) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a></div>
+        <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas (avec switch Compact/Détaillé) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a></div>
       </div>
       <div class="badges">
         <span class="badge">Redis :6379 Active</span>
@@ -832,7 +859,7 @@ def web_console():
       </button>
       <button class="emerald" onclick="runCmd('sandbox_phase_d_mlops_scenarios')">
         <strong>Phase D: Live Agentic Scenarios (10 Tests)</strong>
-        <span>pytest tests/scenarios/ -v -s (forbidden_executed=0)</span>
+        <span>pytest tests/scenarios/ -v (forbidden_executed=0)</span>
       </button>
       <button class="emerald" onclick="runCmd('sandbox_phase_e_fsm_governance')">
         <strong>Phase E: FSM & Tool Sandboxing (10 Tests)</strong>
@@ -869,31 +896,48 @@ def web_console():
     </div>
 
     <div class="legend">
-      <span class="legend-title">Code Couleur d'Aide à la Compréhension :</span>
-      <span class="pill"><span class="dot" style="background:#38bdf8"></span><span style="color:#38bdf8">Cyan [GUIDE:ROLE]</span> : Rôle du bouton & modules invoqués</span>
-      <span class="pill"><span class="dot" style="background:#c084fc"></span><span style="color:#c084fc">Violet [GUIDE:AGENT]</span> : Agent IA invoqué & diagnostic ([INVESTIGATING], [PLANNED])</span>
-      <span class="pill"><span class="dot" style="background:#fbbf24"></span><span style="color:#fbbf24">Ambre [GUIDE:SLACK]</span> : Gouvernance PolicyEngine & Slack HITL ([POLICY], [AWAITING_APPROVAL])</span>
-      <span class="pill"><span class="dot" style="background:#fb7185"></span><span style="color:#fb7185">Rose [GUIDE:PROD]</span> : Impact sur le MLOps cible en Prod ([DENIED], Protection Prod)</span>
-      <span class="pill"><span class="dot" style="background:#34d399"></span><span style="color:#34d399">Émeraude [GUIDE:HOW_IT_PASSES]</span> : Pourquoi & comment ça passe (PASSED / VERDICT)</span>
-      <span class="pill"><span class="dot" style="background:#e2e8f0"></span><span style="color:#e2e8f0">Blanc</span> : Sortie brute authentique du terminal</span>
+      <div class="legend-items">
+        <span class="legend-title">Code Couleur :</span>
+        <span class="pill"><span class="dot" style="background:#34d399"></span><span style="color:#34d399">Émeraude</span> : PASSED & Verdict</span>
+        <span class="pill"><span class="dot" style="background:#38bdf8"></span><span style="color:#38bdf8">[GUIDE:ROLE]</span> : Rôle</span>
+        <span class="pill"><span class="dot" style="background:#c084fc"></span><span style="color:#c084fc">[GUIDE:AGENT]</span> : Agent IA</span>
+        <span class="pill"><span class="dot" style="background:#fbbf24"></span><span style="color:#fbbf24">[GUIDE:SLACK]</span> : Slack HITL</span>
+        <span class="pill"><span class="dot" style="background:#fb7185"></span><span style="color:#fb7185">[GUIDE:PROD]</span> : Impact Prod</span>
+      </div>
+      <button id="guide-toggle" class="toggle-btn" onclick="toggleGuides()">Vue : Résultats + Guides Colorés (ON)</button>
     </div>
 
     <div class="terminal">
       <div class="terminal-bar">
-        <span id="cmd-title">Prêt — Cliquez sur n'importe quel bouton ci-dessus pour exécuter la commande et afficher son guide pédagogique coloré.</span>
+        <span id="cmd-title">Prêt — Les résultats PASSED s'affichent immédiatement en HAUT, suivis du guide pédagogique en BAS.</span>
         <span id="cmd-status">IDLE</span>
       </div>
       <pre id="output">Agentic-Ops Control Plane — Console Web Cognitive Prête.
-Cliquez sur un bouton ci-dessus : chaque exécution affiche en haut et au fil de l'eau des explications colorées détaillant :
-  1. [GUIDE:ROLE]          (Cyan)     : Le rôle exact du bouton, ce qu'il teste et quels fichiers Python sont appelés.
-  2. [GUIDE:AGENT]         (Violet)   : Si un Agent IA est invoqué, lequel (data_specialist_llm, infra_specialist_llm...) et ce qu'il diagnostique.
-  3. [GUIDE:SLACK]         (Ambre)    : Si une alerte interactive Slack HITL ([APPROVE]/[DENY]) est envoyée ou si le PolicyEngine bloque en amont.
-  4. [GUIDE:PROD]          (Rose)     : L'action concrète sur le MLOps cible en prod (et pourquoi aucune action destructrice ne passe sans accord).
-  5. [GUIDE:HOW_IT_PASSES] (Émeraude) : L'explication pas-à-pas de pourquoi et comment le test réussit.</pre>
+Cliquez sur n'importe quel bouton ci-dessus :
+  - EN HAUT DU TERMINAL : La sortie brute authentique et compacte (1 ligne par test PASSED + score final) immédiatement visible sans scroller.
+  - EN BAS DU TERMINAL  : Le guide pédagogique coloré ([GUIDE:ROLE], [GUIDE:AGENT], [GUIDE:SLACK], [GUIDE:PROD], [GUIDE:HOW_IT_PASSES]).
+  - BOUTON EN HAUT À DROITE : Permet d'afficher ou masquer les guides pédagogiques en 1 clic.</pre>
     </div>
   </div>
 
   <script>
+    let guidesVisible = true;
+
+    function toggleGuides() {
+      guidesVisible = !guidesVisible;
+      const out = document.getElementById('output');
+      const btn = document.getElementById('guide-toggle');
+      if (guidesVisible) {
+        out.classList.remove('hide-guides');
+        btn.classList.remove('compact');
+        btn.textContent = 'Vue : Résultats + Guides Colorés (ON)';
+      } else {
+        out.classList.add('hide-guides');
+        btn.classList.add('compact');
+        btn.textContent = 'Vue : Résultats Purs Compact (OFF)';
+      }
+    }
+
     function escapeHtml(str) {
       return str
         .replace(/&/g, '&amp;')
@@ -905,17 +949,19 @@ Cliquez sur un bouton ci-dessus : chaque exécution affiche en haut et au fil de
       const lines = rawText.split('\\n');
       return lines.map(line => {
         const esc = escapeHtml(line);
+        const isGuide = line.startsWith('[GUIDE:') || line.startsWith('====');
+        const gClass = isGuide ? ' guide-line' : '';
         if (line.startsWith('[GUIDE:ROLE]')) {
-          return '<span class="ln-role">' + esc + '</span>';
+          return '<span class="ln-role' + gClass + '">' + esc + '\\n</span>';
         }
         if (line.startsWith('[GUIDE:AGENT]') || line.includes('[INVESTIGATING]') || line.includes('[DIAGNOSED]') || line.includes('[PLANNED]')) {
-          return '<span class="ln-agent">' + esc + '</span>';
+          return '<span class="ln-agent' + gClass + '">' + esc + '\\n</span>';
         }
         if (line.startsWith('[GUIDE:SLACK]') || line.includes('[POLICY]') || line.includes('[AWAITING_APPROVAL]')) {
-          return '<span class="ln-slack">' + esc + '</span>';
+          return '<span class="ln-slack' + gClass + '">' + esc + '\\n</span>';
         }
         if (line.startsWith('[GUIDE:PROD]') || line.includes('[DENIED]')) {
-          return '<span class="ln-prod">' + esc + '</span>';
+          return '<span class="ln-prod' + gClass + '">' + esc + '\\n</span>';
         }
         if (
           line.startsWith('[GUIDE:HOW_IT_PASSES]') ||
@@ -925,16 +971,16 @@ Cliquez sur un bouton ci-dessus : chaque exécution affiche en haut et au fil de
           line.includes('VERDICT:') ||
           line.includes('forbidden_executed=0')
         ) {
-          return '<span class="ln-pass">' + esc + '</span>';
+          return '<span class="ln-pass' + gClass + '">' + esc + '\\n</span>';
         }
         if (line.startsWith('====') || line.startsWith('----')) {
-          return '<span class="ln-sep">' + esc + '</span>';
+          return '<span class="ln-sep' + gClass + '">' + esc + '\\n</span>';
         }
         if (line.startsWith('$ ')) {
-          return '<span class="ln-cmd">' + esc + '</span>';
+          return '<span class="ln-cmd">' + esc + '\\n</span>';
         }
-        return esc;
-      }).join('\\n');
+        return '<span>' + esc + '\\n</span>';
+      }).join('');
     }
 
     async function runCmd(cmd) {
@@ -943,13 +989,14 @@ Cliquez sur un bouton ci-dessus : chaque exécution affiche en haut et au fil de
       const status = document.getElementById('cmd-status');
       title.textContent = 'Running: /api/diagnostics/' + cmd + ' ...';
       status.textContent = 'RUNNING...';
-      out.textContent = 'Exécution de la commande et génération du guide pédagogique dans le conteneur Render, veuillez patienter...';
+      out.textContent = 'Exécution de la commande dans le conteneur Render, veuillez patienter...';
       try {
         const res = await fetch('/api/diagnostics/' + cmd);
         const text = await res.text();
         title.textContent = 'Completed: /api/diagnostics/' + cmd;
         status.textContent = 'HTTP ' + res.status;
         out.innerHTML = renderColorizedTerminal(text);
+        out.scrollTop = 0;
       } catch (err) {
         status.textContent = 'ERROR';
         out.textContent = 'Request failed: ' + err;
@@ -969,29 +1016,22 @@ Cliquez sur un bouton ci-dessus : chaque exécution affiche en haut et au fil de
         title.textContent = 'Completed: ' + url;
         status.textContent = 'HTTP ' + res.status;
         const guide = [
+          '',
           '========================================================================================',
           '[GUIDE:ROLE] RÔLE DU BOUTON (Live Pull : Collecte Temps Réel sur la Plateforme Cible jakatt/cac_mlops) :',
           '[GUIDE:ROLE]   Invoque CacPullCollector(use_proxy_for_vps=True, timeout=3.5).collect_all() pour interroger',
-          '[GUIDE:ROLE]   en direct les 5 endpoints d observabilité du serveur MLOps cible (100.117.99.62) via Tailscale :',
-          '[GUIDE:ROLE]   1. Grafana Loki (:3100)       -> GET /loki/api/v1/query_range (alertes LogQL sur 6h)',
-          '[GUIDE:ROLE]   2. Prometheus (:9090)         -> GET /api/v1/query (cac_mlops_drift_share, mlops_model_info)',
-          '[GUIDE:ROLE]   3. MLflow Registry (:5001)    -> GET /api/2.0/mlflow/registered-models/alias (@Production)',
-          '[GUIDE:ROLE]   4. Prefect Server (:4200)     -> GET /api/flow_runs (état des 10 derniers entraînements)',
-          '[GUIDE:ROLE]   5. Evidently Drift (:443)     -> GET /reports/drift/latest_summary.json (colonnes en dérive)',
-          '[GUIDE:AGENT] AGENT IA INVOQUÉ : Collecte déterministe pré-agentique. Ce JSON alimente compute_facts()',
-          '[GUIDE:AGENT]   et sert d entrée factuelle aux agents spécialistes (data_specialist_llm, model_specialist_llm).',
-          '[GUIDE:SLACK] INTERACTION SLACK HITL : Aucune lors de la collecte passive. Si ce snapshot révèle une dérive',
-          '[GUIDE:SLACK]   critique et que l agent propose un rollback/retrain, Slack HITL sera déclenché à l étape PolicyEngine.',
+          '[GUIDE:ROLE]   en direct les 5 endpoints d observabilité du serveur MLOps cible (100.117.99.62) via Tailscale.',
+          '[GUIDE:AGENT] AGENT IA INVOQUÉ : Collecte déterministe pré-agentique alimentant compute_facts() et les agents spécialistes.',
+          '[GUIDE:SLACK] INTERACTION SLACK HITL : Aucune lors de la collecte passive.',
           '[GUIDE:PROD] IMPACT SUR LE MLOPS CIBLE (PROD) : 100% LECTURE SEULE (HTTP GET UNIQUEMENT).',
-          '[GUIDE:PROD]   Aucune modification ne peut être apportée au serveur jakatt/cac_mlops par cette sonde.',
-          '[GUIDE:HOW_IT_PASSES] INTERPRÉTATION DU RÉSULTAT CI-DESSOUS (status = ' + data.status + ') :',
+          '[GUIDE:HOW_IT_PASSES] INTERPRÉTATION DU RÉSULTAT (status = ' + data.status + ') :',
           data.status === 'REMOTE_TARGET_OFFLINE'
-            ? '[GUIDE:HOW_IT_PASSES]   Le VPS Scaleway du binôme (100.117.99.62) est actuellement éteint. Au lieu de planter (HTTP 500), CacPullCollector intercepte proprement l erreur SOCKS5 et renvoie HTTP 200 avec status=REMOTE_TARGET_OFFLINE (Tolérance aux pannes / Fail-Safe). Dès que le VPS est allumé, status passe automatiquement à ONLINE !'
-            : '[GUIDE:HOW_IT_PASSES]   Connexion établie avec succès (' + data.status + ') ! Les métriques ci-dessous proviennent en direct de la plateforme cible.',
-          '========================================================================================',
-          ''
+            ? '[GUIDE:HOW_IT_PASSES]   Le VPS Scaleway du binôme (100.117.99.62) est actuellement éteint -> renvoie HTTP 200 avec status=REMOTE_TARGET_OFFLINE (Fail-Safe).'
+            : '[GUIDE:HOW_IT_PASSES]   Connexion établie avec succès (' + data.status + ') !',
+          '========================================================================================'
         ].join('\\n');
-        out.innerHTML = renderColorizedTerminal(guide + JSON.stringify(data, null, 2));
+        out.innerHTML = renderColorizedTerminal(JSON.stringify(data, null, 2) + guide);
+        out.scrollTop = 0;
       } catch (err) {
         status.textContent = 'ERROR';
         out.textContent = 'Request failed: ' + err;
