@@ -12,9 +12,13 @@
 Unlike traditional agentic frameworks (`LangChain`, `AutoGen`) that prioritize unchecked autonomy, `Agentic-Ops` is engineered around core **SRE (Site Reliability Engineering)** pillars: Determinism, Observability, Distributed Security (`Fail-Closed`), and asynchronous `Human-in-the-Loop (HITL)` governance.
 
 > **Official Deployment & Interconnection Reports**:
-> 1. **Cloud Sandbox Validation (`Docker Agentic Platform`)**: End-to-end deployment on an isolated micro-VM and line-by-line technical interpretation of all 30 unit, adversarial, and cryptographic security tests:  
+> 1. **Live Serverless Auto-Wake Production Instance (`Render` + `Tailscale` + `cron-job.org`)**:  
+>    - **Live Control Plane Status**: **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
+>    - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
+>    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
+> 2. **Cloud Sandbox Validation (`Docker Agentic Platform`)**: End-to-end deployment on an isolated micro-VM and line-by-line technical interpretation of all 30 unit, adversarial, and cryptographic security tests:  
 >    **[Read the Cloud Sandbox Deployment & Validation Report (DOCKER_SANDBOX_VALIDATION.md)](DOCKER_SANDBOX_VALIDATION.md)**
-> 2. **Tailscale Pull Interconnection with Target Platform [`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)**: Userspace `Tailscale` tunneling (`--tun=userspace-networking` / `SOCKS5` proxy / `DERP` relays), strict read-only ingestion across 5 observability sources (`Loki`, `Prometheus`, `MLflow`, `Prefect`, `Evidently`), and validation via 13 unit tests:  
+> 3. **Tailscale Pull Interconnection with Target Platform [`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)**: Userspace `Tailscale` tunneling (`--tun=userspace-networking` / `SOCKS5` proxy / `DERP` relays), strict read-only ingestion across 5 observability sources (`Loki`, `Prometheus`, `MLflow`, `Prefect`, `Evidently`), and validation via 13 unit tests:  
 >    **[Read the Tailscale Pull Connector Architecture & Validation Report (CAC_TAILSCALE_PULL_CONNECTOR.md)](CAC_TAILSCALE_PULL_CONNECTOR.md)**
 
 ---
@@ -51,8 +55,12 @@ agentic-ops-core/
 │   ├── governance/
 │   │   ├── autonomy_policy.yaml  # Strict production MLOps manifest (approval requirements).
 │   │   └── shadow_policy.yaml    # Security policy A/B testing (divergence analysis).
+│   ├── cli/
+│   │   └── main.py               # FastAPI server exposing /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
 │   └── entrypoints/
 │       └── slack_webhook.py      # HITL: Human approval ingestion (HMAC-SHA256 verification, 5m anti-replay window).
+├── scripts/
+│   └── entrypoint.sh             # Zero-Click Auto-Wake boot script (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
 ├── docs/
 │   └── mlops_simulation_scenarios_registry.md # MLOps crisis simulation scenario registry.
 ├── tests/
@@ -63,11 +71,13 @@ agentic-ops-core/
 │   └── security/
 │       ├── test_trust_ledger.py       # Tamper-evident detection on the WORM blockchain.
 │       └── test_executor.py           # Security invariant tests (OS-level process isolation & sandboxing).
+├── Dockerfile                         # Production Auto-Wake container image (Render / Koyeb / Self-Hosted, Port 8001).
+├── Dockerfile.hf                      # Hugging Face Spaces Auto-Wake container image (Port 7860, non-root UID 1000).
 ├── DOCKER_SANDBOX_VALIDATION.md       # Deployment and validation report on Docker Cloud Sandbox.
 ├── CAC_TAILSCALE_PULL_CONNECTOR.md    # Architecture and validation of the Tailscale Pull Connector to CAC MLOps.
 ├── README.md                          # Main documentation (English).
 ├── README_FR.md                       # Complete documentation (French).
-└── pyproject.toml                     # Dependency manifest (Pydantic, FastAPI, Redis, httpx, etc.)
+└── pyproject.toml                     # Dependency manifest (Pydantic, FastAPI, Redis, httpx[socks], etc.)
 ```
 
 ---
@@ -76,9 +86,10 @@ agentic-ops-core/
 
 **`Agentic-Ops` is not another model-training platform: it is an agnostic "Control Plane" (an SRE governance brain) that plugs directly on top of an existing production MLOps execution platform.**
 
-In our reference deployment, `Agentic-Ops` (running inside an isolated `Docker Agentic Platform` micro-VM, Tailscale IP `100.102.123.121`) is connected to the target production platform `CAC MLOps`:
+In our reference deployment, `Agentic-Ops` runs both in an isolated `Docker Agentic Platform` micro-VM (Tailscale IP `100.102.123.121`) and as a live **24/7 Auto-Wake PaaS Web Service on `Render`** (`https://agentic-ops-5ebv.onrender.com`, Tailscale IP **`100.85.198.81`**, hostname `agentic-ops-render`) connected to the target production platform `CAC MLOps`:
 * **Target Platform GitHub Repository**: **[`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)** (Road accident severity prediction platform).
 * **Target Production Server (Scaleway VPS)**: `scw-jovial-dubinsky` — Tailscale IP: **`100.117.99.62`** — Public domain: `https://mlops.jakat-inc.fr`.
+* **Live `Agentic-Ops` Control Plane (`Render`)**: **[`https://agentic-ops-5ebv.onrender.com`](https://agentic-ops-5ebv.onrender.com)** — Tailscale IP: **`100.85.198.81`**.
 * **Dedicated Technical Connector Documentation**: **[`CAC_TAILSCALE_PULL_CONNECTOR.md`](CAC_TAILSCALE_PULL_CONNECTOR.md)**.
 
 ---
@@ -271,6 +282,70 @@ sequenceDiagram
     Exec->>Exec: Seals full cryptographic proof in Trust Ledger (SHA-256 + HMAC-SHA512)
     end
 ```
+
+---
+
+### D. Serverless Auto-Wake PaaS Deployment (`Render` + `Tailscale` Userspace + 24/7 `Keep-Alive`)
+
+To allow `Agentic-Ops` to run continuously on a free-tier PaaS (`Render`, `Hugging Face Spaces`, or `Koyeb`) without ever requiring an operator to open an SSH terminal or click a console start button, the entire stack (`Redis` + `Tailscale` `SOCKS5` + `FastAPI`) is packaged inside a self-initializing container ([`Dockerfile`](Dockerfile), [`Dockerfile.hf`](Dockerfile.hf), and [`scripts/entrypoint.sh`](scripts/entrypoint.sh)).
+
+#### 1. Live Production URLs & Endpoints (`Render` — `Frankfurt EU Central`)
+
+| Endpoint / Console | Live URL | Method | Purpose & Behavior |
+| :--- | :--- | :--- | :--- |
+| **Root Auto-Wake & Daemon Status** | **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** | `GET` | **Primary Auto-Wake URL**. Visiting this URL in a browser or calling it via `fetch()` from an external frontend (`Vercel`) wakes the container automatically if asleep and returns the live status of local `Redis` (`127.0.0.1:6379`) and `Tailscale SOCKS5` (`127.0.0.1:1055`). |
+| **Keep-Alive Liveness Probe** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Lightweight health check returning `{"status": "ok"}`. Polled every `10 minutes` by `cron-job.org` to prevent the `15-minute` free-tier inactivity spin-down. |
+| **Daemon Readiness Probe** | **[`https://agentic-ops-5ebv.onrender.com/ready`](https://agentic-ops-5ebv.onrender.com/ready)** | `GET` | Verifies that both internal daemons (`redis_local_6379: true` and `tailscale_socks5_1055: true`) are listening inside the container. |
+| **Tailscale Mesh Status & Manual Fallback Auth** | **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** | `GET` | Queries `tailscale --socket=/tmp/tailscaled.sock status --json`. Returns `"backend_state": "Running"`, `"tailscale_ips": ["100.85.198.81", ...]`, `"hostname": "agentic-ops-render"`, the exportable `"ts_state_b64"`, or a live clickable `"auth_url"` (`https://login.tailscale.com/a/...`) if manual re-authentication is ever required. |
+| **On-Demand `CAC MLOps` Pull Snapshot** | **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)** | `GET` | Triggers an immediate read-only collection (`CacPullCollector.collect_all()`, default `3.5s` per-service timeout) across all 5 `jakatt/cac_mlops` endpoints over the `Tailscale SOCKS5` tunnel (`127.0.0.1:1055`). |
+| **Slack HITL Interactive Webhook** | `https://agentic-ops-5ebv.onrender.com/slack/interactive` | `POST` | Receives signed `Slack Block Kit` button callbacks (`HMAC-SHA256` + `5 min` anti-replay + `SQLite BEGIN IMMEDIATE` atomic lock). |
+| **External Keep-Alive Scheduler (`cron-job.org`)** | **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** | `GET` (`Every 10m`) | Scheduled job (`Agentic-Ops Keep-Alive`) pinging `https://agentic-ops-5ebv.onrender.com/healthz` every `10 minutes` so the container and its `Tailscale` tunnel remain warm 24/7. |
+| **Render Service Management Console** | **[`https://dashboard.render.com/web/srv-db6ojll9fdbs73dnlgsg`](https://dashboard.render.com/web/srv-db6ojll9fdbs73dnlgsg)** | `Web UI` | Deployment logs, environment variables (`PORT`, `TS_HOSTNAME`, `TS_STATE_B64`, `SLACK_SIGNING_SECRET`), and `Manual Deploy` button. |
+
+#### 2. Anatomy of the Zero-Console Container Boot Sequence ([`scripts/entrypoint.sh`](scripts/entrypoint.sh))
+
+Every time the container starts (whether on a fresh deployment or waking up from a `Render` inactivity spin-down), [`scripts/entrypoint.sh`](scripts/entrypoint.sh) executes a 5-stage deterministic initialization sequence:
+
+1. **SOCKS5 Proxy Loop Prevention (`\x05\xff` Bug Fix)**:
+   Explicitly executes `unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy` before starting any daemon. This guarantees that `tailscaled` connects directly to `Tailscale` control servers (`controlplane.tailscale.com:443`) while confining the `socks5://127.0.0.1:1055` proxy strictly to the `httpx` transport inside [`cac_pull_collector.py`](agentic_ops/adapters/cac_pull_collector.py).
+2. **Runtime Ephemeral `tmpfs` Initialization (`/tmp/state`)**:
+   On serverless PaaS platforms (`Render`, `Hugging Face Spaces`), `/tmp` is mounted as a fresh in-memory `tmpfs` at container startup, wiping directories created during `docker build`. Both [`scripts/entrypoint.sh`](scripts/entrypoint.sh) (`mkdir -p /tmp/state`) and [`ApprovalRepo.__init__()`](agentic_ops/core/approvals.py) (`os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)`) recreate `/tmp/state` dynamically at runtime so `SQLite WAL` (`/tmp/state/approvals.db`) never fails with `sqlite3.OperationalError`.
+3. **Local `Redis` Daemon (`127.0.0.1:6379`)**:
+   Starts `redis-server --daemonize yes --bind 127.0.0.1 --port 6379` inside the container, providing zero-latency atomic operations (`INCR` + `EXPIRE` for rate limiting and `SET NX EX` for semantic idempotency locks) without requiring an external paid Redis add-on.
+4. **Userspace `Tailscale` Daemon & Non-Admin Session Persistence (`TS_STATE_B64` vs. `TS_AUTHKEY`)**:
+   Starts `tailscaled --tun=userspace-networking --socks5-server=127.0.0.1:1055 --state=/tmp/tailscaled.state --socket=/tmp/tailscaled.sock` (requiring zero root `CAP_NET_ADMIN` or `/dev/net/tun` privileges). To persist authentication across ephemeral container restarts, two modes are supported:
+   - **Mode A — `TS_STATE_B64` (Non-Admin Tailnet Member Persistence, Active on `Render`)**: When connected to a third-party `Tailnet` as an invited **Member** (without access to `https://login.tailscale.com/admin/settings/keys` to generate a `TS_AUTHKEY`), the operator authenticates the container once via [`/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status). Once connected, `/api/tailscale/status` exports the encrypted `/tmp/tailscaled.state` file as a `base64` string (`ts_state_b64`). Storing this string in `Render`'s `Environment Variables` under `TS_STATE_B64` allows `scripts/entrypoint.sh` (`echo "$TS_STATE_B64" | base64 -d > "$TS_STATE"`) to restore the authenticated node identity (`agentic-ops-render`, IP **`100.85.198.81`**) automatically before `tailscaled` starts.
+   - **Mode B — `TS_AUTHKEY` (Tailnet Admin Headless Key)**: If the operator is an administrator of the `Tailnet`, setting `TS_AUTHKEY=tskey-auth-...` (reusable key) in the environment authenticates `tailscale up --authkey` headless at boot.
+5. **Non-Blocking Background `tailscale up` & Immediate `FastAPI` Startup**:
+   `tailscale up` is launched asynchronously in the background (`nohup tailscale --socket="$TS_SOCKET" up ... &`) so that `exec agentic-start` (`uvicorn` on `0.0.0.0:8001`) binds immediately and passes `Render`'s health check without ever blocking on network handshakes.
+
+#### 3. Three-Layer Wake-Up, Keep-Alive & Manual Fallback Procedures
+
+1. **Layer 1 — Automated 24/7 Keep-Alive (`cron-job.org`, Zero Cold-Start)**:
+   - On `Render`'s free tier, instances spin down after **`15 minutes` of HTTP inactivity** (and take `~30 to 50 seconds` to cold-start on the first subsequent request).
+   - To eliminate this `50-second` cold-start delay completely and keep the `Tailscale` tunnel (`100.85.198.81`) permanently up 24/7, a scheduled job on **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** (`Agentic-Ops Keep-Alive`) sends an `HTTP GET` request to **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** every **`10 minutes`**.
+2. **Layer 2 — Automatic On-Demand HTTP Wake-Up (If `cron-job.org` is Paused)**:
+   - Even if the external cron job is disabled and the container goes to sleep after `15 minutes` (or several hours), **any incoming HTTP request** automatically triggers `Render` to wake the container and run [`scripts/entrypoint.sh`](scripts/entrypoint.sh):
+     - Opening **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** or **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)** in any web browser.
+     - Calling `fetch("https://agentic-ops-5ebv.onrender.com/ready")` from a frontend application (`Vercel`).
+     - Clicking **`[ APPROVE ]`** or **`[ DENY ]`** on a `Slack HITL` alert (`POST /slack/interactive`).
+3. **Layer 3 — Manual Wake-Up & Emergency Re-Authentication Commands (Just in Case)**:
+   - **Manual Wake-Up from Terminal or Browser**:
+     Simply open **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** in a browser, or run from any terminal:
+     ```bash
+     # 1. Wake the container and verify local Redis (:6379) & Tailscale SOCKS5 (:1055)
+     curl -s https://agentic-ops-5ebv.onrender.com/ | python3 -m json.tool
+
+     # 2. Verify Tailscale mesh connection (IP 100.85.198.81, BackendState: Running)
+     curl -s https://agentic-ops-5ebv.onrender.com/api/tailscale/status | python3 -m json.tool
+
+     # 3. Trigger a live read-only pull from jakatt/cac_mlops (100.117.99.62)
+     curl -s "https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5" | python3 -m json.tool
+     ```
+   - **Manual `Tailscale` Session Recovery (If `TS_STATE_B64` is ever expired or revoked)**:
+     1. Open **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** in your browser.
+     2. If `"backend_state"` is `"NeedsLogin"`, the endpoint automatically generates a fresh `"auth_url": "https://login.tailscale.com/a/..."`. Open that URL in your browser and click **`Connect`**.
+     3. Refresh **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**, copy the `"ts_state_b64"` string, and paste it into **[`https://dashboard.render.com/web/srv-db6ojll9fdbs73dnlgsg/env`](https://dashboard.render.com/web/srv-db6ojll9fdbs73dnlgsg/env)** under **`TS_STATE_B64`**.
 
 ---
 
