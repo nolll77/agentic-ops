@@ -56,9 +56,9 @@ flowchart TD
     H -- "6. Rollback / Scale" --> D
 
     linkStyle 0,1,2,3,4,5 stroke:#38bdf8,stroke-width:2px;
-    linkStyle 6,7 stroke:#c084fc,stroke-width:2px;
-    linkStyle 8,9 stroke:#f59e0b,stroke-width:2px;
-    linkStyle 10,11,12 stroke:#34d399,stroke-width:2px;
+    linkStyle 6 stroke:#c084fc,stroke-width:2px;
+    linkStyle 7,8 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 9,10,11 stroke:#34d399,stroke-width:2px;
 ```
 
 ---
