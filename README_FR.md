@@ -32,6 +32,9 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
    - **Statut du Tunnel Maillé Tailscale (`100.85.198.81`)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
+
+   [![Agentic-Ops SRE & Docker Sandbox Cognitive Web Console](docs/assets/screenshots/cognitive_web_console_live.png)](https://agentic-ops-5ebv.onrender.com/console)
+
 2. **Rapport de Validation Cloud Sandbox (`Docker Agentic Platform`)** :
    Déploiement sur micro-VM isolée et interprétation ligne par ligne des 30 tests unitaires, adversariaux et cryptographiques :  
    **[Consulter le Rapport de Déploiement et Validation Cloud Sandbox (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**
@@ -370,9 +373,11 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
 
 #### 4. Terminal Web Interactif (`/console`) & Exécution en 1 Clic de Toutes les Commandes `Docker Cloud Sandbox`
 
-Comme l'onglet natif **`Shell` (`SSH`)** de `Render` nécessite un abonnement payant, `Agentic-Ops` embarque nativement un **Terminal Web SRE Dark-Mode** sur **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** (ainsi que dans la console `Swagger UI` sur **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)**).
+Comme l'onglet natif **`Shell` (`SSH`)** de `Render` nécessite un abonnement payant, `Agentic-Ops` embarque nativement un **Terminal Web SRE Cognitif Dark-Mode** sur **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** (ainsi que dans la console `Swagger UI` sur **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)**).
 
-L'intégralité des phases de validation documentées dans [`reports/DOCKER_SANDBOX_VALIDATION.md`](reports/DOCKER_SANDBOX_VALIDATION.md) et [`reports/CAC_TAILSCALE_PULL_CONNECTOR.md`](reports/CAC_TAILSCALE_PULL_CONNECTOR.md) peut être exécutée en direct à l'intérieur du conteneur `Render` en **1 clic** (avec anonymisation automatique des adresses e-mail personnelles et des noms de postes de travail) :
+[![Agentic-Ops SRE & Docker Sandbox Cognitive Web Console](docs/assets/screenshots/cognitive_web_console_live.png)](https://agentic-ops-5ebv.onrender.com/console)
+
+L'intégralité des phases de validation documentées dans [`reports/DOCKER_SANDBOX_VALIDATION.md`](reports/DOCKER_SANDBOX_VALIDATION.md) et [`reports/CAC_TAILSCALE_PULL_CONNECTOR.md`](reports/CAC_TAILSCALE_PULL_CONNECTOR.md) peut être exécutée en direct à l'intérieur du conteneur `Render` en **1 clic** (avec explications pédagogiques colorées `[GUIDE:ROLE]`, `[GUIDE:AGENT]`, `[GUIDE:SLACK]`, `[GUIDE:PROD]`, `[GUIDE:HOW_IT_PASSES]` et anonymisation automatique des PII) :
 
 | Bouton de la Console (`/console`) | URL Directe (`GET /api/diagnostics/{command}`) | Commande Exécutée à l'Intérieur du Conteneur `Render` | Résultat Attendu en Direct |
 | :--- | :--- | :--- | :--- |

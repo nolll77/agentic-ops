@@ -32,6 +32,9 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
    - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
+
+   [![Agentic-Ops SRE & Docker Sandbox Cognitive Web Console](docs/assets/screenshots/cognitive_web_console_live.png)](https://agentic-ops-5ebv.onrender.com/console)
+
 2. **Cloud Sandbox Validation Report (`Docker Agentic Platform`)**:
    End-to-end deployment on an isolated micro-VM and line-by-line technical interpretation of all 30 unit, adversarial, and cryptographic security tests:  
    **[Read the Cloud Sandbox Deployment & Validation Report (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**
@@ -370,9 +373,11 @@ Every time the container starts (whether on a fresh deployment or waking up from
 
 #### 4. Interactive Web Terminal (`/console`) & 1-Click Execution of All Docker Cloud Sandbox Commands
 
-Because `Render`'s native SSH **`Shell`** tab requires a paid instance plan, `Agentic-Ops` embeds a built-in **Dark-Mode SRE Web Console** at **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** (and via `Swagger UI` at **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)**).
+Because `Render`'s native SSH **`Shell`** tab requires a paid instance plan, `Agentic-Ops` embeds a built-in **Dark-Mode SRE Cognitive Web Console** at **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** (and via `Swagger UI` at **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)**).
 
-Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.md`](reports/DOCKER_SANDBOX_VALIDATION.md) and [`reports/CAC_TAILSCALE_PULL_CONNECTOR.md`](reports/CAC_TAILSCALE_PULL_CONNECTOR.md) can be executed live inside the `Render` container in **1 click** (with automatic PII redaction of personal email addresses and workstation hostnames):
+[![Agentic-Ops SRE & Docker Sandbox Cognitive Web Console](docs/assets/screenshots/cognitive_web_console_live.png)](https://agentic-ops-5ebv.onrender.com/console)
+
+Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.md`](reports/DOCKER_SANDBOX_VALIDATION.md) and [`reports/CAC_TAILSCALE_PULL_CONNECTOR.md`](reports/CAC_TAILSCALE_PULL_CONNECTOR.md) can be executed live inside the `Render` container in **1 click** (with color-coded pedagogical explanations `[GUIDE:ROLE]`, `[GUIDE:AGENT]`, `[GUIDE:SLACK]`, `[GUIDE:PROD]`, `[GUIDE:HOW_IT_PASSES]` and automatic PII redaction):
 
 | Console Button (`/console`) | Direct API URL (`GET /api/diagnostics/{command}`) | Executed Command Inside the `Render` Container | Expected Live Output |
 | :--- | :--- | :--- | :--- |
