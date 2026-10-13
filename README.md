@@ -665,6 +665,8 @@ Beyond its live connection to [`jakatt/cac_mlops`](https://github.com/jakatt/cac
 
 As an illustration, here is how **Agentic-Ops** can plug-and-play into various open-source production MLOps architectures (without modifying their source code) to provide governed self-healing:
 
+*To demonstrate immediate interoperability across a shared engineering standard, this compatibility matrix primarily benchmarks reference MLOps capstone architectures developed within the **Liora (formerly DataScientest)** engineering cohorts:*
+
 <p align="center">
   <img src="docs/assets/liora_datascientest_logo.png" alt="Liora (ex DataScientest)" width="126" />
 </p>
