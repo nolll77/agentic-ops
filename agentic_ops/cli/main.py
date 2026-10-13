@@ -347,6 +347,62 @@ def run_diagnostic_command(command: DiagnosticCommand):
         out = "\n\n".join(logs)
         return _redact_pii(out)
 
+    pytest_inprocess_map = {
+        DiagnosticCommand.sandbox_phase_c_adversarial_worm: [
+            "tests/adversarial/", "tests/security/", "-v", "-p", "no:cacheprovider"
+        ],
+        DiagnosticCommand.sandbox_phase_d_mlops_scenarios: [
+            "tests/scenarios/", "-v", "-s", "-p", "no:cacheprovider"
+        ],
+        DiagnosticCommand.sandbox_phase_e_fsm_governance: [
+            "tests/test_fsm_orchestrator.py",
+            "tests/test_grafana_webhook.py",
+            "tests/test_tools_security.py",
+            "-v",
+            "-p",
+            "no:cacheprovider",
+        ],
+        DiagnosticCommand.pytest_cac_connector: [
+            "tests/adapters/test_cac_pull_collector.py", "-v", "-p", "no:cacheprovider"
+        ],
+        DiagnosticCommand.pytest_security: [
+            "tests/security/", "tests/integration/", "-v", "-p", "no:cacheprovider"
+        ],
+        DiagnosticCommand.pytest_all: [
+            "tests/adversarial/",
+            "tests/security/",
+            "tests/scenarios/",
+            "tests/test_fsm_orchestrator.py",
+            "tests/test_grafana_webhook.py",
+            "tests/test_tools_security.py",
+            "tests/adapters/test_cac_pull_collector.py",
+            "-v",
+            "-p",
+            "no:cacheprovider",
+        ],
+    }
+
+    if command in pytest_inprocess_map:
+        import contextlib
+        import io
+        import pytest
+
+        pt_args = pytest_inprocess_map[command]
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+                rc = int(pytest.main(pt_args))
+            elapsed_ms = int((time.time() - t0) * 1000)
+            display_cmd = f"pytest {' '.join(a for a in pt_args if a not in ('-p', 'no:cacheprovider'))}"
+            header = (
+                f"$ {display_cmd}  [in-process warm execution]\n"
+                f"[exit_code={rc} | duration={elapsed_ms}ms]\n"
+                f"{'-' * 72}\n"
+            )
+            return _redact_pii(header + buf.getvalue().strip() + "\n")
+        except Exception as exc:
+            return f"Error executing {command.value}: {exc}\n"
+
     argv = cmd_map[command]
     env = {**os.environ, "PYTHONPATH": "/app:."}
     try:

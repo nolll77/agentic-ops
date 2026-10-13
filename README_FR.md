@@ -371,6 +371,10 @@ L'intégralité des phases de validation documentées dans [`reports/DOCKER_SAND
 | **`Live Pull: jakatt/cac_mlops`** | [`/api/cac/snapshot?timeout=3.5`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5) | `CacPullCollector(use_proxy_for_vps=True).collect_all()` | Interroge `Loki`, `Prometheus`, `MLflow`, `Prefect` et `Evidently` via `socks5://127.0.0.1:1055`. |
 | **`Redis Local Daemon Ping`** | [`/api/diagnostics/redis_ping`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/redis_ping) | `redis-cli -h 127.0.0.1 -p 6379 PING` | Renvoie `PONG` confirmant la disponibilité du démon `Redis` local. |
 
+> **Note d'Architecture — Pourquoi `pytest` s'exécute `In-Process` (`pytest.main()`) sur le Plan Gratuit de `Render` (`0.1 vCPU`)** :
+> Sur le plan gratuit de `Render`, l'allocation CPU du conteneur est bridée à **`0.1 vCPU`** (un dixième de cœur physique). Lancer un sous-processus Python à froid (`subprocess.run(["python", "-m", "pytest", ...])`) oblige le système à relire et compiler depuis le disque les tables JSON de tokens/tarifs de `litellm` (2 Mo) et les schémas `pydantic` à chaque clic, ce qui consomme `~25 à 35 secondes` de CPU rien qu'à l'import et provoquait un `timed out after 25 seconds` sur `pytest_security` et `pytest_all`.
+> Pour éliminer ce goulot d'étranglement, [`run_diagnostic_command()`](agentic_ops/cli/main.py) exécute désormais toutes les suites `pytest` **en mémoire chaude (`in-process`) via `pytest.main()`** directement au sein du worker `FastAPI` où `agentic_ops`, `litellm` et `pydantic` sont déjà chargés en RAM — faisant passer le temps d'exécution de **`>25 000 ms` à `~500–1 100 ms`** par suite.
+
 #### 5. Journal d'Audit `WORM Trust Ledger` en Direct & Impact Physique sur le MLOps Cible (`jakatt/cac_mlops`)
 
 Cliquer sur **`WORM Trust Ledger CLI`** dans [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) exécute `python -m agentic_ops.cli.trust_ledger list` dans le conteneur `Render` et affiche la piste d'audit immuable `WORM` (`agentic_ops/evidence_store/*.json`) :

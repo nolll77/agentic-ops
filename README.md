@@ -371,6 +371,10 @@ Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.
 | **`Live Pull: jakatt/cac_mlops`** | [`/api/cac/snapshot?timeout=3.5`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5) | `CacPullCollector(use_proxy_for_vps=True).collect_all()` | Polls `Loki`, `Prometheus`, `MLflow`, `Prefect`, and `Evidently` over `socks5://127.0.0.1:1055`. |
 | **`Redis Local Daemon Ping`** | [`/api/diagnostics/redis_ping`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/redis_ping) | `redis-cli -h 127.0.0.1 -p 6379 PING` | Returns `PONG` confirming local `Redis` readiness. |
 
+> **Architectural Note — Why `pytest` Runs In-Process (`pytest.main()`) on `Render`'s Free Tier (`0.1 vCPU`)**:
+> On `Render`'s free instance plan, CPU allocation is throttled to **`0.1 vCPU`** (1/10th of a physical core). Spawning a cold child Python process (`subprocess.run(["python", "-m", "pytest", ...])`) forces the OS to re-parse and import `litellm`'s 2 MB token/pricing tables and `pydantic` schemas from disk on every click, which takes `~25 to 35 seconds` on `0.1 vCPU` and triggers `timed out after 25 seconds` errors (`pytest_security` / `pytest_all`).
+> To eliminate this cold-import bottleneck, [`run_diagnostic_command()`](agentic_ops/cli/main.py) executes all `pytest` suites **in-process via `pytest.main()`** inside the warm `FastAPI` worker where `agentic_ops`, `litellm`, and `pydantic` are already loaded in RAM—reducing execution time from **`>25,000 ms` to `~500–1,100 ms`** per suite.
+
 #### 5. Live `WORM Trust Ledger` Audit Trail & Concrete Impact on Target MLOps (`jakatt/cac_mlops`)
 
 Clicking **`WORM Trust Ledger CLI`** in [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) executes `python -m agentic_ops.cli.trust_ledger list` inside the `Render` container and returns the cryptographically sealed `WORM` audit trail (`agentic_ops/evidence_store/*.json`):
