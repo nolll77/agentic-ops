@@ -239,7 +239,7 @@ Once approval is verified:
 - The entire episode (initial `CAC MLOps` snapshot, AI proposal, Slack approver identity, timestamps, and execution result) is serialized into canonical JSON, chained to the previous block (`previous_hash` `SHA-256`), and signed with `HMAC-SHA512` inside the immutable **`Trust Ledger` (`evidence.py`)**.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'noteBkgColor': '#fff59d', 'noteTextColor': '#000000'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#0f172a', 'actorBorder': '#38bdf8', 'actorTextColor': '#f8fafc', 'actorLineColor': '#64748b', 'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc', 'noteBkgColor': '#1e1b4b', 'noteBorderColor': '#c084fc', 'noteTextColor': '#f3e8ff', 'activationBkgColor': '#334155', 'activationBorderColor': '#38bdf8'}}}%%
 sequenceDiagram
     autonumber
     participant CAC as Target Platform jakatt/cac_mlops (100.117.99.62)
@@ -248,22 +248,28 @@ sequenceDiagram
     participant Slack as On-Call SRE (Slack HITL)
     participant Exec as Executor & WORM Trust Ledger
 
-    Note over CAC, Pull: Phase 1 : Passive Observation (100% GET Read-Only)
+    rect rgb(12, 45, 72)
+    Note over CAC, Pull: Phase 1 : Passive Observation (100% GET Read-Only - Sapphire Zone)
     Pull->>CAC: GET Loki (:3100), Prometheus (:9090), MLflow (:5001), Prefect (:4200), Evidently (:443)
     CAC-->>Pull: JSON (drift_share=0.34, lgbm_accidents v7, LogQL alerts)
     Pull->>FSM: CacCollectedSnapshot (status=ONLINE)
+    end
 
-    Note over FSM, Slack: Phase 2 : Diagnosis & Fail-Closed Halt
+    rect rgb(69, 26, 3)
+    Note over FSM, Slack: Phase 2 : Diagnosis & Fail-Closed Guardrail (Amber Zone)
     FSM->>FSM: compute_facts() + Agent Diagnosis -> ActionIntent(TRIGGER_RETRAINING)
     FSM->>FSM: PolicyEngine evaluates autonomy_policy.yaml -> REQUIRE_APPROVAL
     FSM->>Slack: Slack Block Kit Alert (CAC Evidence + [APPROVE] / [DENY] Buttons)
     Note over FSM: Physical halt in AWAITING_APPROVAL state (SQLite WAL)
+    end
 
-    Note over Slack, Exec: Phase 3 : Signed Human Approval & WORM Sealing
+    rect rgb(6, 78, 59)
+    Note over Slack, Exec: Phase 3 : Signed Human Approval & WORM Sealing (Emerald Zone)
     Slack->>FSM: Click [APPROVE] -> POST /webhooks/slack (HMAC-SHA256 Signed)
     FSM->>FSM: Verifies HMAC-SHA256 + Anti-Replay (<5m) + BEGIN IMMEDIATE Lock
     FSM->>Exec: resume_episode() -> Deterministic execution order
     Exec->>Exec: Seals full cryptographic proof in Trust Ledger (SHA-256 + HMAC-SHA512)
+    end
 ```
 
 ---
@@ -333,87 +339,102 @@ SRE-grade metrics exposed via **Prometheus** (with bounded label cardinality):
 
 One of the primary vulnerabilities of conventional autonomous agent frameworks is handing "network keys" directly to the AI. `Agentic-Ops` resolves this through a strict separation of privileges:
 
-- **Investigation Phase (AI Reads)**: LLM agents are **strictly restricted to read-only access** (Pull Mode). They query metric databases and logs to formulate a diagnosis. They are physically incapable of mutating production and only output a structured textual "modification intent".
-- **Execution Phase (Code Writes)**: The AI agent stops. The rigid, deterministic Python program (`Executor`) takes over **only** after human approval. It alone holds the API credentials and triggers mutations (Push Mode).
+- **Investigation Phase (AI Reads - Sapphire Zone)**: LLM agents are **strictly restricted to read-only access** (Pull Mode). They query metric databases and logs to formulate a diagnosis. They are physically incapable of mutating production and only output a structured textual "modification intent".
+- **Guardrail Phase (Policy & Human Gate - Amber Zone)**: The `PolicyEngine` intercepts the intent, halts the state machine, and requests human authorization via Slack.
+- **Execution Phase (Code Writes - Emerald Zone)**: The AI agent is deactivated. The rigid, deterministic Python program (`Executor`) takes over **only** after human approval. It alone holds the API credentials and triggers mutations (Push Mode).
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'noteBkgColor': '#fff59d', 'noteTextColor': '#000000'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#0f172a', 'actorBorder': '#38bdf8', 'actorTextColor': '#f8fafc', 'actorLineColor': '#64748b', 'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc', 'noteBkgColor': '#1e1b4b', 'noteBorderColor': '#c084fc', 'noteTextColor': '#f3e8ff', 'activationBkgColor': '#334155', 'activationBorderColor': '#38bdf8'}}}%%
 sequenceDiagram
     autonumber
     participant Platform as MLOps Platform
     participant Agent as LLM Agent (Investigator)
     participant FSM as Orchestrator & Policy
-    participant Human as Human (Slack)
+    participant Human as Human (Slack HITL)
     participant Exec as Python Executor (Actuator)
 
-    Note over Platform, Exec: Phase 1 : Investigation (Read-Only)
+    rect rgb(12, 45, 72)
+    Note over Platform, Exec: Phase 1 : Investigation (Read-Only - Sapphire Zone)
     Platform->>FSM: Alert Webhook (Inbound)
     FSM->>Agent: Wakes Agent
     Agent->>Platform: REST Queries (GET Logs, GET Metrics)
     Platform-->>Agent: JSON (System State)
     Agent-->>FSM: Intent : "Propose triggering retraining"
+    end
 
-    Note over FSM, Exec: Phase 2 : Guardrail (Block & Wait)
-    FSM->>FSM: Policy Engine intercepts
+    rect rgb(69, 26, 3)
+    Note over FSM, Exec: Phase 2 : The Guardrail (Block & Wait - Amber Zone)
+    FSM->>FSM: Policy Engine intercepts (REQUIRE_APPROVAL)
     FSM->>Human: Slack Approval Request
     Note over Agent: LLM Agent is deactivated
+    end
     
-    Note over Human, Exec: Phase 3 : Validation & Execution (Write)
-    Human-->>FSM: Clicks [ APPROVE ]
+    rect rgb(6, 78, 59)
+    Note over Human, Exec: Phase 3 : Validation & Execution (Write - Emerald Zone)
+    Human-->>FSM: Clicks [ APPROVE ] (Signed HMAC-SHA256)
     FSM->>Exec: Formal deterministic order
     Exec->>Platform: Mutating request (POST /deploy /retrain)
     Platform-->>Exec: Operation succeeded
-    Exec-->>FSM: Sealing in Trust Ledger
+    Exec-->>FSM: Sealing in WORM Trust Ledger
+    end
 ```
 
 ### E2E Integration Architecture (`flowchart TD`)
 
-**`Agentic-Ops` is not another MLOps platform; it is an agnostic "Control Plane" (a governance brain).** It connects to your existing stack via an Event-Driven Architecture and REST APIs, operating across 3 physical phases:
-
-1. **Sensors (Inbound - How to wake the Agent)**:
-   Observability tools (`Evidently AI`, `Prometheus`, `Datadog`) dispatch alerts via **HTTP Webhooks** to the `Agentic-Ops` API carrying a `risk_id` (e.g., `DATA-042`).
-2. **Context (Read-Only - How the Agent investigates)**:
-   Specialized agents use SDKs (`MLflow`, `Kubernetes`, `DVC`) or the `CacPullCollector` in **Read-Only Mode** to inspect the model registry, metrics, or pod logs.
-3. **Actuators (Outbound - How the Agent remediates)**:
-   Once the decision is validated by the *Policy Engine* (and *Human-in-the-Loop*), the `Executor` translates the intent into mutating API calls (triggering a `Prefect`/`Airflow` flow, updating an `MLflow` alias, or restarting a `K8s` deployment).
+**`Agentic-Ops` is not another MLOps platform; it is an agnostic "Control Plane" (a governance brain).** It connects to your existing stack via an Event-Driven Architecture and REST APIs, operating across 4 semantic color zones:
+- **Sapphire Blue (`Target MLOps Platform`)**: Observed services (`Evidently`, `Prometheus`, `MLflow`, `Prefect/Airflow`, `Kubernetes`).
+- **Amethyst Purple (`Cognitive & Orchestration Core`)**: Inbound listener, `Orchestrator FSM`, and read-only `LLM Agents`.
+- **Amber Gold (`Governance Guardrail & HITL`)**: Deterministic `Policy Engine` and `Slack HITL` human approval gate.
+- **Emerald Green (`Trusted Actuator`)**: The deterministic `Executor` performing validated mutations.
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#94a3b8', 'primaryTextColor': '#f8fafc'}}}%%
 flowchart TD
 
-    %% Global styling for readability (Forced Light Theme)
-    classDef default fill:#ffffff,stroke:#333333,stroke-width:2px,color:#000000;
-    classDef agentic fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000000;
-    classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
-    classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
-    subgraph MLOps Platform
-        Evidently[Drift Monitor : Evidently/Prometheus]
-        MLflow[Model Registry : MLflow]
-        Airflow[Pipeline Orchestrator : Prefect/Airflow]
-        K8s[Inference : Kubernetes]
+    %% Semantic Dark-Mode Palette
+    classDef platform fill:#0c2d48,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe;
+    classDef cognitive fill:#2e1065,stroke:#c084fc,stroke-width:2px,color:#f3e8ff;
+    classDef guardrail fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
+    classDef executor fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+
+    subgraph Target_MLOps_Platform ["Target MLOps Platform (Observed Production)"]
+        Evidently["Drift Monitor : Evidently / Prometheus"]:::platform
+        MLflow["Model Registry : MLflow"]:::platform
+        Airflow["Pipeline Orchestrator : Prefect / Airflow"]:::platform
+        K8s["Inference Runtime : Kubernetes"]:::platform
     end
 
-    subgraph Agentic-Ops Control Plane
-        API[Webhook API Listener]
-        FSM[Orchestrator FSM]
-        Agents[Specialized LLM Agents]
-        Policy[Policy Engine & Risk Register]
-        Exec[Executor & Adapters]
+    subgraph Agentic_Ops_Control_Plane ["Agentic-Ops Control Plane (Governance Brain)"]
+        API["Webhook API Listener & Pull Collector"]:::cognitive
+        FSM["Orchestrator FSM"]:::cognitive
+        Agents["Specialized LLM Agents (Read-Only)"]:::cognitive
+        Policy["Policy Engine & Risk Register"]:::guardrail
+        Exec["Deterministic Executor & WORM Ledger"]:::executor
     end
 
-    subgraph Human
-        Slack[Slack HITL]
+    subgraph Human_In_The_Loop ["Human-in-the-Loop (HITL)"]
+        Slack["Slack Interactive Approval (HMAC-SHA256)"]:::guardrail
     end
 
-    Evidently -- "1. Alert Webhook (Drift detected)" --> API
+    style Target_MLOps_Platform fill:#071929,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe
+    style Agentic_Ops_Control_Plane fill:#160b30,stroke:#c084fc,stroke-width:2px,color:#f3e8ff
+    style Human_In_The_Loop fill:#271102,stroke:#f59e0b,stroke-width:2px,color:#fef3c7
+
+    Evidently -- "1. Alert / Pull Telemetry (Drift detected)" --> API
     API --> FSM
     FSM --> Agents
-    Agents -- "2. Read (REST API)" --> MLflow
-    Agents -- "2. Read (Logs)" --> K8s
+    Agents -- "2. Read-Only (GET Models)" --> MLflow
+    Agents -- "2. Read-Only (GET Logs)" --> K8s
     Agents --> Policy
-    Policy -- "3. REQUIRE_APPROVAL" --> Slack
+    Policy -- "3. REQUIRE_APPROVAL (Halt)" --> Slack
     Slack -- "4. Approve (Signed Webhook)" --> FSM
     FSM --> Exec
-    Exec -- "5. Action (REST API)" --> Airflow
+    Exec -- "5. Validated Mutation (POST API)" --> Airflow
+
+    linkStyle 0,3,4 stroke:#38bdf8,stroke-width:2px;
+    linkStyle 1,2,5 stroke:#c084fc,stroke-width:2px;
+    linkStyle 6,7 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 8,9 stroke:#34d399,stroke-width:2px;
 ```
 
 ---
