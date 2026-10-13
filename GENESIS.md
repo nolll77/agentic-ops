@@ -1,72 +1,69 @@
-# 🌌 Genèse du Projet Agentic-Ops
+# Genèse du Projet Agentic-Ops
 
-Le projet **Agentic-Ops** n'est pas né d'une page blanche. Il s'agit d'une extraction architecturale (spin-off) issue du dépôt monolithique originel : **[nolll77/car_accident](https://github.com/nolll77/car_accident)**.
+Le projet **Agentic-Ops** n'est pas né d'une page blanche. Il s'agit d'une extraction architecturale (*spin-off*) issue du dépôt monolithique originel : **[nolll77/car_accident](https://github.com/nolll77/car_accident)**.
 
 ---
 
-## 1. Origine : Le Monolithe "car_accident"
-Le dépôt originel `car_accident` était un immense monorepo MLOps regroupant l'ensemble de la chaîne de valeur :
-- Les données brutes (ONISR).
+## 1. Origine : Le Monolithe `car_accident`
+Le dépôt originel `car_accident` était un monorepo MLOps regroupant l'ensemble de la chaîne de valeur :
+- Les données brutes (`ONISR`).
 - Les pipelines d'entraînement (Data Engineering & ML Engineering).
-- Le déploiement de l'API (FastAPI).
+- Le déploiement de l'API (`FastAPI`).
 - **Le Control Plane expérimental d'orchestration LLM**.
 
-Au fur et à mesure que l'architecture a gagné en maturité, il est devenu évident que le "cerveau" (les agents LLM) ne devait pas cohabiter dans le même dépôt que les "muscles" (les modèles de Machine Learning et les APIs).
+Au fur et à mesure que l'architecture a gagné en maturité, il est devenu évident que le "cerveau" (les agents LLM et le moteur de politiques) ne devait pas cohabiter dans le même dépôt que les "muscles" (les modèles de Machine Learning et les APIs d'inférence).
 
-## 2. L'Extraction : Naissance d'Agentic-Ops
-Pour respecter les principes SRE de "Séparation des Responsabilités" (Separation of Concerns) et de **Zero-Trust**, le Control Plane autonome a été extrait dans ce dépôt dédié : `agentic-ops-core`.
+## 2. L'Extraction : Naissance d'`Agentic-Ops`
+Pour respecter les principes SRE de "Séparation des Responsabilités" (*Separation of Concerns*) et de **Zero-Trust**, le Control Plane autonome a été extrait dans ce dépôt dédié : `agentic-ops-core`.
 
 Cette scission a permis :
-1. **L'Agnosticisme** : Agentic-Ops peut désormais se brancher sur n'importe quel projet MLOps (y compris le dépôt de production `plateforme_cible`), et non plus seulement sur le repo historique `car_accident`.
-2. **Le Durcissement** : L'implémentation de politiques de sécurité draconiennes (Policy-as-Code, Evidence Store, Prompt Guard).
+1. **L'Agnosticisme** : `Agentic-Ops` peut désormais se brancher sur n'importe quel projet MLOps (y compris la plateforme de production [`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)), et non plus seulement sur le dépôt historique `car_accident`.
+2. **Le Durcissement** : L'implémentation de politiques de sécurité strictes (*Policy-as-Code*, `Evidence Store WORM`, `Prompt Guard`, `Slack HITL HMAC-SHA256`).
 
 ---
 
-## 3. Schéma de Séparation (Spin-off)
+## 3. Schéma de Séparation (`Spin-off`)
 
 ```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': {'lineColor': '#94a3b8', 'primaryTextColor': '#f8fafc'}}}%%
 flowchart TD
 
-    %% Style global pour lisibilité (Thème Clair forcé)
-    classDef default fill:#ffffff,stroke:#333333,stroke-width:2px,color:#000000;
-    classDef agentic fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000000;
-    classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
-    classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
-    %% Historique
-    subgraph Monorepo_Historique ["Dépôt Originel (car_accident)"]
+    classDef platform fill:#0c2d48,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe;
+    classDef cognitive fill:#2e1065,stroke:#c084fc,stroke-width:2px,color:#f3e8ff;
+    classDef guardrail fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#fef3c7;
+    classDef executor fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+
+    subgraph Monorepo_Historique ["Depot Originel (nolll77/car_accident)"]
         direction TB
-        Pipeline_ML["Pipelines ML & Data"]
-        Inference["Inférence (API)"]
-        Exp_Agents["Agents LLM Expérimentaux"]
+        Pipeline_ML["Pipelines ML & Data"]:::platform
+        Inference["Inference (FastAPI)"]:::platform
+        Exp_Agents["Agents LLM Experimentaux"]:::guardrail
     end
 
-    %% Le Spin-off
-    Exp_Agents -- "Refactoring & Extraction
-(Séparation des Pouvoirs)" --> Agentic_Ops
-
-    %% Nouvelle Architecture
-    subgraph Dépôt_Agentic_Ops ["Ce Dépôt : agentic-ops-core"]
+    subgraph Depot_Agentic_Ops ["Ce Depot : agentic-ops-core (Control Plane)"]
         direction TB
-        Orchestrateur["Orchestrateur FSM"]
-        Policy["Policy Engine"]
-        Sec_Agents["Agents Spécialisés Sécurisés"]
+        Orchestrateur["Orchestrator FSM"]:::cognitive
+        Policy["Policy Engine & Slack HITL"]:::guardrail
+        Sec_Agents["Executor & Trust Ledger WORM"]:::executor
     end
 
-    subgraph Dépôts_Cibles ["Dépôts d'Exécution Tiers (plateforme_cible, etc.)"]
+    subgraph Depots_Cibles ["Plateformes d'Execution Cibles (jakatt/cac_mlops, etc.)"]
         direction TB
-        External_Pipelines["Pipelines Airflow / Prefect"]
-        External_K8s["Clusters Kubernetes"]
+        External_Pipelines["Pipelines Prefect / Airflow & MLflow"]:::platform
+        External_K8s["Clusters Kubernetes & Observabilite"]:::platform
     end
 
-    Dépôt_Agentic_Ops -- "API Calls & Webhooks
-(Agnostique)" --> Dépôts_Cibles
+    style Monorepo_Historique fill:#271102,stroke:#f59e0b,stroke-width:2px,stroke-dasharray: 5 5,color:#fef3c7
+    style Depot_Agentic_Ops fill:#160b30,stroke:#c084fc,stroke-width:2px,color:#f3e8ff
+    style Depots_Cibles fill:#071929,stroke:#38bdf8,stroke-width:2px,color:#e0f2fe
 
-    %% Style
-    classDef old fill:#ffebee,stroke:#c62828,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef new fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef target fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    
-    class Monorepo_Historique old;
-    class Dépôt_Agentic_Ops new;
-    class Dépôts_Cibles target;
+    Exp_Agents -- "1. Extraction & Durcissement (Separation des Pouvoirs)" --> Orchestrateur
+    Orchestrateur --> Policy
+    Policy --> Sec_Agents
+    Sec_Agents -- "2. Collecte Pull (GET) & Actions Gouvernees (POST)" --> External_Pipelines
+    Sec_Agents -- "3. Supervision & Remediation" --> External_K8s
+
+    linkStyle 0 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 1,2 stroke:#c084fc,stroke-width:2px;
+    linkStyle 3,4 stroke:#34d399,stroke-width:2px;
 ```
