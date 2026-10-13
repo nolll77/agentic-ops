@@ -172,13 +172,16 @@ def tailscale_status():
 
 
 @app.get("/api/cac/snapshot")
-def get_cac_snapshot(use_proxy: bool = Query(default=True)):
+def get_cac_snapshot(use_proxy: bool = Query(default=True), timeout: float = Query(default=3.5)):
     """
     Triggers an immediate Read-Only Pull collection against the remote
     jakatt/cac_mlops platform (via Tailscale SOCKS5 proxy if available).
     """
     proxy_available = _is_port_open("127.0.0.1", 1055)
-    collector = CacPullCollector(use_proxy_for_vps=(use_proxy and proxy_available))
+    collector = CacPullCollector(
+        use_proxy_for_vps=(use_proxy and proxy_available),
+        timeout=timeout,
+    )
     snapshot = collector.collect_all()
     return snapshot.model_dump(mode="json")
 
