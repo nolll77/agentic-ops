@@ -11,9 +11,18 @@
 
 Unlike traditional agentic frameworks (`LangChain`, `AutoGen`) that prioritize unchecked autonomy, `Agentic-Ops` is engineered around core **SRE (Site Reliability Engineering)** pillars: Determinism, Observability, Distributed Security (`Fail-Closed`), and asynchronous `Human-in-the-Loop (HITL)` governance.
 
+### Architectural Genesis: From [`nolll77/car_accident`](https://github.com/nolll77/car_accident) to a Universal, Platform-Agnostic MLOps Control Plane
+
+Originally, `Agentic-Ops` was built as the embedded SRE governance and self-healing module inside the end-to-end road-safety MLOps project **[`https://github.com/nolll77/car_accident`](https://github.com/nolll77/car_accident)** (`BAAC` data warehouse, `Feast` feature store, `MLflow`, and `FastAPI` inference).
+
+During its maturation, a strategic architectural decision was made to **extract, decouple, and generalize the entire agentic layer** into this standalone repository:
+- **Zero Domain Coupling**: All dataset-specific and monolithic dependencies were stripped out in favor of a strict **Hexagonal Architecture (`Ports & Adapters`)** driven by declarative YAML policies ([`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml), [`action_catalog.yaml`](agentic_ops/governance/action_catalog.yaml), [`risk_register.yaml`](agentic_ops/governance/risk_register.yaml)).
+- **Plug-and-Play on Any Real Production MLOps Stack**: Because the core `Orchestrator (FSM)`, `PolicyEngine`, and `WORM Trust Ledger` only consume canonical `Signal` and `SystemFacts` contracts, `Agentic-Ops` can be attached to **any production MLOps platform** simply by plugging in a read-only observability adapter—as proven live in this repository by governing both its original parent stack (**[`nolll77/car_accident`](https://github.com/nolll77/car_accident)**) and an external third-party production cluster (**[`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)**) over a `Tailscale` mesh (`100.85.198.81` $\rightarrow$ `100.117.99.62`).
+
 > **Official Deployment & Interconnection Reports**:
 > 1. **Live Serverless Auto-Wake Production Instance (`Render` + `Tailscale` + `cron-job.org`)**:  
 >    - **Live Control Plane Status**: **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
+>    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
 >    - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
 >    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 > 2. **Cloud Sandbox Validation (`Docker Agentic Platform`)**: End-to-end deployment on an isolated micro-VM and line-by-line technical interpretation of all 30 unit, adversarial, and cryptographic security tests:  
