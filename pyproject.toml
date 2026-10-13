@@ -41,3 +41,5 @@ packages = ["agentic_ops"]
 [project.scripts]
 agentic-ops = "agentic_ops.cli.main:app"
 agentic-start = "agentic_ops.cli.main:start_server"
+agentic-mcp = "agentic_ops.entrypoints.mcp_server:run_stdio_server"
+

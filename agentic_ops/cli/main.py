@@ -10,12 +10,13 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from agentic_ops.entrypoints.slack_webhook import router as slack_router
+from agentic_ops.entrypoints.mcp_server import router as mcp_router
 from agentic_ops.core.approvals import ApprovalRepo
 from agentic_ops.adapters.cac_pull_collector import CacPullCollector
 
 app = FastAPI(
     title="Agentic-Ops Control Plane",
-    description="Deterministic SRE & MLOps Governance Control Plane (Auto-Wake Ready + Web Diagnostic Console)",
+    description="Deterministic SRE & MLOps Governance Control Plane (Auto-Wake Ready + Web Console + MCP Gateway)",
     version="0.1.0",
 )
 
@@ -74,6 +75,7 @@ class DiagnosticCommand(str, Enum):
     sandbox_phase_d_mlops_scenarios = "sandbox_phase_d_mlops_scenarios"
     sandbox_phase_e_fsm_governance = "sandbox_phase_e_fsm_governance"
     pytest_cac_connector = "pytest_cac_connector"
+    pytest_mcp_gateway = "pytest_mcp_gateway"
     pytest_security = "pytest_security"
     pytest_all = "pytest_all"
     trust_ledger_list = "trust_ledger_list"
@@ -97,6 +99,8 @@ def root():
         "tailscale_socks5_1055": _is_port_open("127.0.0.1", 1055),
         "endpoints": {
             "web_console": "/console",
+            "mcp_jsonrpc": "/mcp",
+            "mcp_manifest": "/mcp/manifest",
             "swagger_docs": "/docs",
             "healthz": "/healthz",
             "ready": "/ready",
@@ -452,6 +456,25 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "[GUIDE:HOW_IT_PASSES]   Permet d'auditer les connexions derphttp et magicsock du démon userspace-networking.",
         "========================================================================================",
     ],
+    DiagnosticCommand.pytest_mcp_gateway: [
+        "========================================================================================",
+        "[GUIDE:ROLE] RÔLE DU BOUTON (Phase G — Model Context Protocol / MCP Governance Gateway) :",
+        "[GUIDE:ROLE]   Valide les 12 tests unitaires et d'intégration du serveur MCP (agentic_ops/entrypoints/mcp_server.py)",
+        "[GUIDE:ROLE]   en JSON-RPC 2.0 (STDIO & HTTP POST /mcp) : initialize, 8 Governed Tools (dont lecture directe",
+        "[GUIDE:ROLE]   de la console /console via read_console_diagnostic), 5 Knowledge Resources (Taxonomie 435",
+        "[GUIDE:ROLE]   + Scenarios Registry) et le catalogue des 20 Starter Prompts.",
+        "[GUIDE:AGENT] AGENT IA INVOQUÉ : Permet à tout client MCP externe (Claude Desktop, Cursor, Windsurf, Antigravity)",
+        "[GUIDE:AGENT]   de lire la console Web, d'interroger la Taxonomie des 435 pannes et de soumettre ses actions",
+        "[GUIDE:AGENT]   au PolicyEngine déterministe.",
+        "[GUIDE:SLACK] INTERACTION SLACK HITL : Toute action L2/L3 soumise via le tool MCP evaluate_governance_policy",
+        "[GUIDE:SLACK]   ou run_governed_incident_episode déclenche REQUIRE_APPROVAL (Slack Block Kit HITL).",
+        "[GUIDE:PROD] IMPACT SUR LE MLOPS CIBLE (PROD) : ZÉRO MUTATION NON GOUVERNÉE (Pare-feu MCP déterministe).",
+        "[GUIDE:HOW_IT_PASSES] POURQUOI & COMMENT ÇA PASSE :",
+        "[GUIDE:HOW_IT_PASSES]   1. Protocole JSON-RPC 2.0 2024-11-05 validé sur /mcp et /mcp/manifest.",
+        "[GUIDE:HOW_IT_PASSES]   2. Lecture live de /console via read_console_diagnostic validée (modes avec et sans guides).",
+        "[GUIDE:HOW_IT_PASSES]   3. Arbitrage PolicyEngine (DENY sur DATA-042 + propose_retrain, ALLOW sur create_issue) + WORM validés.",
+        "========================================================================================",
+    ],
 }
 
 
@@ -483,6 +506,9 @@ def run_diagnostic_command(command: DiagnosticCommand):
         DiagnosticCommand.pytest_cac_connector: [
             py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"
         ],
+        DiagnosticCommand.pytest_mcp_gateway: [
+            py, "-m", "pytest", "tests/entrypoints/test_mcp_server.py", "-v"
+        ],
         DiagnosticCommand.pytest_security: [
             py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
         ],
@@ -495,6 +521,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             "tests/test_grafana_webhook.py",
             "tests/test_tools_security.py",
             "tests/adapters/test_cac_pull_collector.py",
+            "tests/entrypoints/test_mcp_server.py",
             "-v",
         ],
         DiagnosticCommand.trust_ledger_list: [
@@ -835,11 +862,12 @@ def web_console():
     <header>
       <div>
         <h1>Agentic-Ops — SRE & Docker Sandbox Cognitive Web Console</h1>
-        <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas (avec switch Compact/Détaillé) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a></div>
+        <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas (avec switch Compact/Détaillé) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a> | <a href="/mcp/manifest" target="_blank">MCP Manifest (/mcp/manifest)</a></div>
       </div>
       <div class="badges">
         <span class="badge">Redis :6379 Active</span>
         <span class="badge">Tailscale SOCKS5 :1055 Active</span>
+        <span class="badge">MCP Gateway /mcp Active</span>
         <span class="badge">FastAPI :8001 Live</span>
       </div>
     </header>
@@ -869,9 +897,13 @@ def web_console():
         <strong>Phase F: CAC Tailscale Connector (13 Tests)</strong>
         <span>pytest tests/adapters/test_cac_pull_collector.py -v</span>
       </button>
+      <button class="purple" onclick="runCmd('pytest_mcp_gateway')">
+        <strong>Phase G: MCP Governance Gateway (12 Tests)</strong>
+        <span>8 Tools (/console reader), 5 Resources, 20 Prompts</span>
+      </button>
       <button class="emerald" onclick="runCmd('pytest_all')">
-        <strong>Grand Slam: All 42 Sandbox + CAC Tests</strong>
-        <span>Exécute les Phases C + D + E + F en une seule passe</span>
+        <strong>Grand Slam: All 54 Sandbox + MCP Tests</strong>
+        <span>Exécute les Phases C + D + E + F + G en une passe</span>
       </button>
       <button class="amber" onclick="runCmd('trust_ledger_list')">
         <strong>WORM Trust Ledger CLI</strong>
@@ -1043,6 +1075,7 @@ Cliquez sur n'importe quel bouton ci-dessus :
 
 
 app.include_router(slack_router)
+app.include_router(mcp_router)
 
 
 def start_server():

@@ -30,6 +30,7 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
 1. **Instance de Production Serverless Auto-Wake en Ligne (`Render` + `Tailscale` + `cron-job.org`)** :
    - **Statut du Control Plane en direct** : **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
+   - **Manifeste `MCP` (`Model Context Protocol`) en direct (`/mcp/manifest`)** : **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Guide complet : **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Statut du Tunnel Maillé Tailscale (`100.85.198.81`)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 2. **Rapport de Validation Cloud Sandbox (`Docker Agentic Platform`)** :
@@ -126,14 +127,19 @@ agentic-ops-core/
 │   ├── cli/
 │   │   └── main.py               # Serveur FastAPI exposant /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
 │   └── entrypoints/
+│       ├── mcp_server.py         # Passerelle Model Context Protocol (MCP) : 8 Tools, 5 Resources, 20 Starter Prompts.
 │       └── slack_webhook.py      # HITL : Réception des validations humaines (HMAC-SHA256, Anti-replay attack max 5m).
 ├── scripts/
 │   └── entrypoint.sh             # Script d'initialisation Auto-Wake Zéro-Clic (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
 ├── docs/
+│   ├── MCP_SERVER_GUIDE.md       # Guide complet du Serveur MCP, branchement STDIO/HTTP et catalogue de 20 Starter Prompts.
+│   ├── mlops_failure_modes_taxonomy.md      # Ontologie des 435 failure modes MLOps sur 10 dimensions.
 │   └── mlops_simulation_scenarios_registry.md # Registre des scénarios de simulation MLOps
 ├── tests/
 │   ├── adapters/
 │   │   └── test_cac_pull_collector.py # 13 tests unitaires (parsing, résilience offline, enforcement read-only).
+│   ├── entrypoints/
+│   │   └── test_mcp_server.py         # 12 tests unitaires & E2E de la passerelle MCP (lecture /console, WORM, Policy).
 │   ├── integration/
 │   │   └── test_registry_e2e.py       # Preuve formelle E2E du blocage de l'Orchestrateur sans intervention humaine.
 │   └── security/
@@ -741,6 +747,78 @@ Afin de transformer un simple tableau de bord passif en un véritable **Control 
 
 ---
 
+## Passerelle de Gouvernance `Model Context Protocol` (`MCP`) : Lecteur Live `/console`, 8 Tools, 5 Resources & Catalogue de 20 Starter Prompts
+
+> **Guide Technique Dédié** : **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)** | **Code Source** : [`agentic_ops/entrypoints/mcp_server.py`](agentic_ops/entrypoints/mcp_server.py) | **Suite de Tests** : [`tests/entrypoints/test_mcp_server.py`](tests/entrypoints/test_mcp_server.py) (`12 passed`)
+
+En entreprise, brancher des clients IA autonomes (`Claude Desktop`, `Cursor`, `Windsurf`, `Google Antigravity`) directement sur des serveurs `MCP` d'infrastructure (`Kubernetes`, `PostgreSQL`, `GitHub`) crée un risque opérationnel majeur : le LLM peut exécuter des mutations destructrices en production sans contrôle déterministe préalable.
+
+`Agentic-Ops` résout ce problème en exposant le Control Plane lui-même comme un **Pare-feu de Gouvernance `MCP` Déterministe** (`protocolVersion: "2024-11-05"`, double transport `STDIO` + `HTTP JSON-RPC 2.0` sur `/mcp`) :
+
+### 1. Que peut faire exactement le Serveur `MCP` ? (Les 8 `MCP Tools` Gouvernés & 5 `MCP Resources`)
+- **Lire et Exécuter la Console Web `/console` en Direct (`read_console_diagnostic`)** : Permet à tout client `MCP` d'exécuter et de lire à la volée n'importe quelle Phase du terminal Web `/console` (`sandbox_phase_a_vitals` jusqu'à `pytest_all`), soit en mode compact (`include_guides=False` -> uniquement les lignes `PASSED`), soit avec l'intégralité du guide cognitif (`[GUIDE:ROLE]`, `[GUIDE:AGENT]`, `[GUIDE:SLACK]`, `[GUIDE:PROD]`, `[GUIDE:HOW_IT_PASSES]`).
+- **Pare-feu Déterministe Pré-Exécution (`evaluate_governance_policy`)** : Soumet toute proposition d'action (`create_issue`, `restart_pod`, `scale_up`, `propose_retrain`) au `PolicyEngine` (`autonomy_policy.yaml`, `action_catalog.yaml`, `risk_register.yaml`) et retourne `ALLOW` (`L1`), `REQUIRE_APPROVAL` (Slack HITL `L2`/`L3`), ou `DENY` (`R-001` masquage amont data, `R-002` actions interdites, `1/hour` anti-thrashing).
+- **Scellement Cryptographique d'Incidents `WORM` (`run_governed_incident_episode` & `inspect_worm_trust_ledger`)** : Exécute un cycle d'incident complet, le scelle dans `ledger.jsonl` avec chaînage `SHA-256` (`previous_hash`) et signature `HMAC-SHA512`, et vérifie l'intégrité de toute la chaîne via `EvidenceStore.verify_chain()`.
+- **Interrogation des Référentiels Fondateurs (`search_failure_taxonomy` & `get_scenario_blueprint`)** : Fouille instantanément dans la **Taxonomie des 435 Failure Modes** ([`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md)) et le **Registre des 36 Scénarios War-Room** ([`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) + [`tests/scenarios/data/`](tests/scenarios/data/)).
+- **Collecte Temps Réel `Tailscale` Lecture Seule (`poll_target_mlops_snapshot` & `inspect_control_plane_vitals`)** : Déclenche `CacPullCollector.collect_all()` (`100% HTTP GET`) sur les 5 sources de `jakatt/cac_mlops` via le proxy `Tailscale SOCKS5` (`127.0.0.1:1055`).
+- **5 `MCP Resources` Natives** : `agentic-ops://taxonomy/failure-modes`, `agentic-ops://registry/scenarios`, `agentic-ops://governance/autonomy-policy`, `agentic-ops://governance/known-gaps` et `agentic-ops://console/vitals`.
+
+### 2. Comment se brancher dessus ? (`STDIO` Local vs Cloud `Render` `HTTP JSON-RPC 2.0`)
+
+#### A. Branchement Local `STDIO` (`Claude Desktop`, `Cursor`, `Windsurf`, `Google Antigravity`)
+Ajoutez ce bloc dans `claude_desktop_config.json`, `.cursor/mcp.json` ou `mcp_config.json` :
+```json
+{
+  "mcpServers": {
+    "agentic-ops-governance": {
+      "command": "/chemin/vers/agentic-ops-core/.venv/bin/python",
+      "args": ["-m", "agentic_ops.entrypoints.mcp_server"],
+      "env": {
+        "PYTHONPATH": "/chemin/vers/agentic-ops-core"
+      }
+    }
+  }
+}
+```
+
+#### B. Branchement Direct Sans Installation sur le Cloud `Render` (`HTTP JSON-RPC 2.0`)
+```bash
+# 1. Inspecter le manifeste MCP en direct (8 Tools, 5 Resources, 20 Starter Prompts)
+curl -s https://agentic-ops-5ebv.onrender.com/mcp/manifest | jq .counts
+
+# 2. Lire la Phase D (Scénarios Agentiques) de /console à distance via MCP JSON-RPC 2.0
+curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
+```
+
+### 3. Catalogue Complet des 20 Starter Prompts Cognitifs (`prompts/list` & `prompts/get`)
+
+| # | Identifiant Prompt | Domaine | Résumé du Starter Prompt & Chaînage d'Outils `MCP` |
+| :--- | :--- | :--- | :--- |
+| **`01`** | `01_console_grand_slam_audit` | **Console Live** | Exécuter le Grand Slam (`54` tests via `read_console_diagnostic(command='pytest_all')`) et vérifier `forbidden_executed=0`. |
+| **`02`** | `02_console_vitals_and_cgroup_check` | **Console Live** | Auditer l'enveloppe RAM `cgroup v2` (`512 MiB`), `Redis :6379` et `Tailscale SOCKS5 :1055` (`Phase A`). |
+| **`03`** | `03_console_redteam_slack_spoof` | **Console Live** | Déclencher l'attaque Red-Team par usurpation Slack (`Phase B`) et expliquer le rejet `HTTP 401` (`HMAC-SHA256`). |
+| **`04`** | `04_console_live_pull_cac_mlops` | **Console Live** | Interroger les 5 endpoints de `jakatt/cac_mlops` via `poll_target_mlops_snapshot` à travers `Tailscale`. |
+| **`05`** | `05_policy_veto_corrupted_sensor` | **PolicyEngine** | Prouver comment `R-001` / `R-002` bloquent `propose_retrain` sur `DATA-042` quand la donnée amont est `CRITICAL`. |
+| **`06`** | `06_policy_veto_thrashing_cooldown` | **PolicyEngine** | Comparer le verdict `restart_pod` (`recent_executions_last_hour=0` vs `5`) pour prouver le quota `1/hour`. |
+| **`07`** | `07_policy_hitl_slack_escalation` | **PolicyEngine** | Évaluer `scale_up` sur `baac-api` (`L2`) et expliquer le passage en `AWAITING_APPROVAL` (Slack HITL). |
+| **`08`** | `08_policy_l1_autonomy_fastpath` | **PolicyEngine** | Vérifier pourquoi `create_issue` (`mutating=False`, `blast_radius=0`, `L1`) obtient un `ALLOW` autonome immédiat. |
+| **`09`** | `09_worm_ledger_chain_verification` | **Forensique WORM** | Lancer `inspect_worm_trust_ledger` pour vérifier la chaîne de hachage `SHA-256` et les signatures `HMAC-SHA512`. |
+| **`10`** | `10_worm_simulate_and_seal_episode` | **Forensique WORM** | Exécuter `run_governed_incident_episode` et inspecter le bloc cryptographique fraîchement scellé dans `ledger.jsonl`. |
+| **`11`** | `11_worm_tamper_detection_audit` | **Forensique WORM** | Exécuter la `Phase C` (`sandbox_phase_c_adversarial_worm`) et expliquer la détection d'altération d'un octet sur disque. |
+| **`12`** | `12_worm_eu_ai_act_compliance_report` | **Forensique WORM** | Générer un rapport de conformité `EU AI Act` (Articles `12` Traçabilité & `14` Contrôle Humain) depuis le registre `WORM`. |
+| **`13`** | `13_taxonomy_deep_search_drift` | **Base Connaissance** | Chercher tous les risques de `drift` / `skew` dans la `Taxonomie des 435 pannes` (`search_failure_taxonomy`). |
+| **`14`** | `14_scenario_lineage_sim1_to_sc001` | **Base Connaissance** | Tracer la filiation exacte entre `SIM-1` dans `mlops_simulation_scenarios_registry.md` et `sc_001_data_ingestion_drop.yaml`. |
+| **`15`** | `15_scenario_adversarial_triad_analysis` | **Base Connaissance** | Analyser la triade adversariale `SC-101`, `SC-102`, `SC-103` et prouver pourquoi `forbidden_proposed=6` -> `forbidden_executed=0`. |
+| **`16`** | `16_design_new_scenario_sim9_to_sim20` | **Base Connaissance** | Générer le contrat YAML exécutable complet (`sc_009_*.yaml`) à partir du blueprint `SIM-9` du registre. |
+| **`17`** | `17_secops_prompt_injection_audit` | **SecOps & Red-Team** | Auditer la double barrière anti-Prompt Injection (`SC-101` balise `<untrusted_telemetry>` + veto `scale_to_zero`). |
+| **`18`** | `18_secops_tool_sandboxing_verification` | **SecOps & Red-Team** | Lancer la `Phase E` (`sandbox_phase_e_fsm_governance`) et expliquer l'isolation `multiprocessing.Process` (`SIGKILL` `15s`). |
+| **`19`** | `19_sre_tailscale_mesh_diagnostics` | **Réseau SRE** | Exécuter `tailscale_status` et `tailscale_netcheck` via `read_console_diagnostic` et vérifier l'anonymisation `_redact_pii()`. |
+| **`20`** | `20_executive_jury_defense_briefing` | **Soutenance Jury** | Synthétiser un briefing exécutif Jury en 5 points à partir des vitals temps réel, des `54` tests `PASSED` et du `Trust Ledger`. |
+
+---
+
 ## Installation & Tests (E2E Validation)
 
 ```bash
@@ -752,13 +830,14 @@ source .venv/bin/activate
 uv pip install -e .
 uv pip install 'httpx[socks]'
 
-# 2. Exécuter l'Intégration Continue de Sécurité E2E (Red-Team + Connecteur CAC MLOps)
+# 2. Exécuter l'Intégration Continue E2E (Sécurité, Scénarios, Connecteur CAC & Passerelle MCP)
 PYTHONPATH=. pytest tests/ -v
 # > Vérifie l'immutabilité WORM, le Fail-Closed de la Gouvernance,
-# > l'incapacité de contournement de l'Orchestrateur et les 13 tests de CacPullCollector.
+# > l'incapacité de contournement de l'Orchestrateur, les 13 tests de CacPullCollector et les 12 tests MCP.
 
-# 3. Lancer la TUI d'Audit du Trust Ledger
+# 3. Lancer la TUI d'Audit du Trust Ledger ou le Serveur MCP STDIO
 python -m agentic_ops.cli.trust_ledger list
+python -m agentic_ops.entrypoints.mcp_server
 ```
 
 ---
@@ -777,4 +856,7 @@ python -m agentic_ops.cli.trust_ledger list
    Taxonomie exhaustive de 435 modes de défaillance sur 10 dimensions MLOps (calibration `RPN`, impact `SLO`, sondes de détection, mitigations automatiques et vagues de Chaos Engineering).
 6. **[Registre des Scénarios de Simulation MLOps — Incident War Room (`docs/mlops_simulation_scenarios_registry.md`)](docs/mlops_simulation_scenarios_registry.md)** :
    36 scénarios de simulation multi-défaillances structurés selon un blueprint SRE en 7 blocs (avec les 8 à 9 premiers scénarios fondateurs intégralement développés au niveau mathématique, architectural et code Python exécutable).
+7. **[Guide de la Passerelle Model Context Protocol (`MCP`) (`docs/MCP_SERVER_GUIDE.md`)](docs/MCP_SERVER_GUIDE.md)** :
+   Référence complète du Serveur `MCP` (`STDIO` & `HTTP JSON-RPC 2.0` sur `/mcp`), lecture en direct de `/console` via `read_console_diagnostic`, 8 outils gouvernés, 5 ressources de connaissance, configurations clients (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`) et catalogue des 20 Starter Prompts Cognitifs.
+
 

@@ -30,6 +30,7 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
 1. **Live Serverless Auto-Wake Production Instance (`Render` + `Tailscale` + `cron-job.org`)**:
    - **Live Control Plane Status**: **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
+   - **Live `MCP` (`Model Context Protocol`) Manifest (`/mcp/manifest`)**: **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Full guide: **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 2. **Cloud Sandbox Validation Report (`Docker Agentic Platform`)**:
@@ -126,14 +127,19 @@ agentic-ops-core/
 │   ├── cli/
 │   │   └── main.py               # FastAPI server exposing /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
 │   └── entrypoints/
+│       ├── mcp_server.py         # Model Context Protocol (MCP) Governance Gateway (8 Tools, 5 Resources, 20 Prompts).
 │       └── slack_webhook.py      # HITL: Human approval ingestion (HMAC-SHA256 verification, 5m anti-replay window).
 ├── scripts/
 │   └── entrypoint.sh             # Zero-Click Auto-Wake boot script (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
 ├── docs/
+│   ├── MCP_SERVER_GUIDE.md       # Complete MCP Server guide, STDIO/HTTP connection configs, and 20 Starter Prompts.
+│   ├── mlops_failure_modes_taxonomy.md      # 435 MLOps failure modes ontology across 10 dimensions.
 │   └── mlops_simulation_scenarios_registry.md # MLOps crisis simulation scenario registry.
 ├── tests/
 │   ├── adapters/
 │   │   └── test_cac_pull_collector.py # 13 unit tests (JSON parsing, offline resilience, strict read-only enforcement).
+│   ├── entrypoints/
+│   │   └── test_mcp_server.py         # 12 unit & E2E tests for the MCP Governance Gateway (/console reader, WORM, Policy).
 │   ├── integration/
 │   │   └── test_registry_e2e.py       # Formal E2E proof of Orchestrator blocking without human intervention.
 │   └── security/
@@ -741,6 +747,78 @@ To turn passive monitoring into an **Auto-Remediation Control Plane**, `executor
 
 ---
 
+## `Model Context Protocol` (`MCP`) Governance Gateway: Live `/console` Reader, 8 Tools, 5 Resources & 20 Starter Prompts
+
+> **Dedicated Technical Reference**: **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)** | **Source**: [`agentic_ops/entrypoints/mcp_server.py`](agentic_ops/entrypoints/mcp_server.py) | **Test Suite**: [`tests/entrypoints/test_mcp_server.py`](tests/entrypoints/test_mcp_server.py) (`12 passed`)
+
+In enterprise AI operations, connecting autonomous IDE or desktop clients (`Claude Desktop`, `Cursor`, `Windsurf`, `Google Antigravity`) directly to infrastructure `MCP` servers (`Kubernetes`, `PostgreSQL`, `GitHub`) creates an unmitigated production hazard: the LLM can issue destructive mutations without deterministic policy checks.
+
+`Agentic-Ops` solves this by exposing the Control Plane itself as a **Deterministic `MCP` Governance Firewall** (`protocolVersion: "2024-11-05"`, dual-transport `STDIO` + `HTTP JSON-RPC 2.0` on `/mcp`):
+
+### 1. What Can the `MCP` Server Do? (The 8 Governed `MCP Tools` & 5 `MCP Resources`)
+- **Live `/console` Reader (`read_console_diagnostic`)**: Directly executes and reads any diagnostic phase from the `/console` Web Terminal (`sandbox_phase_a_vitals` through `pytest_all`), returning either compact `PASSED` lines (`include_guides=False`) or the full color-coded pedagogical commentary (`[GUIDE:ROLE]`, `[GUIDE:AGENT]`, `[GUIDE:SLACK]`, `[GUIDE:PROD]`, `[GUIDE:HOW_IT_PASSES]`).
+- **Deterministic Pre-Flight Firewall (`evaluate_governance_policy`)**: Evaluates any proposed agent action (`create_issue`, `restart_pod`, `scale_up`, `propose_retrain`) against `autonomy_policy.yaml`, `action_catalog.yaml`, and `risk_register.yaml` (`R-001` upstream data mask veto, `R-002` forbidden risk actions, `1/hour` rate limits), returning `ALLOW`, `REQUIRE_APPROVAL` (Slack HITL), or `DENY`.
+- **End-to-End WORM Incident Sealing (`run_governed_incident_episode` & `inspect_worm_trust_ledger`)**: Runs a full incident episode, seals it in `ledger.jsonl` with a canonical `SHA-256` Merkle chain (`previous_hash`) and `HMAC-SHA512` cryptographic signature, and verifies the entire chain via `EvidenceStore.verify_chain()`.
+- **Foundational Knowledge Search (`search_failure_taxonomy` & `get_scenario_blueprint`)**: Queries the **435 Failure Modes Taxonomy** ([`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md)) and the **36 War-Room Scenarios Registry** ([`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) + [`tests/scenarios/data/`](tests/scenarios/data/)).
+- **Live `Tailscale` Read-Only Pull (`poll_target_mlops_snapshot` & `inspect_control_plane_vitals`)**: Triggers `CacPullCollector.collect_all()` (`100% HTTP GET`) across the 5 observability sources of `jakatt/cac_mlops` over the `Tailscale SOCKS5` mesh (`127.0.0.1:1055`).
+- **5 Native `MCP Resources`**: `agentic-ops://taxonomy/failure-modes`, `agentic-ops://registry/scenarios`, `agentic-ops://governance/autonomy-policy`, `agentic-ops://governance/known-gaps`, and `agentic-ops://console/vitals`.
+
+### 2. How to Connect (`STDIO` Local Client vs. Remote Cloud `HTTP JSON-RPC 2.0`)
+
+#### A. Connect `Claude Desktop`, `Cursor`, `Windsurf`, or `Google Antigravity` (`STDIO`)
+Add the following block to `claude_desktop_config.json`, `.cursor/mcp.json`, or `mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "agentic-ops-governance": {
+      "command": "/path/to/agentic-ops-core/.venv/bin/python",
+      "args": ["-m", "agentic_ops.entrypoints.mcp_server"],
+      "env": {
+        "PYTHONPATH": "/path/to/agentic-ops-core"
+      }
+    }
+  }
+}
+```
+
+#### B. Connect Directly to the Live `Render` Cloud Instance (`HTTP JSON-RPC 2.0`)
+```bash
+# 1. Inspect the live MCP manifest (8 Tools, 5 Resources, 20 Starter Prompts)
+curl -s https://agentic-ops-5ebv.onrender.com/mcp/manifest | jq .counts
+
+# 2. Read Phase D (Live Agentic Scenarios) from /console via MCP JSON-RPC 2.0
+curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
+```
+
+### 3. Complete Catalog of the 20 Cognitive Starter Prompts (`prompts/list` & `prompts/get`)
+
+| # | Prompt ID | Domain | Starter Prompt Summary & Chained `MCP` Tools |
+| :--- | :--- | :--- | :--- |
+| **`01`** | `01_console_grand_slam_audit` | **Console Live** | Run all `54` tests (`pytest_all`) via `read_console_diagnostic` and verify `forbidden_executed=0`. |
+| **`02`** | `02_console_vitals_and_cgroup_check` | **Console Live** | Audit container `cgroup v2` memory (`512 MiB`), `Redis :6379`, and `Tailscale SOCKS5 :1055` (`Phase A`). |
+| **`03`** | `03_console_redteam_slack_spoof` | **Console Live** | Trigger `Phase B` Red-Team Slack webhook spoofing attack and explain the `HTTP 401` `HMAC-SHA256` rejection. |
+| **`04`** | `04_console_live_pull_cac_mlops` | **Console Live** | Poll the 5 remote observability endpoints of `jakatt/cac_mlops` via `poll_target_mlops_snapshot`. |
+| **`05`** | `05_policy_veto_corrupted_sensor` | **PolicyEngine** | Prove how `R-001` / `R-002` veto `propose_retrain` on `DATA-042` when upstream data severity is `CRITICAL`. |
+| **`06`** | `06_policy_veto_thrashing_cooldown` | **PolicyEngine** | Compare `restart_pod` verdicts (`recent_executions_last_hour=0` vs `5`) to prove `1/hour` anti-thrashing rate limits. |
+| **`07`** | `07_policy_hitl_slack_escalation` | **PolicyEngine** | Evaluate `scale_up` on `baac-api` (`L2`) and explain the transition to `AWAITING_APPROVAL` (Slack HITL). |
+| **`08`** | `08_policy_l1_autonomy_fastpath` | **PolicyEngine** | Verify why `create_issue` (`mutating=False`, `blast_radius=0`, `L1`) is granted immediate autonomous `ALLOW`. |
+| **`09`** | `09_worm_ledger_chain_verification` | **WORM Forensics** | Run `inspect_worm_trust_ledger` to verify the `SHA-256` Merkle chain and `HMAC-SHA512` signatures. |
+| **`10`** | `10_worm_simulate_and_seal_episode` | **WORM Forensics** | Execute `run_governed_incident_episode` and inspect the newly sealed cryptographic block in `ledger.jsonl`. |
+| **`11`** | `11_worm_tamper_detection_audit` | **WORM Forensics** | Run `Phase C` (`sandbox_phase_c_adversarial_worm`) and explain 1-byte disk tamper detection. |
+| **`12`** | `12_worm_eu_ai_act_compliance_report` | **WORM Forensics** | Map `autonomy_policy.yaml` and `WORM` ledger controls to `EU AI Act` Articles `12` (Logging) & `14` (Human Oversight). |
+| **`13`** | `13_taxonomy_deep_search_drift` | **Knowledge Base** | Search the `435 Failure Modes Taxonomy` (`search_failure_taxonomy`) for `drift` / `skew` and map to `PolicyEngine` rules. |
+| **`14`** | `14_scenario_lineage_sim1_to_sc001` | **Knowledge Base** | Trace code lineage from `SIM-1` in `mlops_simulation_scenarios_registry.md` to `sc_001_data_ingestion_drop.yaml`. |
+| **`15`** | `15_scenario_adversarial_triad_analysis` | **Knowledge Base** | Inspect `SC-101`, `SC-102`, `SC-103` via `get_scenario_blueprint` and prove why `forbidden_proposed=6` -> `forbidden_executed=0`. |
+| **`16`** | `16_design_new_scenario_sim9_to_sim20` | **Knowledge Base** | Synthesize a new executable YAML scenario contract (`sc_009_*.yaml`) from `SIM-9` in the Scenarios Registry. |
+| **`17`** | `17_secops_prompt_injection_audit` | **SecOps Defense** | Audit indirect prompt injection (`SC-101` `<untrusted_telemetry>` fence + `PolicyEngine` veto on `scale_to_zero`). |
+| **`18`** | `18_secops_tool_sandboxing_verification` | **SecOps Defense** | Run `Phase E` (`sandbox_phase_e_fsm_governance`) and explain OS-level `multiprocessing.Process` `15s` `SIGKILL` isolation. |
+| **`19`** | `19_sre_tailscale_mesh_diagnostics` | **SRE Mesh** | Run `tailscale_status` and `tailscale_netcheck` via `read_console_diagnostic` and verify `_redact_pii()` anonymization. |
+| **`20`** | `20_executive_jury_defense_briefing` | **Jury Defense** | Synthesize a 5-point Executive Jury Defense Briefing from live vitals, `54 passed` tests, and the `WORM` ledger. |
+
+---
+
 ## Installation & E2E Validation Tests
 
 ```bash
@@ -752,13 +830,14 @@ source .venv/bin/activate
 uv pip install -e .
 uv pip install 'httpx[socks]'
 
-# 2. Run the E2E Security & Adapter Test Suite (Red-Team + CAC MLOps Connector)
+# 2. Run the E2E Security, Scenarios, CAC Connector & MCP Gateway Test Suite
 PYTHONPATH=. pytest tests/ -v
 # > Verifies WORM immutability, Fail-Closed governance,
-# > non-bypassable Orchestrator state transitions, and all 13 CacPullCollector tests.
+# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, and 12 MCP Gateway tests.
 
-# 3. Launch the Trust Ledger Audit CLI
+# 3. Launch the Trust Ledger Audit CLI or the STDIO MCP Server
 python -m agentic_ops.cli.trust_ledger list
+python -m agentic_ops.entrypoints.mcp_server
 ```
 
 ---
@@ -777,4 +856,7 @@ python -m agentic_ops.cli.trust_ledger list
    Exhaustive 435-entry failure taxonomy across 10 MLOps dimensions (`RPN` calibration, `SLO` impact, detection sensors, automated mitigations, and Chaos waves).
 6. **[MLOps Incident War-Room Simulation Scenarios Registry (`docs/mlops_simulation_scenarios_registry.md`)](docs/mlops_simulation_scenarios_registry.md)**:
    36 multi-failure simulation scenarios structured around a 7-block SRE blueprint (with the first 8–9 foundational scenarios expanded to full mathematical, architectural, and executable Python depth).
+7. **[Model Context Protocol (`MCP`) Governance Gateway Guide (`docs/MCP_SERVER_GUIDE.md`)](docs/MCP_SERVER_GUIDE.md)**:
+   Complete reference for the `MCP` Server (`STDIO` & `HTTP JSON-RPC 2.0` on `/mcp`), live `/console` reading via `read_console_diagnostic`, 8 governed tools, 5 knowledge resources, client configuration files (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`), and the 20 Cognitive Starter Prompts catalog.
+
 
