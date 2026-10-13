@@ -10,7 +10,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import print as rprint
 
-console = Console()
+console = Console(width=140)
 
 EVIDENCE_DIR = Path("agentic_ops/evidence_store")
 

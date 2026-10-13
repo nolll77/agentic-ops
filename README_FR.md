@@ -371,6 +371,51 @@ L'intégralité des phases de validation documentées dans [`reports/DOCKER_SAND
 | **`Live Pull: jakatt/cac_mlops`** | [`/api/cac/snapshot?timeout=3.5`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5) | `CacPullCollector(use_proxy_for_vps=True).collect_all()` | Interroge `Loki`, `Prometheus`, `MLflow`, `Prefect` et `Evidently` via `socks5://127.0.0.1:1055`. |
 | **`Redis Local Daemon Ping`** | [`/api/diagnostics/redis_ping`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/redis_ping) | `redis-cli -h 127.0.0.1 -p 6379 PING` | Renvoie `PONG` confirmant la disponibilité du démon `Redis` local. |
 
+#### 5. Journal d'Audit `WORM Trust Ledger` en Direct & Impact Physique sur le MLOps Cible (`jakatt/cac_mlops`)
+
+Cliquer sur **`WORM Trust Ledger CLI`** dans [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) exécute `python -m agentic_ops.cli.trust_ledger list` dans le conteneur `Render` et affiche la piste d'audit immuable `WORM` (`agentic_ops/evidence_store/*.json`) :
+
+```text
+$ /usr/local/bin/python -m agentic_ops.cli.trust_ledger list
+[exit_code=0 | duration=2866ms]
+------------------------------------------------------------------------
+Trust Ledger - Audit Trail                           
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
+┃                   ┃           ┃ Risk /    ┃           ┃ Action    ┃ Décision ┃
+┃ Episode ID        ┃ Timestamp ┃ Mode      ┃ Agent LLM ┃ Demandée  ┃  Policy  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
+│ EP-CHAOS-31c6e006 │ 2026-10-… │ MODEL-005 │ speciali… │ propose_… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-CHAOS-5950095d │ 2026-10-… │ DATA-042  │ speciali… │ propose_… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-CHAOS-d6c18601 │ 2026-10-… │ INFRA-001 │ speciali… │ create_i… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-0005           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0004           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0003           │ 2026-09-… │ DATA-042  │ data_spe… │ rollback… │ REQUIRE… │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0002           │ 2026-09-… │ DATA-042  │ data_spe… │ deploy_p… │ REQUIRE… │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0001           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
+└───────────────────┴───────────┴───────────┴───────────┴───────────┴──────────┘
+```
+
+##### Décryptage Ligne par Ligne : Quelle Action est Exécutée (ou Bloquée) sur le MLOps Cible (`jakatt/cac_mlops`)
+
+| Episode ID | Risk ID & Mode d'Exécution | Agent Spécialiste | Action Complète Demandée (`action_proposal.type`) | Verdict du `PolicyEngine` | Action Concrète & Effet Physique sur le MLOps Cible (`jakatt/cac_mlops`) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`EP-CHAOS-31c6e006`** | `MODEL-005` (`SHADOW`) — *Concept Drift / Chute du F1-Score* | `specialist_mock` | `propose_retrain` (*Lancer un flow de réentraînement Prefect*) | **`DENY`** (`SHADOW_MODE_ACTIVE`) | **Zéro mutation sur `jakatt/cac_mlops`**. L'agent a diagnostiqué une dégradation de performance du modèle `lgbm_accidents` et a proposé de déclencher un pipeline de réentraînement sur `Prefect` (`:4200`). Comme l'orchestrateur tournait en mode `SHADOW` (test à blanc de `shadow_policy.yaml`), le `PolicyEngine` a bloqué l'exécution physique (`DENY`), incrémenté le compteur de divergence, et laissé le serveur `Prefect` distant strictement intact. |
+| **`EP-CHAOS-5950095d`** | `DATA-042` (`SHADOW`) — *Dérive Statistique Sévère (`drift_share > 0.30`)* | `specialist_mock` | `propose_retrain` (*Lancer un flow de réentraînement Prefect*) | **`DENY`** (`SHADOW_MODE_ACTIVE`) | **Zéro mutation sur `jakatt/cac_mlops`**. Suite à une alerte de dérive `Evidently` / `Prometheus` (`DATA-042` sur `age_conducteur`, `hrmn`, `surf`), l'agent a proposé un réentraînement. Intercepté en mode `SHADOW` (`DENY`) afin que l'équipe SRE puisse vérifier à blanc qu'un réentraînement automatique sur une donnée amont possiblement corrompue ne dégraderait pas le modèle en production. |
+| **`EP-CHAOS-d6c18601`** | `INFRA-001` (`SHADOW`) — *Saturation Mémoire / Risque OOM Conteneur* | `specialist_mock` | `create_issue` (*Ouvrir un ticket d'incident*) | **`DENY`** (`SHADOW_MODE_ACTIVE`) | **Zéro effet de bord externe**. Même pour une action à faible rayon d'impact (`create_issue`), le mode `SHADOW_MODE_ACTIVE` impose une isolation stricte en lecture seule : le diagnostic et l'`ActionIntent` sont scellés cryptographiquement dans le `Trust Ledger WORM`, sans créer de faux tickets d'incidents pendant les campagnes de Chaos Engineering. |
+| **`EP-0005`** | `DATA-042` (`LIVE`) — *Dérive de Données Détectée* | `data_specialist` | `create_issue` (*Ouvrir un ticket d'incident MLOps*) | **`ALLOW`** (`status: SUCCESS`) | **Ouverture Autonome d'un Ticket Non-Destructif (`Blast Radius = 1, Reversible = True`)**. Crée automatiquement un rapport d'incident structuré contenant le résumé de dérive `Evidently` (`drifted_columns`, `drift_share`) et les extraits de logs `Loki`. **Ne modifie aucunement** le modèle actif `lgbm_accidents @Production` dans `MLflow` (`:5001`) ni aucun conteneur sur `100.117.99.62`. |
+| **`EP-0004`** | `DATA-042` (`LIVE`) — *Dérive de Données Détectée* | `data_specialist` | `create_issue` (*Ouvrir un ticket d'incident MLOps*) | **`ALLOW`** (`status: SUCCESS`) | **Ouverture Autonome d'un Ticket Non-Destructif (`status: SUCCESS`)**. Enregistre le deuxième épisode de dérive dans le `Trust Ledger` (chaîné cryptographiquement via `previous_hash` à `EP-0003`) et ouvre un ticket de suivi ingénieur sans toucher à l'API d'inférence `jakatt/cac_mlops`. |
+| **`EP-0003`** | `DATA-042` (`LIVE`) — *Dérive / Régression Post-Déploiement* | `data_specialist` | `rollback_prod` (*Rétrograder l'alias `@Production` dans `MLflow`*) | **`REQUIRE_APPROVAL`** (`Suspendu en AWAITING_APPROVAL`) | **Arrêt Physique + Escalade Interactive `Slack HITL` (`execution: None`)**. L'agent a proposé de basculer (`rollback`) l'alias `@Production` du modèle `lgbm_accidents` dans le `MLflow Registry` cible (`100.117.99.62:5001`) vers la version précédente. Comme la mutation du modèle de production est une opération critique (`L3`), le `PolicyEngine` a **physiquement stoppé** la machine à états en `AWAITING_APPROVAL` et envoyé une alerte `Slack Block Kit` (`[ APPROVE ]` / `[ DENY ]`). **Aucune requête n'est envoyée à `MLflow` tant qu'un ingénieur humain n'a pas cliqué sur `[ APPROVE ]` (vérifié par `HMAC-SHA256`)**. |
+| **`EP-0002`** | `DATA-042` (`LIVE`) — *Demande de Promotion d'un Modèle Candidat* | `data_specialist` | `deploy_prod` (*Promouvoir un modèle candidat en `@Production` dans `MLflow`*) | **`REQUIRE_APPROVAL`** (`Suspendu en AWAITING_APPROVAL`) | **Arrêt Physique + Escalade Interactive `Slack HITL` (`execution: None`)**. L'agent a proposé de promouvoir une nouvelle version candidate de `lgbm_accidents` vers l'alias `@Production` sur la plateforme MLOps cible. Intercepté par [`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml) (`REQUIRE_APPROVAL`) : l'orchestrateur fige l'épisode dans `SQLite WAL` (`/tmp/state/approvals.db`) et attend une approbation humaine signée avant d'autoriser l'`Executor` à muter `MLflow`. |
+| **`EP-0001`** | `DATA-042` (`LIVE`) — *Détection Initiale de Dérive Statistique* | `data_specialist` | `create_issue` (*Ouvrir un ticket d'incident MLOps*) | **`ALLOW`** (`status: SUCCESS`) | **Bloc `GENESIS` de la Chaîne `WORM` (`previous_hash: GENESIS`)**. Première remédiation autonome en mode `LIVE` : ouvre un ticket de diagnostic documentant l'anomalie de dérive `DATA-042` sur `jakatt/cac_mlops` tout en laissant l'inférence de production 100% intacte. |
+
 ---
 
 ## Fonctionnalités Clés & Hardening (Red-Teaming)

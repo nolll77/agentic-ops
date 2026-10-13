@@ -59,11 +59,11 @@ def _is_port_open(host: str, port: int, timeout: float = 0.5) -> bool:
 
 
 def _redact_pii(text: str) -> str:
-    """Redacts email addresses and personal workstation hostnames from diagnostic outputs."""
+    """Redacts email addresses, truncated Tailscale account names, and personal workstation hostnames."""
     if not text:
         return text
-    redacted = re.sub(r"[\w\.-]+@[\w\.-]+\.\w+", "[REDACTED_ACCOUNT]", text)
-    redacted = re.sub(r"(?i)(jacquess-imac|nollls-macbook-pro)", "[REDACTED_WORKSTATION]", redacted)
+    redacted = re.sub(r"[\w\.-]+@(?:[\w\.-]+\.\w+|(?=\s|$))", "[REDACTED_ACCOUNT]", text)
+    redacted = re.sub(r"(?i)(jacquess-imac|jacquess-mac-mini|nollls-macbook-pro)", "[REDACTED_WORKSTATION]", redacted)
     return redacted
 
 
@@ -354,7 +354,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             argv,
             capture_output=True,
             text=True,
-            timeout=45,
+            timeout=120,
             env=env,
         )
         elapsed_ms = int((time.time() - t0) * 1000)
