@@ -38,22 +38,24 @@ if command -v tailscaled >/dev/null 2>&1; then
         sleep 0.5
     done
 
-    # 3. Zero-Click Authentication via TS_AUTHKEY
+    # 3. Authentication: Zero-Click via TS_AUTHKEY or non-blocking background OAuth URL
     if [ -n "$TS_AUTHKEY" ]; then
         echo "[3/4] Authenticating Tailscale automatically via TS_AUTHKEY..."
-        tailscale --socket="$TS_SOCKET" up \
+        nohup tailscale --socket="$TS_SOCKET" up \
             --authkey="${TS_AUTHKEY}" \
-            --hostname="${TS_HOSTNAME:-agentic-ops-autowake}" \
-            --accept-routes || echo "Warning: tailscale up returned non-zero status."
+            --hostname="${TS_HOSTNAME:-agentic-ops-render}" \
+            --accept-routes > /tmp/tailscale_up.log 2>&1 &
     else
-        echo "[3/4] TS_AUTHKEY not set. tailscaled SOCKS5 is running in standby mode."
+        echo "[3/4] TS_AUTHKEY not set. Launching non-blocking tailscale up in background (check Render logs for login URL if needed)..."
+        nohup tailscale --socket="$TS_SOCKET" up \
+            --hostname="${TS_HOSTNAME:-agentic-ops-render}" \
+            --accept-routes > /tmp/tailscale_up.log 2>&1 &
+        sleep 2
+        cat /tmp/tailscale_up.log 2>/dev/null || true
     fi
 else
     echo "[2/4] tailscaled binary not found, skipping tunnel initialization."
 fi
 
-# Note: CacPullCollector routes its requests through socks5://127.0.0.1:1055
-# internally via httpx.HTTPTransport, avoiding any global environment pollution.
-
-echo "[4/4] Launching Agentic-Ops FastAPI Server on port ${PORT:-7860}..."
+echo "[4/4] Launching Agentic-Ops FastAPI Server on port ${PORT:-8001}..."
 exec agentic-start
