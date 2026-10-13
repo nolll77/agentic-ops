@@ -33,12 +33,15 @@ COPY scripts/ ./scripts/
 COPY agentic_ops/ ./agentic_ops/
 COPY tests/ ./tests/
 COPY docs/ ./docs/
+COPY reports/ ./reports/
 COPY state/ ./state/
 
-# Install dependencies (including httpx[socks] and pytest for diagnostic console) via uv
+# Install dependencies (including httpx[socks], pytest, hypothesis, fakeredis) via uv
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv pip install --system --no-cache -e . && \
-    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock fakeredis
+    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock hypothesis fakeredis && \
+    mkdir -p /app/reports /tmp/state && \
+    chmod -R 777 /app/reports /app/state /tmp/state
 
 # Non-root user compatible with Hugging Face Spaces (UID 1000)
 RUN useradd -m -u 1000 agentic_user && \

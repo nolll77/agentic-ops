@@ -28,12 +28,15 @@ COPY scripts/ ./scripts/
 COPY agentic_ops/ ./agentic_ops/
 COPY tests/ ./tests/
 COPY docs/ ./docs/
+COPY reports/ ./reports/
 COPY state/ ./state/
 
-# Installation via l'installateur sécurisé 'uv' (incluant httpx[socks] et pytest pour la console de diagnostic)
+# Installation via l'installateur sécurisé 'uv' (incluant httpx[socks], pytest, hypothesis, fakeredis)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv pip install --system --no-cache -e . && \
-    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock fakeredis
+    /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock hypothesis fakeredis && \
+    mkdir -p /app/reports /tmp/state && \
+    chmod -R 777 /app/reports /app/state /tmp/state
 
 # Règle du moindre privilège : utilisateur sans privilèges root
 RUN useradd -m -u 10001 agentic_user && \

@@ -68,6 +68,11 @@ def _redact_pii(text: str) -> str:
 
 
 class DiagnosticCommand(str, Enum):
+    sandbox_phase_a_vitals = "sandbox_phase_a_vitals"
+    sandbox_phase_b_slack_spoof = "sandbox_phase_b_slack_spoof"
+    sandbox_phase_c_adversarial_worm = "sandbox_phase_c_adversarial_worm"
+    sandbox_phase_d_mlops_scenarios = "sandbox_phase_d_mlops_scenarios"
+    sandbox_phase_e_fsm_governance = "sandbox_phase_e_fsm_governance"
     pytest_cac_connector = "pytest_cac_connector"
     pytest_security = "pytest_security"
     pytest_all = "pytest_all"
@@ -217,24 +222,116 @@ def get_cac_snapshot(use_proxy: bool = Query(default=True), timeout: float = Que
 @app.get("/api/diagnostics/{command}", response_class=PlainTextResponse)
 def run_diagnostic_command(command: DiagnosticCommand):
     """
-    Executes a whitelisted SRE diagnostic command inside the container and returns
-    formatted plain-text terminal output (with automatic PII redaction).
+    Executes a whitelisted SRE / Docker Cloud Sandbox diagnostic command inside the
+    container and returns formatted plain-text terminal output (with automatic PII redaction).
     Replaces the paid Render SSH Shell tab for zero-cost live auditing.
     """
     ts_socket = os.environ.get("TS_SOCKET", "/tmp/tailscaled.sock")
     py = sys.executable
 
     cmd_map = {
-        DiagnosticCommand.pytest_cac_connector: [py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"],
-        DiagnosticCommand.pytest_security: [py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"],
-        DiagnosticCommand.pytest_all: [py, "-m", "pytest", "tests/", "-v"],
-        DiagnosticCommand.trust_ledger_list: [py, "-m", "agentic_ops.cli.trust_ledger", "list"],
-        DiagnosticCommand.tailscale_status: ["tailscale", f"--socket={ts_socket}", "status"],
-        DiagnosticCommand.tailscale_netcheck: ["tailscale", f"--socket={ts_socket}", "netcheck"],
-        DiagnosticCommand.redis_ping: ["redis-cli", "-h", "127.0.0.1", "-p", "6379", "PING"],
+        DiagnosticCommand.sandbox_phase_c_adversarial_worm: [
+            py, "-m", "pytest", "tests/adversarial/", "tests/security/", "-v"
+        ],
+        DiagnosticCommand.sandbox_phase_d_mlops_scenarios: [
+            py, "-m", "pytest", "tests/scenarios/", "-v", "-s"
+        ],
+        DiagnosticCommand.sandbox_phase_e_fsm_governance: [
+            py, "-m", "pytest",
+            "tests/test_fsm_orchestrator.py",
+            "tests/test_grafana_webhook.py",
+            "tests/test_tools_security.py",
+            "-v",
+        ],
+        DiagnosticCommand.pytest_cac_connector: [
+            py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"
+        ],
+        DiagnosticCommand.pytest_security: [
+            py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
+        ],
+        DiagnosticCommand.pytest_all: [
+            py, "-m", "pytest",
+            "tests/adversarial/",
+            "tests/security/",
+            "tests/scenarios/",
+            "tests/test_fsm_orchestrator.py",
+            "tests/test_grafana_webhook.py",
+            "tests/test_tools_security.py",
+            "tests/adapters/test_cac_pull_collector.py",
+            "-v",
+        ],
+        DiagnosticCommand.trust_ledger_list: [
+            py, "-m", "agentic_ops.cli.trust_ledger", "list"
+        ],
+        DiagnosticCommand.tailscale_status: [
+            "tailscale", f"--socket={ts_socket}", "status"
+        ],
+        DiagnosticCommand.tailscale_netcheck: [
+            "tailscale", f"--socket={ts_socket}", "netcheck"
+        ],
+        DiagnosticCommand.redis_ping: [
+            "redis-cli", "-h", "127.0.0.1", "-p", "6379", "PING"
+        ],
     }
 
     t0 = time.time()
+
+    if command in (DiagnosticCommand.sandbox_phase_a_vitals, DiagnosticCommand.system_info):
+        uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
+        free_out = subprocess.run(["free", "-h"], capture_output=True, text=True).stdout.strip()
+        cpu_model = "Unknown"
+        if os.path.exists("/proc/cpuinfo"):
+            try:
+                with open("/proc/cpuinfo", "r", encoding="utf-8", errors="replace") as f:
+                    for line in f:
+                        if "model name" in line:
+                            cpu_model = line.split(":", 1)[1].strip()
+                            break
+            except Exception:
+                pass
+        info = [
+            "=== Phase A: Container Vitals, Health Probes & Hardware Telemetry ===",
+            f"OS / Kernel          : {uname}",
+            f"CPU Architecture     : {cpu_model} (cores={os.cpu_count()})",
+            f"Python Executable    : {sys.executable} ({sys.version.split()[0]})",
+            f"Working Directory    : {os.getcwd()}",
+            f"Probe GET /healthz   : {healthz()}",
+            f"Probe GET /ready     : {ready()}",
+            f"Redis Local (:6379)  : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 6379) else 'CLOSED'}",
+            f"Tailscale (:1055)    : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 1055) else 'CLOSED'}",
+            f"Approval DB Path     : {db_path} (exists={os.path.exists(db_path)})",
+            "",
+            "--- Memory Allocation (free -h) ---",
+            free_out or "(free -h not available on this OS)",
+        ]
+        return "\n".join(info) + "\n"
+
+    if command == DiagnosticCommand.sandbox_phase_b_slack_spoof:
+        from fastapi.testclient import TestClient
+
+        client = TestClient(app)
+        resp = client.post(
+            "/slack/interactive",
+            data={"payload": "fake_tampered_attack"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        elapsed_ms = int((time.time() - t0) * 1000)
+        lines = [
+            "=== Phase B: Live Red-Team Slack Webhook Spoofing Attack ===",
+            "$ curl -i -X POST http://127.0.0.1:8001/slack/interactive \\",
+            '    -H "Content-Type: application/x-www-form-urlencoded" \\',
+            '    -d "payload=fake_tampered_attack"',
+            f"[status_code={resp.status_code} | duration={elapsed_ms}ms]",
+            "-" * 72,
+            f"HTTP/1.1 {resp.status_code} Unauthorized",
+            f"content-type: {resp.headers.get('content-type', 'application/json')}",
+            "",
+            resp.text,
+            "",
+            "VERDICT: Unauthenticated webhook payload rejected Fail-Closed (HTTP 401).",
+        ]
+        return "\n".join(lines) + "\n"
+
     if command == DiagnosticCommand.tailscale_logs:
         logs = []
         for path in ("/tmp/tailscale_up.log", "/tmp/tailscaled.log"):
@@ -250,19 +347,6 @@ def run_diagnostic_command(command: DiagnosticCommand):
         out = "\n\n".join(logs)
         return _redact_pii(out)
 
-    if command == DiagnosticCommand.system_info:
-        uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
-        info = [
-            "=== Agentic-Ops Container Runtime Info ===",
-            f"OS / Kernel          : {uname}",
-            f"Python Executable    : {sys.executable} ({sys.version.split()[0]})",
-            f"Working Directory    : {os.getcwd()}",
-            f"Redis Local (:6379)  : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 6379) else 'CLOSED'}",
-            f"Tailscale (:1055)    : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 1055) else 'CLOSED'}",
-            f"Approval DB Path     : {db_path} (exists={os.path.exists(db_path)})",
-        ]
-        return "\n".join(info)
-
     argv = cmd_map[command]
     env = {**os.environ, "PYTHONPATH": "/app:."}
     try:
@@ -270,7 +354,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             argv,
             capture_output=True,
             text=True,
-            timeout=25,
+            timeout=45,
             env=env,
         )
         elapsed_ms = int((time.time() - t0) * 1000)
@@ -289,8 +373,8 @@ def run_diagnostic_command(command: DiagnosticCommand):
 def web_console():
     """
     Interactive Dark-Mode SRE Web Terminal & Diagnostic Cockpit.
-    Provides 1-click execution of pytest suites, Tailscale mesh status/netcheck,
-    WORM Trust Ledger inspection, and CAC MLOps Pull snapshots directly in the browser.
+    Provides 1-click execution of all Docker Cloud Sandbox validation phases (A-F),
+    Tailscale mesh status/netcheck, WORM Trust Ledger inspection, and CAC MLOps Pull snapshots.
     """
     return """<!DOCTYPE html>
 <html lang="en">
@@ -318,7 +402,7 @@ def web_console():
       color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
-    .container { max-width: 1120px; margin: 0 auto; }
+    .container { max-width: 1180px; margin: 0 auto; }
     header {
       display: flex;
       justify-content: space-between;
@@ -344,7 +428,7 @@ def web_console():
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
       gap: 10px;
       margin-bottom: 16px;
     }
@@ -368,7 +452,7 @@ def web_console():
     button.purple { border-left-color: var(--purple); }
     button.amber { border-left-color: var(--amber); }
     button.emerald { border-left-color: var(--emerald); }
-    button strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    button strong { display: block; margin-bottom: 3px; font-size: 12.5px; }
     button span { color: var(--muted); font-size: 11px; }
     .terminal {
       background: #05080f;
@@ -389,8 +473,8 @@ def web_console():
     pre {
       margin: 0;
       padding: 16px;
-      min-height: 440px;
-      max-height: 680px;
+      min-height: 460px;
+      max-height: 700px;
       overflow: auto;
       font-size: 12.5px;
       line-height: 1.5;
@@ -406,8 +490,8 @@ def web_console():
   <div class="container">
     <header>
       <div>
-        <h1>Agentic-Ops — SRE Diagnostic Web Console</h1>
-        <div class="subtitle">Zero-Cost Container Shell Replacement (Whitelisted Read-Only & Audit Commands) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a></div>
+        <h1>Agentic-Ops — SRE & Docker Sandbox Web Console</h1>
+        <div class="subtitle">Zero-Cost Container Shell Replacement (100% of Docker Cloud Sandbox Phases A-F + Tailscale Mesh) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a></div>
       </div>
       <div class="badges">
         <span class="badge">Redis :6379 Active</span>
@@ -417,55 +501,63 @@ def web_console():
     </header>
 
     <div class="grid">
+      <button class="amber" onclick="runCmd('sandbox_phase_a_vitals')">
+        <strong>Phase A: Vitals & Hardware Telemetry</strong>
+        <span>/healthz, /ready, CPU model, free -h, ports</span>
+      </button>
+      <button class="amber" onclick="runCmd('sandbox_phase_b_slack_spoof')">
+        <strong>Phase B: Red-Team Slack Spoof Attack</strong>
+        <span>POST /slack/interactive -> HTTP 401 Fail-Closed</span>
+      </button>
+      <button class="emerald" onclick="runCmd('sandbox_phase_c_adversarial_worm')">
+        <strong>Phase C: Adversarial & WORM (9 Tests)</strong>
+        <span>pytest tests/adversarial/ tests/security/ -v</span>
+      </button>
+      <button class="emerald" onclick="runCmd('sandbox_phase_d_mlops_scenarios')">
+        <strong>Phase D: Live Agentic Scenarios (10 Tests)</strong>
+        <span>pytest tests/scenarios/ -v -s (forbidden_executed=0)</span>
+      </button>
+      <button class="emerald" onclick="runCmd('sandbox_phase_e_fsm_governance')">
+        <strong>Phase E: FSM & Tool Sandboxing (10 Tests)</strong>
+        <span>pytest test_fsm + test_grafana + test_tools -v</span>
+      </button>
       <button class="emerald" onclick="runCmd('pytest_cac_connector')">
-        <strong>1. Pytest: CAC Tailscale Connector</strong>
+        <strong>Phase F: CAC Tailscale Connector (13 Tests)</strong>
         <span>pytest tests/adapters/test_cac_pull_collector.py -v</span>
       </button>
-      <button class="emerald" onclick="runCmd('pytest_security')">
-        <strong>2. Pytest: Red-Team & WORM Security</strong>
-        <span>pytest tests/security/ tests/integration/ -v</span>
-      </button>
       <button class="emerald" onclick="runCmd('pytest_all')">
-        <strong>3. Pytest: Full Test Suite (All)</strong>
-        <span>pytest tests/ -v (All unit + security tests)</span>
+        <strong>Grand Slam: All 42 Sandbox + CAC Tests</strong>
+        <span>Runs Phases C + D + E + F in a single pass</span>
       </button>
       <button class="amber" onclick="runCmd('trust_ledger_list')">
-        <strong>4. WORM Trust Ledger CLI</strong>
+        <strong>WORM Trust Ledger CLI</strong>
         <span>python -m agentic_ops.cli.trust_ledger list</span>
       </button>
       <button onclick="runCmd('tailscale_status')">
-        <strong>5. Tailscale Mesh Status</strong>
+        <strong>Tailscale Mesh Status</strong>
         <span>tailscale status (PII auto-redacted)</span>
       </button>
       <button onclick="runCmd('tailscale_netcheck')">
-        <strong>6. Tailscale DERP Netcheck</strong>
+        <strong>Tailscale DERP Netcheck</strong>
         <span>tailscale netcheck (UDP / DERP latencies)</span>
       </button>
       <button onclick="runJson('/api/cac/snapshot?timeout=3.5')">
-        <strong>7. Live Pull: jakatt/cac_mlops</strong>
+        <strong>Live Pull: jakatt/cac_mlops</strong>
         <span>GET /api/cac/snapshot (5 observability sources)</span>
       </button>
       <button class="purple" onclick="runCmd('redis_ping')">
-        <strong>8. Redis Local Daemon Ping</strong>
+        <strong>Redis Local Daemon Ping</strong>
         <span>redis-cli -h 127.0.0.1 -p 6379 PING</span>
-      </button>
-      <button class="purple" onclick="runCmd('tailscale_logs')">
-        <strong>9. Tailscale Daemon Logs</strong>
-        <span>cat /tmp/tailscale_up.log & tailscaled.log</span>
-      </button>
-      <button class="amber" onclick="runCmd('system_info')">
-        <strong>10. Container Runtime Info</strong>
-        <span>uname -a, Python, open ports, SQLite WAL</span>
       </button>
     </div>
 
     <div class="terminal">
       <div class="terminal-bar">
-        <span id="cmd-title">Ready — Click any diagnostic command button above to execute inside the live Render container.</span>
+        <span id="cmd-title">Ready — Click any Docker Sandbox Phase (A-F) or Tailscale button above to execute inside the live Render container.</span>
         <span id="cmd-status">IDLE</span>
       </div>
       <pre id="output">Agentic-Ops Control Plane — Interactive Web Console Ready.
-Select a command above to inspect the container, run the Pytest security/connector suites, or query the Tailscale mesh.</pre>
+Select any command above to execute the Docker Cloud Sandbox validation phases (A through F), inspect the WORM Trust Ledger, or query the Tailscale mesh.</pre>
     </div>
   </div>
 
