@@ -329,6 +329,95 @@ SRE-grade metrics exposed via **Prometheus** (with bounded label cardinality):
 
 ---
 
+## Separation of Powers (Cognitive vs. Executive Isolation)
+
+One of the primary vulnerabilities of conventional autonomous agent frameworks is handing "network keys" directly to the AI. `Agentic-Ops` resolves this through a strict separation of privileges:
+
+- **Investigation Phase (AI Reads)**: LLM agents are **strictly restricted to read-only access** (Pull Mode). They query metric databases and logs to formulate a diagnosis. They are physically incapable of mutating production and only output a structured textual "modification intent".
+- **Execution Phase (Code Writes)**: The AI agent stops. The rigid, deterministic Python program (`Executor`) takes over **only** after human approval. It alone holds the API credentials and triggers mutations (Push Mode).
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'noteBkgColor': '#fff59d', 'noteTextColor': '#000000'}}}%%
+sequenceDiagram
+    autonumber
+    participant Platform as MLOps Platform
+    participant Agent as LLM Agent (Investigator)
+    participant FSM as Orchestrator & Policy
+    participant Human as Human (Slack)
+    participant Exec as Python Executor (Actuator)
+
+    Note over Platform, Exec: Phase 1 : Investigation (Read-Only)
+    Platform->>FSM: Alert Webhook (Inbound)
+    FSM->>Agent: Wakes Agent
+    Agent->>Platform: REST Queries (GET Logs, GET Metrics)
+    Platform-->>Agent: JSON (System State)
+    Agent-->>FSM: Intent : "Propose triggering retraining"
+
+    Note over FSM, Exec: Phase 2 : Guardrail (Block & Wait)
+    FSM->>FSM: Policy Engine intercepts
+    FSM->>Human: Slack Approval Request
+    Note over Agent: LLM Agent is deactivated
+    
+    Note over Human, Exec: Phase 3 : Validation & Execution (Write)
+    Human-->>FSM: Clicks [ APPROVE ]
+    FSM->>Exec: Formal deterministic order
+    Exec->>Platform: Mutating request (POST /deploy /retrain)
+    Platform-->>Exec: Operation succeeded
+    Exec-->>FSM: Sealing in Trust Ledger
+```
+
+### E2E Integration Architecture (`flowchart TD`)
+
+**`Agentic-Ops` is not another MLOps platform; it is an agnostic "Control Plane" (a governance brain).** It connects to your existing stack via an Event-Driven Architecture and REST APIs, operating across 3 physical phases:
+
+1. **Sensors (Inbound - How to wake the Agent)**:
+   Observability tools (`Evidently AI`, `Prometheus`, `Datadog`) dispatch alerts via **HTTP Webhooks** to the `Agentic-Ops` API carrying a `risk_id` (e.g., `DATA-042`).
+2. **Context (Read-Only - How the Agent investigates)**:
+   Specialized agents use SDKs (`MLflow`, `Kubernetes`, `DVC`) or the `CacPullCollector` in **Read-Only Mode** to inspect the model registry, metrics, or pod logs.
+3. **Actuators (Outbound - How the Agent remediates)**:
+   Once the decision is validated by the *Policy Engine* (and *Human-in-the-Loop*), the `Executor` translates the intent into mutating API calls (triggering a `Prefect`/`Airflow` flow, updating an `MLflow` alias, or restarting a `K8s` deployment).
+
+```mermaid
+flowchart TD
+
+    %% Global styling for readability (Forced Light Theme)
+    classDef default fill:#ffffff,stroke:#333333,stroke-width:2px,color:#000000;
+    classDef agentic fill:#f3e5f5,stroke:#8e24aa,stroke-width:2px,color:#000000;
+    classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
+    classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
+    subgraph MLOps Platform
+        Evidently[Drift Monitor : Evidently/Prometheus]
+        MLflow[Model Registry : MLflow]
+        Airflow[Pipeline Orchestrator : Prefect/Airflow]
+        K8s[Inference : Kubernetes]
+    end
+
+    subgraph Agentic-Ops Control Plane
+        API[Webhook API Listener]
+        FSM[Orchestrator FSM]
+        Agents[Specialized LLM Agents]
+        Policy[Policy Engine & Risk Register]
+        Exec[Executor & Adapters]
+    end
+
+    subgraph Human
+        Slack[Slack HITL]
+    end
+
+    Evidently -- "1. Alert Webhook (Drift detected)" --> API
+    API --> FSM
+    FSM --> Agents
+    Agents -- "2. Read (REST API)" --> MLflow
+    Agents -- "2. Read (Logs)" --> K8s
+    Agents --> Policy
+    Policy -- "3. REQUIRE_APPROVAL" --> Slack
+    Slack -- "4. Approve (Signed Webhook)" --> FSM
+    FSM --> Exec
+    Exec -- "5. Action (REST API)" --> Airflow
+```
+
+---
+
 ## Catalog of Physical Actions (`Executor` Mutation Capabilities)
 
 The `Executor` module is the only component authorized to perform write operations. All mutations require `SIMULATION_MODE=False` and human approval via Slack (when required by policy).
