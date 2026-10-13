@@ -24,6 +24,14 @@ fi
 TS_SOCKET="${TS_SOCKET:-/tmp/tailscaled.sock}"
 TS_STATE="${TS_STATE:-/tmp/tailscaled.state}"
 
+# If TS_STATE_B64 is set in Render Environment Variables, restore the authenticated state file
+# so the container reconnects to Tailscale on wake-up without needing an Admin TS_AUTHKEY.
+if [ -n "$TS_STATE_B64" ]; then
+    echo "[2/4] Restoring authenticated Tailscale state from TS_STATE_B64..."
+    echo "$TS_STATE_B64" | base64 -d > "$TS_STATE" 2>/dev/null || true
+    chmod 600 "$TS_STATE" 2>/dev/null || true
+fi
+
 if command -v tailscaled >/dev/null 2>&1; then
     echo "[2/4] Starting tailscaled (--tun=userspace-networking, SOCKS5 on 127.0.0.1:1055)..."
     env -i PATH="$PATH" HOME="$HOME" nohup tailscaled \
