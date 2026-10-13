@@ -54,6 +54,26 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
 
 ---
 
+## Foundational Knowledge Engineering: The MLOps Failure Taxonomy & Incident War-Room Scenarios Registry
+
+An AI Agent cannot safely diagnose or govern a production MLOps platform without a formal, structured ontology of **how machine learning systems fail in the real world**. Before writing a single line of orchestration code, `Agentic-Ops` was grounded in **two foundational engineering registries** that serve as the cognitive, observability, and decision-making reference frame for the entire repository:
+
+| Foundational Reference Document | Direct Link in Repository | Scale & Depth | Operational Role in `Agentic-Ops` |
+| :--- | :--- | :--- | :--- |
+| **1. MLOps Failure Modes & Risk Taxonomy (`v2`)** | **[`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md)** | **435 Failure Modes** across **10 System Dimensions** (`636 lines` / `143 KB`) | **The Observability & Risk Compass**. Catalogs every failure class (`Infrastructure`, `Data Pipelines`, `Feature Store`, `Training`, `Serving`, `Observability`, `CI/CD`, `SecOps`, `FinOps`, `Org`) calibrated by **Severity (`1-5`)**, **Probability (`1-5`)**, **Detectability (`1-5`)**, **`RPN` (`Risk Priority Number` `/125`)**, primary **`SLO` impact**, detection sensor, automated mitigation, and human runbook. Compiled via [`agentic_ops/cli/compile_taxonomy.py`](agentic_ops/cli/compile_taxonomy.py) into [`agentic_ops/governance/risk_register.yaml`](agentic_ops/governance/risk_register.yaml). |
+| **2. MLOps Simulation Scenarios Registry (*Incident War Room*)** | **[`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md)** | **36 War-Room Scenarios** (`9,604 lines` / `567 KB`, with **Scenarios 1–9** pushed to full 7-block industrial depth) | **The Root-Cause & Decision Benchmark**. Translates static failure modes into multi-step temporal cascades (*Silent Data Failure*, *Simultaneous Multi-Fail*, *Slack SRE War Room*, *Amazon 5-Whys / 10-Whys Deep RCA*). The first **8–9 foundational scenarios** are fully expanded across a strict **7-Block Industrial Blueprint** (`360° Metadata`, `t0..tN Timeline`, `Multi-Failure RCA`, `ASCII Guardrail Topology`, `LaTeX Math Formulation`, `Executable Python Guardrails`, `Executive Summary`) and directly power the **executable YAML test suite** ([`tests/scenarios/definitions/`](tests/scenarios/definitions/)). |
+
+### Why These Two Referentials Are Central to the LLM & Agentic Architecture
+
+1. **Guiding Observability (What to Measure & Why)**:
+   Rather than scraping arbitrary logs, `CacPullCollector` and the `Signal` contracts monitor the exact symptom vectors identified in the Taxonomy (`Data Drift Share`, `LogQL` error patterns, `OOMKilled` pod restarts, latency `P95`, `MLflow` `@Production` staleness) mapped to explicit `risk_id` identifiers (`ML-014`, `DATA-042`, `INFRA-001`).
+2. **Empowering Root-Cause Comprehension (Distinguishing Symptoms from Causes)**:
+   As formalized in **Scenario 1 (*Silent Cascade*)** and **Scenario 2 (*Multi-Fail Catastrophe*)** of [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md), a production ML model can return `HTTP 200 OK` while serving corrupted predictions, or exhibit an API latency spike whose true origin lies in an upstream data pipeline (`data_pipeline` vs. `infrastructure`). The `Runbook RAG` ([`agentic_ops/knowledge_base/runbooks/`](agentic_ops/knowledge_base/runbooks/)) and specialist agents (`data_specialist_llm`, `infra_specialist_llm`) draw directly from these RCA patterns to avoid misdiagnosing upstream data corruption as an infrastructure failure.
+3. **Anchoring Deterministic Decision-Making & Guardrails (`PolicyEngine` & `Phase D`)**:
+   Every veto rule in [`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml)—such as **Rule `R-001`** (which blocks `restart_pod`, `scale_up`, or blind `retrain_model` when upstream data anomalies are present) and **Catalog Rules `CAT-001` / `CAT-002`**—was derived from the failure cascades documented in these two registries and verified live via the 10 `Phase D` scenarios (`SC-101` to `SC-005`, `forbidden_executed = 0`).
+
+---
+
 ## Global Architecture (Hexagonal)
 
 The system is built on a **Hexagonal Architecture** coupled with a strict **Finite State Machine (FSM)**.
@@ -736,3 +756,8 @@ python -m agentic_ops.cli.trust_ledger list
    Complete documentation of the live interconnection with [`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops) (`100.117.99.62`), `tailscaled` setup in `userspace-networking` mode (`SOCKS5 127.0.0.1:1055`), `DERP` relay diagnostics, anatomy of `cac_pull_collector.py`, and breakdown of all 13 unit tests.
 4. **[Generic Integration Guide (`INTEGRATION_GUIDE.md`)](INTEGRATION_GUIDE.md)**:
    Specifications for connecting `Agentic-Ops` to a third-party MLOps infrastructure.
+5. **[MLOps Failure Modes & Risk Taxonomy v2 (`docs/mlops_failure_modes_taxonomy.md`)](docs/mlops_failure_modes_taxonomy.md)**:
+   Exhaustive 435-entry failure taxonomy across 10 MLOps dimensions (`RPN` calibration, `SLO` impact, detection sensors, automated mitigations, and Chaos waves).
+6. **[MLOps Incident War-Room Simulation Scenarios Registry (`docs/mlops_simulation_scenarios_registry.md`)](docs/mlops_simulation_scenarios_registry.md)**:
+   36 multi-failure simulation scenarios structured around a 7-block SRE blueprint (with the first 8–9 foundational scenarios expanded to full mathematical, architectural, and executable Python depth).
+

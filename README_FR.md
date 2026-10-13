@@ -54,6 +54,26 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
 
 ---
 
+## Socle Fondateur d'Ingénierie de la Connaissance : La Taxonomie des Défaillances MLOps & le Registre des Scénarios War-Room
+
+Un agent IA ne peut ni diagnostiquer ni gouverner de manière fiable une plateforme MLOps en production sans une ontologie formelle et structurée de **la manière dont les systèmes de Machine Learning tombent réellement en panne**. Avant même l'écriture du moteur d'orchestration, `Agentic-Ops` a été bâti sur **deux référentiels d'ingénierie fondateurs** qui constituent la boussole d'observabilité, de compréhension et de décision de tout le dépôt :
+
+| Référentiel Fondateur | Lien Direct dans le Dépôt | Volumétrie & Profondeur | Rôle Opérationnel dans `Agentic-Ops` |
+| :--- | :--- | :--- | :--- |
+| **1. Taxonomie des Risques et Failure Modes MLOps (`v2`)** | **[`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md)** | **435 Failure Modes** répartis sur **10 Dimensions Système** (`636 lignes` / `143 Ko`) | **La Boussole d'Observabilité et de Risque**. Cartographie chaque classe de panne (`Infrastructure`, `Data Pipelines`, `Feature Store`, `Training`, `Serving`, `Observabilité`, `CI/CD`, `SecOps`, `FinOps`, `Organisation`) calibrée par **Gravité (`1-5`)**, **Probabilité (`1-5`)**, **Détectabilité (`1-5`)**, **`RPN` (`Risk Priority Number` `/125`)**, **impact `SLO` principal**, sonde de détection, mitigation automatique et runbook humain. Compilée via [`agentic_ops/cli/compile_taxonomy.py`](agentic_ops/cli/compile_taxonomy.py) dans [`agentic_ops/governance/risk_register.yaml`](agentic_ops/governance/risk_register.yaml). |
+| **2. Registre des Scénarios de Simulation MLOps (*Incident War Room*)** | **[`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md)** | **36 Scénarios War-Room** (`9 604 lignes` / `567 Ko`, dont les **Scénarios 1 à 9** poussés au niveau industriel complet en 7 blocs) | **Le Référentiel de Compréhension et de Décision**. Transforme les pannes statiques en cascades temporelles multi-étapes (*Cascade Silencieuse*, *Multi-Fail Simultanée*, *War Room Slack + SRE*, *RCA 5-Whys / 10-Whys*). Les **8 à 9 premiers scénarios fondateurs** sont intégralement développés selon un **Blueprint Industriel en 7 Blocs** (`Métadonnées 360°`, `Timeline t0..tN`, `RCA Multi-Failure`, `Topologie ASCII du Garde-Fou`, `Modélisation Mathématique LaTeX`, `Implémentation Python Exécutable`, `Synthèse Exécutive`) et alimentent directement la **suite de tests YAML exécutables** ([`tests/scenarios/definitions/`](tests/scenarios/definitions/)). |
+
+### Pourquoi ces deux référentiels sont au cœur de l'approche LLM & Agentique
+
+1. **Guider l'Observabilité (Savoir quoi mesurer et pourquoi)** :
+   Au lieu de collecter des logs à l'aveugle, `CacPullCollector` et les contrats `Signal` surveillent exactement les vecteurs de symptômes identifiés dans la Taxonomie (`Data Drift Share`, patterns d'erreurs `LogQL`, redémarrages `OOMKilled`, latence `P95`, obsolescence du modèle `MLflow` `@Production`) associés à des identifiants de risque explicites (`ML-014`, `DATA-042`, `INFRA-001`).
+2. **Permettre la Compréhension de la Cause Racine (Distinguer le symptôme de la cause)** :
+   Comme le formalisent le **Scénario 1 (*La Cascade Silencieuse*)** et le **Scénario 2 (*Simulation Multi-Fail*)** de [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md), un modèle ML en production peut continuer à renvoyer `HTTP 200 OK` tout en produisant des prédictions fausses, ou présenter un pic de latence API dont la vraie cause se situe en amont dans le pipeline de données (`data_pipeline` vs `infrastructure`). Le `Runbook RAG` ([`agentic_ops/knowledge_base/runbooks/`](agentic_ops/knowledge_base/runbooks/)) et les agents spécialistes (`data_specialist_llm`, `infra_specialist_llm`) s'appuient directement sur ces analyses RCA pour ne jamais confondre une corruption de données amont avec une panne matérielle.
+3. **Ancrer la Décision Déterministe et les Garde-Fous (`PolicyEngine` & `Phase D`)** :
+   Chaque règle de veto de [`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml) — telle que la **Règle `R-001`** (qui interdit tout `restart_pod`, `scale_up` ou `retrain_model` aveugle lorsqu'une anomalie de données est présente en amont) et les **Règles Catalogue `CAT-001` / `CAT-002`** — découle directement des cascades de défaillances modélisées dans ces deux référentiels et est prouvée en direct par les 10 scénarios de la `Phase D` (`SC-101` à `SC-005`, `forbidden_executed = 0`).
+
+---
+
 ## Architecture Globale (Hexagonale)
 
 Le système repose sur une **Architecture Hexagonale** couplée à une **Machine à États Finis (FSM)**.
@@ -736,3 +756,8 @@ python -m agentic_ops.cli.trust_ledger list
    Documentation complète de l'interconnexion avec [`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops) (`100.117.99.62`), configuration du démon `tailscaled` en mode `userspace-networking` (`SOCKS5 127.0.0.1:1055`), diagnostic des relais `DERP`, anatomie de `cac_pull_collector.py`, et détail des 13 tests unitaires.
 4. **[Guide d'Intégration Générique (`INTEGRATION_GUIDE.md`)](INTEGRATION_GUIDE.md)** :
    Spécifications de branchement d'`Agentic-Ops` sur une infrastructure MLOps tierce.
+5. **[Taxonomie des Risques et Failure Modes MLOps v2 (`docs/mlops_failure_modes_taxonomy.md`)](docs/mlops_failure_modes_taxonomy.md)** :
+   Taxonomie exhaustive de 435 modes de défaillance sur 10 dimensions MLOps (calibration `RPN`, impact `SLO`, sondes de détection, mitigations automatiques et vagues de Chaos Engineering).
+6. **[Registre des Scénarios de Simulation MLOps — Incident War Room (`docs/mlops_simulation_scenarios_registry.md`)](docs/mlops_simulation_scenarios_registry.md)** :
+   36 scénarios de simulation multi-défaillances structurés selon un blueprint SRE en 7 blocs (avec les 8 à 9 premiers scénarios fondateurs intégralement développés au niveau mathématique, architectural et code Python exécutable).
+
