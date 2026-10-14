@@ -982,14 +982,22 @@ The Control Plane exposes 5 dedicated REST inspection and conversational endpoin
 - **Console Button (`Phase H`)**: Interactive 1-click validation of all LLM Hub features from `/console`.
 
 ### 4. Multi-LLM Cognitive Specialization by Agent Role
-To match differing cognitive profiles (deep reasoning vs massive log context vs fast covariance parsing), each agent role can be assigned its own specialized model with strict zero-breaking fallback to `LLM_MODEL`:
-- **`remediation`** (`LLM_MODEL_REMEDIATION`): Deep step-by-step reasoning & blast radius calculation (e.g. `openrouter/deepseek/deepseek-r1:free`).
-- **`infra`** (`LLM_MODEL_INFRA`): 256k context window for system & Loki logs (e.g. `openrouter/google/gemma-4-31b-it:free`).
-- **`data`** (`LLM_MODEL_DATA`): High-throughput covariance and drift parsing (e.g. `openrouter/google/gemma-4-26b-a4b-it:free`).
-- **`model`** (`LLM_MODEL_MODEL`): Strict 70B parameter evaluation for MLflow metrics (e.g. `openrouter/meta-llama/llama-3.3-70b-instruct:free`).
-- **`chat`** (`LLM_MODEL_CHAT`): Responsive conversational assistant (e.g. `openrouter/deepseek/deepseek-chat:free`).
 
-Prometheus metrics isolate latency and token volume per role: `agentic_ops_llm_requests_total{role="...", provider="...", model="...", status="..."}`.
+> **Dedicated Technical Reference**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)** | **OpenRouter Free Tier Guide**: **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)**
+
+Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an architectural compromise. To eliminate cognitive trade-offs, `Agentic-Ops` introduces **Cognitive Specialization by Role** inside `LLMProviderRegistry` and `Orchestrator`:
+
+| Agent Role (`role`) | Target Specialization | Recommended 0 EUR Model | Env Variable Override |
+| :--- | :--- | :--- | :--- |
+| **`remediation`** | Action Planning & Blast Radius (CoT) | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
+| **`infra`** | Loki Dumps & Kernel Trace Logs (256k) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
+| **`data`** | Fast Schema & Covariance Drift Triage | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
+| **`model`** | MLflow F1-Score & Distribution Shift | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
+| **`chat`** | Interactive Web Chat Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
+
+- **Strict Fallback Precedence**: Any omitted role variable immediately inherits the global `LLM_MODEL` and `LLM_FALLBACK_MODELS`, ensuring 100% zero-breaking backward compatibility.
+- **Granular FinOps Metrics**: Prometheus isolates token consumption and latency per role: `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
+- **Live Topology**: Active roles and their models are dynamically inspectable via `GET /api/llm/status` under the `roles_topology` key.
 
 ### 5. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
 

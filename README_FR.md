@@ -982,14 +982,22 @@ Le Control Plane expose 5 endpoints REST et conversationnels dédiés :
 - **Bouton Console (`Phase H`)** : Déclenchement et audit en 1 clic de toutes les fonctionnalités du Hub depuis `/console`.
 
 ### 4. Spécialisation Cognitive Multi-LLM par Rôle d'Agent
-Afin de répondre aux profils cognitifs variés (raisonnement mathématique délibéré vs contexte massif pour les logs vs parsing rapide de dérives de données), chaque rôle d'agent peut être associé à son modèle optimal, avec repli automatique sans régression vers `LLM_MODEL` :
-- **`remediation`** (`LLM_MODEL_REMEDIATION`) : Raisonnement pas-à-pas et calcul du rayon d'impact blast radius (ex: `openrouter/deepseek/deepseek-r1:free`).
-- **`infra`** (`LLM_MODEL_INFRA`) : Large fenêtre de contexte (256k tokens) pour ingestion de dumps de logs Loki et système (ex: `openrouter/google/gemma-4-31b-it:free`).
-- **`data`** (`LLM_MODEL_DATA`) : Haute cadence pour validation des schémas Pandera et dérives Evidently (ex: `openrouter/google/gemma-4-26b-a4b-it:free`).
-- **`model`** (`LLM_MODEL_MODEL`) : Rigueur de benchmark 70B pour comparaison stricte des métriques F1 et MLflow (ex: `openrouter/meta-llama/llama-3.3-70b-instruct:free`).
-- **`chat`** (`LLM_MODEL_CHAT`) : Assistant conversationnel réactif sans balises de pensée (ex: `openrouter/deepseek/deepseek-chat:free`).
 
-Les métriques Prometheus isolent la consommation par rôle : `agentic_ops_llm_requests_total{role="...", provider="...", model="...", status="..."}`.
+> **Référence Technique Dédiée** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)** | **Guide Modèles Gratuits OpenRouter** : **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)**
+
+Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps constitue un compromis architectural sous-optimal. Pour éliminer tout arbitrage cognitif, `Agentic-Ops` intègre la **Spécialisation Cognitive par Rôle** au cœur de `LLMProviderRegistry` et d'`Orchestrator` :
+
+| Rôle d'Agent (`role`) | Spécialisation Cible | Modèle Recommandé (0 EUR) | Variable d'Environnement Dédiée |
+| :--- | :--- | :--- | :--- |
+| **`remediation`** | Planification & Rayon d'Impact Blast Radius (CoT) | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
+| **`infra`** | Dumps Loki & Traces Système Noyau (256k tokens) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
+| **`data`** | Triage Rapide Schémas Pandera & Dérives Evidently | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
+| **`model`** | Évaluation Dérive F1 MLflow & Distributions | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
+| **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
+
+- **Préséance de Repli Stricte** : Toute variable de rôle non spécifiée hérite automatiquement de `LLM_MODEL` et `LLM_FALLBACK_MODELS`, garantissant une rétrocompatibilité absolue à 100% sans rupture.
+- **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
+- **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 
 ### 5. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
 
