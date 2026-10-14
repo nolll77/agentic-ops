@@ -764,22 +764,56 @@ In `Agentic-Ops`, actions are not treated equally. They are formally partitioned
 | **`propose_retrain`** | `model_mutation` | **`True`** (Mutating) | **`False`** | `fixed: 3` | **`L3`** | **`REQUIRE_APPROVAL`** (2 Human SREs) | `1/day` | Asynchronous trigger to `Prefect` / `Airflow`. Consumes GPU/CPU quota and mutates artifacts. |
 | **`promote_model`** | `model_mutation` | **`True`** (Mutating) | **`False`** | `fixed: 5` (Global) | **`L3`** | **`REQUIRE_APPROVAL`** (2 Human SREs) | `1/day` | Reassigns `@Production` alias in `MLflow Model Registry`. Diverts 100% of live traffic. |
 
-#### Deterministic Governance Rules (`autonomy_policy.yaml`)
-1. **Rule `R-001` (`upstream_masks_service`)**:
-   - Applies to classes: `[service_mutation, model_mutation]`.
-   - Condition: If an upstream data or feature anomaly is detected with severity greater than or equal to `WARNING` (e.g., feature drift `DATA-042`), all downstream service and model mutations (`restart_pod`, `scale_up`, `propose_retrain`) are **strictly forbidden (`DENY`)**. Restarting a service or retraining on corrupted data will not fix corrupted upstream inputs.
-2. **Rule `R-002` (`risk_register_forbids`)**:
-   - Applies to classes: `[service_mutation, model_mutation]`.
-   - Condition: Actions explicitly declared in `risk_register.yaml` under `forbidden_actions` for the active `risk_id` are blocked unconditionally, overriding any LLM recommendation.
-3. **Hardened Kubernetes Admission Firewall (`ALLOWED_PATCH_PATHS`)**:
-   - In `KubernetesExecutionAdapter`, mutating patches submitted by the engine are intercepted and filtered against a strict JSON pointer whitelist:
-     ```python
-     ALLOWED_PATCH_PATHS = [
-         "/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt",
-         "/spec/replicas"
-     ]
-     ```
-   - Any attempt to mutate `serviceAccountName`, mount host paths, or alter container security contexts raises `PermissionError` and is sealed as `FAILED` in the immutable WORM ledger.
+#### Why are Actions Categorized as "Mutating"? (`HTTP GET` vs. `POST` / `PATCH`)
+
+At the transport layer, an observational action uses an idempotent `HTTP GET` (e.g., retrieving metrics or logs without side effects), whereas infrastructure mutations typically rely on `HTTP POST`, `PUT`, or `PATCH`.
+
+However, in **SRE and MLOps engineering**, a **mutating action** is defined by whether it **permanently or critically alters the physical state of the production environment**:
+
+1. **Live Traffic Blast Radius**:
+   - `GET /metrics` or `GET /logs`: Pure observation. Consumes negligible read bandwidth, mutates 0 bytes of state (**Non-Mutating**).
+   - `PATCH /spec/replicas` (Kubernetes) or `POST /api/2.0/mlflow/registered-models/alias` (MLflow): Physically changes running container count or immediately redirects 100% of live user traffic to another model candidate (**Mutating**).
+2. **FinOps and Asymmetric Cost**:
+   - `create_issue`: Formally sends a `POST /repos/{owner}/{repo}/issues` to GitHub or Jira. Although technically an HTTP write, it is **non-destructive for production runtime**. If the ticket is unnecessary, user traffic is unharmed.
+   - `propose_retrain`: Triggers an asynchronous GPU training job (`POST /api/deployments/{id}/create_flow_run` on Prefect). It consumes significant cloud compute budgets, locks database tables, and produces new model binaries (**Mutating**).
+3. **Cognitive vs. Executive Isolation (Why LLMs Have Zero Direct Mutation Access)**:
+   - LLMs are probabilistic text generators subject to hallucinations and prompt injections.
+   - Handing direct Kubernetes or cloud provider credentials to an LLM creates an unmitigated attack surface.
+   - Therefore, the LLM is **physically quarantined to read-only tools (`GET`)**. It can only output a structured textual intent (`ActionIntent`). The physical `POST` or `PATCH` is exclusively delegated to hardened, deterministic Python actuators (`KubernetesExecutionAdapter`, `PrefectRetrainAdapter`, `MLflowPromotionAdapter`) after strict policy validation and human quorum approval.
+
+#### Concrete 5-Step Incident Lifecycle Walkthrough (e.g., Feature Drift `DATA-042`)
+
+When a production incident occurs, the system executes an unambiguous 5-step transition sequence:
+
+```
++------------------------+        +--------------------------+        +------------------------+
+| 1. LLM (Investigator)  |  --->  | 2. PolicyEngine & SRE    |  --->  | 3. Executor (Python)   |
+| Read-Only (HTTP GET)   |        | Guardrail (Veto/Slack)   |        | Write (POST / PATCH)   |
++------------------------+        +--------------------------+        +------------------------+
+```
+
+1. **Step 1: Inbound Alert & Episode Ingestion (Non-Mutating)**:
+   - Prometheus or Evidently detects covariate shift and dispatches an alert payload to `POST /webhook/alert`.
+   - The Orchestrator assigns a monotonically increasing episode ID (`EP-0004`) linked to the cryptographic Merkle chain (`previous_hash`).
+2. **Step 2: Read-Only Cognitive Investigation (Non-Mutating - 100% `GET`)**:
+   - The specialized LLM agent wakes up in a sandboxed process.
+   - The agent inspects runtime telemetry exclusively via read-only endpoints:
+     - `GET /metrics` on Prometheus.
+     - `GET /loki/api/v1/query_range` for error stack traces.
+     - `GET /api/2.0/mlflow/runs` for model lineage.
+   - The LLM synthesizes a diagnosis and emits a proposed action intent: `{action: "restart_pod", target: "baac-serving"}` or `{action: "propose_retrain", target: "lgbm_accidents"}`.
+3. **Step 3: Deterministic Policy Engine Evaluation (Gating & Veto)**:
+   - The `PolicyEngine` intercepts the intent before any network call is dispatched.
+   - **Veto Rule `R-001` (`upstream_masks_service`)**: The active anomaly is an upstream data/feature drift (`DATA-042`). Restarting an inference pod or retraining on contaminated inputs cannot resolve corrupted data feeds. The engine immediately issues an unconditional **`DENY`** for `restart_pod`.
+   - If the proposed intent is `create_issue`: Class `ticket`, `L1` autonomy -> Immediate autonomous **`ALLOW`** (0 approvals required).
+   - If the proposed intent is `propose_retrain`: Class `model_mutation`, `L3` autonomy -> Engine halts in **`REQUIRE_APPROVAL`** (2 human SRE approvals required).
+4. **Step 4: Interactive Slack Human-in-the-Loop (`Slack HITL`)**:
+   - The Orchestrator formats a Slack Block Kit alert displaying incident telemetry, root cause, and `[ APPROVE ]` / `[ DENY ]` interactive buttons.
+   - The state machine remains physically halted in `AWAITING_APPROVAL`. No mutating network payload can be emitted until human quorum is satisfied.
+5. **Step 5: Hardened Actuation & Cryptographic WORM Sealing (Mutating - `POST` / `PATCH`)**:
+   - An authorized on-call engineer clicks `[ APPROVE ]`. The webhook payload is verified via `HMAC-SHA256` (rejecting replays older than 5 minutes).
+   - The deterministic `KubernetesExecutionAdapter` takes over, validates the mutation against `ALLOWED_PATCH_PATHS`, and issues the physical `PATCH /apis/apps/v1/namespaces/default/deployments/baac-serving` (or `POST` to Prefect).
+   - The execution receipt (`status: SUCCESS`), approver identity, and post-flight health checks are sealed into the append-only `ledger.jsonl` with an `HMAC-SHA512` cryptographic signature.
 
 ---
 
