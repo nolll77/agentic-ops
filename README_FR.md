@@ -921,7 +921,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ## Hub Universel de Fournisseurs LLM : Découplage Cognitif sur 8 Fournisseurs d'IA
 
-> **Référence Technique Dédiée** : **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Module Source** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Gabarit de Configuration** : **[`.env.example`](.env.example)** | **Suite de Tests** : [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`10 passed`)
+> **Référence Technique Dédiée** : **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Module Source** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Gabarit de Configuration** : **[`.env.example`](.env.example)** | **Suite de Tests** : [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`15 passed`)
 
 Pour éliminer le verrouillage propriétaire (Vendor Lock-in) et garantir un fonctionnement cloud continu 24h/24 à **0 EUR**, `Agentic-Ops` découple totalement le moteur de raisonnement cognitif (`RemediationAgent` et agents spécialistes) de l'implémentation physique des modèles grâce à `LLMProviderRegistry` et `llm_protocol.py`.
 
@@ -970,18 +970,28 @@ Le cerveau actif peut être permuté dynamiquement via deux simples variables d'
 Les tiers gratuits cloud peuvent occasionnellement subir un rate limit (`HTTP 429 Too Many Requests`). Pour éviter tout blocage d'un diagnostic d'incident :
 1. Le modèle primaire est interrogé en premier (ex: `openrouter/deepseek/deepseek-r1:free`).
 2. S'il lève une erreur de quota ou de timeout, `FallbackLLMAdapter` bascule instantanément sur le second modèle configuré dans `LLM_FALLBACK_MODELS` (ex: `openrouter/deepseek/deepseek-chat:free`), puis sur `openrouter/meta-llama/llama-3.3-70b-instruct:free`.
-3. Chaque tentative individuelle incrémente les métriques Prometheus (`agentic_ops_llm_requests_total{provider=..., model=..., status=...}`) pour une traçabilité FinOps totale.
+3. Chaque tentative individuelle incrémente les métriques Prometheus (`agentic_ops_llm_requests_total{role=..., provider=..., model=..., status=...}`) pour une traçabilité FinOps totale.
 
 ### 3. Endpoints REST d'Observabilité SRE & Sondes Live
 Le Control Plane expose 5 endpoints REST et conversationnels dédiés :
-- **`GET /api/llm/status`** : Fournisseur actif, modèle résolu, chaîne de repli et clé API masquée (`sk-or-***`).
+- **`GET /api/llm/status`** : Fournisseur actif, modèle résolu, chaîne de repli, clé API masquée (`sk-or-***`) et topologie multi-LLM (`roles_topology`).
 - **`GET /api/llm/models`** : Catalogue complet des 8 fournisseurs et recommandations pour opérer à 0 EUR.
 - **`POST /api/llm/probe`** : Sonde active qui teste en direct le LLM et mesure la latence d'aller-retour en millisecondes.
 - **`GET /api/prompts`** : Catalogue complet au format JSON des 20 prompts cognitifs MCP.
 - **`GET /chat` & `POST /api/chat`** : Interface de chat web autonome embarquant un explorateur modal des 20 prompts avec recherche et exécution en 1 clic.
 - **Bouton Console (`Phase H`)** : Déclenchement et audit en 1 clic de toutes les fonctionnalités du Hub depuis `/console`.
 
-### 4. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
+### 4. Spécialisation Cognitive Multi-LLM par Rôle d'Agent
+Afin de répondre aux profils cognitifs variés (raisonnement mathématique délibéré vs contexte massif pour les logs vs parsing rapide de dérives de données), chaque rôle d'agent peut être associé à son modèle optimal, avec repli automatique sans régression vers `LLM_MODEL` :
+- **`remediation`** (`LLM_MODEL_REMEDIATION`) : Raisonnement pas-à-pas et calcul du rayon d'impact blast radius (ex: `openrouter/deepseek/deepseek-r1:free`).
+- **`infra`** (`LLM_MODEL_INFRA`) : Large fenêtre de contexte (256k tokens) pour ingestion de dumps de logs Loki et système (ex: `openrouter/google/gemma-4-31b-it:free`).
+- **`data`** (`LLM_MODEL_DATA`) : Haute cadence pour validation des schémas Pandera et dérives Evidently (ex: `openrouter/google/gemma-4-26b-a4b-it:free`).
+- **`model`** (`LLM_MODEL_MODEL`) : Rigueur de benchmark 70B pour comparaison stricte des métriques F1 et MLflow (ex: `openrouter/meta-llama/llama-3.3-70b-instruct:free`).
+- **`chat`** (`LLM_MODEL_CHAT`) : Assistant conversationnel réactif sans balises de pensée (ex: `openrouter/deepseek/deepseek-chat:free`).
+
+Les métriques Prometheus isolent la consommation par rôle : `agentic_ops_llm_requests_total{role="...", provider="...", model="...", status="..."}`.
+
+### 5. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
 
 En application de la règle d'**Honnêteté Radicale** du projet, utiliser des modèles cloud à 0 EUR implique deux contraintes techniques strictes que nous avons traitées directement dans l'architecture :
 

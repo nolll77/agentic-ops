@@ -251,3 +251,53 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/api/llm/probe | jq .
 # Verify the test suite covering the fallback mechanism
 pytest tests/adapters/test_llm_provider_registry.py -v
 ```
+
+---
+
+## 8. Multi-LLM Cognitive Specialization by Agent Role
+
+Different SRE and MLOps tasks present conflicting cognitive requirements:
+- Diagnosing a memory leak or a saturated pod requires ingesting thousands of lines of kernel and `Loki` logs (requiring massive context length).
+- Calculating a blast radius and proposing a remediation action requires deliberate step-by-step mathematical reasoning and chain-of-thought verification.
+- Validating data contracts and covariance matrices requires low latency and strict schema compliance.
+- Interactive SRE web chat requires fast, conversational interaction without internal `<think>` blocks.
+
+To solve this, `Agentic-Ops` implements **Cognitive Specialization by Role** inside `LLMProviderRegistry`:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS CONTROL PLANE — COGNITIVE MULTI-LLM TOPOLOGY                                         |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Remediation Coordinator] ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  |
+| (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             |
+|                                                                                                  |
+| [Infra Specialist] -----------> role="infra" ----------> LLM_MODEL_INFRA                        |
+| (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          |
+|                                                                                                  |
+| [Data Specialist] ------------> role="data" -----------> LLM_MODEL_DATA                         |
+| (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      |
+|                                                                                                  |
+| [Model Specialist] -----------> role="model" ----------> LLM_MODEL_MODEL                        |
+| (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  |
+|                                                                                                  |
+| [Web Chat SRE Assistant] -----> role="chat" -----------> LLM_MODEL_CHAT                         |
+| (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
+
+### Precedence Hierarchy:
+1. **Role Specific**: `LLM_MODEL_{ROLE}`, `LLM_FALLBACK_MODELS_{ROLE}`, `LLM_PROVIDER_{ROLE}`
+2. **Global Fallback**: `LLM_MODEL`, `LLM_FALLBACK_MODELS`, `LLM_PROVIDER`
+3. **Provider Profile Default**: `PROVIDER_PROFILES[provider]["default_model"]`
+
+### Prometheus Fine-Grained Observability:
+All requests record the agent role label:
+- `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`
+- `agentic_ops_llm_latency_seconds{role="remediation", provider="openrouter", model="deepseek-r1"}`
+- `agentic_ops_llm_tokens_total{role="data", provider="openrouter", model="gemma-4-26b-a4b", token_type="total"}`
+
+### Live Inspection:
+The active topology across all 5 roles is exposed via `GET /api/llm/status` under the `roles_topology` key.
+

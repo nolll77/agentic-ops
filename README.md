@@ -921,7 +921,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ## Universal LLM Provider Hub: Decoupled Reasoning Across 8 AI Providers
 
-> **Dedicated Technical Reference**: **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Source Module**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Config Template**: **[`.env.example`](.env.example)** | **Test Suite**: [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`10 passed`)
+> **Dedicated Technical Reference**: **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Source Module**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Config Template**: **[`.env.example`](.env.example)** | **Test Suite**: [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`15 passed`)
 
 To eliminate AI provider vendor lock-in and enable zero-cost 24/7 cloud operations, `Agentic-Ops` decouples the cognitive reasoning engine (`RemediationAgent` & specialized diagnostic agents) from the physical model implementation through `LLMProviderRegistry` and `llm_protocol.py`.
 
@@ -974,14 +974,24 @@ Free tiers on public clouds may occasionally encounter rate limits (`HTTP 429 To
 
 ### 3. SRE Observability & Live Probing Endpoints
 The Control Plane exposes 5 dedicated REST inspection and conversational endpoints:
-- **`GET /api/llm/status`**: Inspects active provider, resolved model, fallback chain, and sanitized key status (`sk-or-***`).
+- **`GET /api/llm/status`**: Inspects active provider, resolved model, fallback chain, masked key status (`sk-or-***`), and complete `roles_topology`.
 - **`GET /api/llm/models`**: Returns the complete 8-provider catalog and recommendations for zero-cost operation.
 - **`POST /api/llm/probe`**: Actively queries the configured LLM and measures end-to-end roundtrip latency in milliseconds.
 - **`GET /api/prompts`**: Returns the complete JSON catalog of the 20 MCP Cognitive Starter Prompts.
 - **`GET /chat` & `POST /api/chat`**: Standalone browser chat interface embedding a searchable 20-prompt catalog modal with 1-click execution.
 - **Console Button (`Phase H`)**: Interactive 1-click validation of all LLM Hub features from `/console`.
 
-### 4. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
+### 4. Multi-LLM Cognitive Specialization by Agent Role
+To match differing cognitive profiles (deep reasoning vs massive log context vs fast covariance parsing), each agent role can be assigned its own specialized model with strict zero-breaking fallback to `LLM_MODEL`:
+- **`remediation`** (`LLM_MODEL_REMEDIATION`): Deep step-by-step reasoning & blast radius calculation (e.g. `openrouter/deepseek/deepseek-r1:free`).
+- **`infra`** (`LLM_MODEL_INFRA`): 256k context window for system & Loki logs (e.g. `openrouter/google/gemma-4-31b-it:free`).
+- **`data`** (`LLM_MODEL_DATA`): High-throughput covariance and drift parsing (e.g. `openrouter/google/gemma-4-26b-a4b-it:free`).
+- **`model`** (`LLM_MODEL_MODEL`): Strict 70B parameter evaluation for MLflow metrics (e.g. `openrouter/meta-llama/llama-3.3-70b-instruct:free`).
+- **`chat`** (`LLM_MODEL_CHAT`): Responsive conversational assistant (e.g. `openrouter/deepseek/deepseek-chat:free`).
+
+Prometheus metrics isolate latency and token volume per role: `agentic_ops_llm_requests_total{role="...", provider="...", model="...", status="..."}`.
+
+### 5. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
 
 Applying the project's **Radical Honesty** rule, utilizing zero-cost public endpoints entails two concrete technical constraints that have been engineered into `Agentic-Ops`:
 

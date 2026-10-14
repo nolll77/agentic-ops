@@ -45,7 +45,8 @@ class Orchestrator:
         evidence_store: EvidenceStore,
         environment: str = "staging",
         registry: Any = None,
-        llm: LLMPort = None
+        llm: LLMPort = None,
+        llm_by_role: dict[str, LLMPort] | None = None,
     ):
         self.observability = observability
         self.policy_engine = policy_engine
@@ -53,17 +54,32 @@ class Orchestrator:
         self.environment = environment
         self.registry = registry
         self.llm = llm
+        self.llm_by_role = llm_by_role or {}
+
+    def _get_llm_for_role(self, role: str) -> LLMPort:
+        """
+        Résout l'adaptateur LLM pour un rôle cognitif spécifique.
+        1. Rôle explicite fourni dans self.llm_by_role
+        2. Adaptateur global self.llm fourni en paramètre (ex: tests unitaires / mocks)
+        3. Résolution dynamique via LLMProviderRegistry.build_adapter_for_role(role)
+        """
+        if role in self.llm_by_role and self.llm_by_role[role] is not None:
+            return self.llm_by_role[role]
+        if self.llm is not None:
+            return self.llm
+        from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+        return LLMProviderRegistry.build_adapter_for_role(role)
 
     def _get_specialist(self, risk_id: str):
         if "MODEL" in risk_id.upper():
             from agentic_ops.core.model_specialist import ModelSpecialist
-            return ModelSpecialist(llm=self.llm)
+            return ModelSpecialist(llm=self._get_llm_for_role("model"))
         elif "INFRA" in risk_id.upper():
             from agentic_ops.core.infra_specialist import InfraSpecialist
-            return InfraSpecialist(llm=self.llm)
+            return InfraSpecialist(llm=self._get_llm_for_role("infra"))
         else:
             from agentic_ops.core.specialist import DataSpecialist
-            return DataSpecialist(llm=self.llm)
+            return DataSpecialist(llm=self._get_llm_for_role("data"))
 
     def run(
         self,
@@ -134,7 +150,7 @@ class Orchestrator:
         else:
             from agentic_ops.core.remediation_agent import RemediationAgent
 
-            remediation_agent = RemediationAgent(llm=self.llm)
+            remediation_agent = RemediationAgent(llm=self._get_llm_for_role("remediation"))
             intent = remediation_agent.plan_action(diagnosis)
             action = ActionProposal(
                 type=ActionType(intent.action),

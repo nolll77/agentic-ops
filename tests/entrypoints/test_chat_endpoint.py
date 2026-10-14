@@ -114,3 +114,19 @@ def test_get_chat_ui_contains_prompts_catalog_elements():
     assert "catalog-categories" in html
     assert "/api/prompts" in html
 
+
+def test_get_llm_status_includes_roles_topology():
+    """GET /api/llm/status must expose the cognitive multi-LLM roles topology."""
+    resp = client.get("/api/llm/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "roles_topology" in data
+    roles = data["roles_topology"]
+    assert set(roles.keys()) == {"remediation", "infra", "data", "model", "chat"}
+    for role_name in ("remediation", "infra", "data", "model", "chat"):
+        assert "provider" in roles[role_name]
+        assert "model" in roles[role_name]
+        assert "fallback_models" in roles[role_name]
+        assert "is_specialized" in roles[role_name]
+        assert "recommendation" in roles[role_name]
+

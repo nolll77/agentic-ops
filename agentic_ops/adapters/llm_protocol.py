@@ -56,21 +56,21 @@ def _strip_think_tags(text: str) -> str:
 
 LLM_REQUESTS = Counter(
     "agentic_ops_llm_requests_total",
-    "Total LLM requests by provider, model and status",
-    ["provider", "model", "status"],
+    "Total LLM requests by role, provider, model and status",
+    ["role", "provider", "model", "status"],
 )
 
 LLM_LATENCY = Histogram(
     "agentic_ops_llm_latency_seconds",
     "LLM request latency in seconds",
-    ["provider", "model"],
+    ["role", "provider", "model"],
     buckets=[0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0],
 )
 
 LLM_TOKENS = Counter(
     "agentic_ops_llm_tokens_total",
-    "Total LLM tokens consumed by provider, model and token type",
-    ["provider", "model", "token_type"],
+    "Total LLM tokens consumed by role, provider, model and token type",
+    ["role", "provider", "model", "token_type"],
 )
 
 
@@ -132,6 +132,7 @@ class LiteLLMAdapter:
         timeout: int = 30,
         max_retries: int = 3,
         seed: int | None = None,
+        role: str = "global",
     ):
         import instructor
         import litellm
@@ -142,6 +143,7 @@ class LiteLLMAdapter:
         self.timeout = timeout
         self.max_retries = max_retries
         self.seed = seed
+        self.role = role
 
         # Derive provider label for Prometheus (first segment before '/')
         self._provider_label = model.split("/")[0] if "/" in model else "unknown"
@@ -198,23 +200,25 @@ class LiteLLMAdapter:
             result = self._client.chat.completions.create(**kwargs)
             elapsed = time.monotonic() - t0
             LLM_REQUESTS.labels(
+                role=self.role,
                 provider=self._provider_label,
                 model=self._model_label,
                 status="success",
             ).inc()
             LLM_LATENCY.labels(
-                provider=self._provider_label, model=self._model_label
+                role=self.role, provider=self._provider_label, model=self._model_label
             ).observe(elapsed)
             return result
         except Exception as exc:
             elapsed = time.monotonic() - t0
             LLM_REQUESTS.labels(
+                role=self.role,
                 provider=self._provider_label,
                 model=self._model_label,
                 status="error",
             ).inc()
             LLM_LATENCY.labels(
-                provider=self._provider_label, model=self._model_label
+                role=self.role, provider=self._provider_label, model=self._model_label
             ).observe(elapsed)
             logger.warning(
                 "LiteLLMAdapter error on model=%s: %s", self.model, exc
@@ -244,10 +248,12 @@ class OllamaAdapter:
         base_url: str = "http://localhost:11434",
         model: str = "llama3.2:3b",
         timeout: int = 60,
+        role: str = "global",
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
+        self.role = role
         self._provider_label = "ollama"
         self._model_label = model.split(":")[0]
 
@@ -289,19 +295,19 @@ class OllamaAdapter:
             result = response_model.model_validate(parsed)
             elapsed = time.monotonic() - t0
             LLM_REQUESTS.labels(
-                provider="ollama", model=self._model_label, status="success"
+                role=self.role, provider="ollama", model=self._model_label, status="success"
             ).inc()
             LLM_LATENCY.labels(
-                provider="ollama", model=self._model_label
+                role=self.role, provider="ollama", model=self._model_label
             ).observe(elapsed)
             return result
         except Exception as exc:
             elapsed = time.monotonic() - t0
             LLM_REQUESTS.labels(
-                provider="ollama", model=self._model_label, status="error"
+                role=self.role, provider="ollama", model=self._model_label, status="error"
             ).inc()
             LLM_LATENCY.labels(
-                provider="ollama", model=self._model_label
+                role=self.role, provider="ollama", model=self._model_label
             ).observe(elapsed)
             logger.warning("OllamaAdapter error on %s/%s: %s", self.base_url, self.model, exc)
             raise

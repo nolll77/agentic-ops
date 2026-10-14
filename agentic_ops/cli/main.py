@@ -263,6 +263,7 @@ def get_llm_status():
         "ollama_base_url": cfg.ollama_base_url if cfg.provider == "ollama" else None,
         "azure_api_base": cfg.azure_api_base if cfg.provider == "azure" else None,
         "free_tier_supported": cfg.provider in ("openrouter", "gemini", "huggingface", "ollama"),
+        "roles_topology": LLMProviderRegistry.get_roles_topology(),
     }
 
 

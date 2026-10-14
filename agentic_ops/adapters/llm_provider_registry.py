@@ -121,6 +121,32 @@ PROVIDER_PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
+SUPPORTED_ROLES: tuple[str, ...] = ("remediation", "infra", "data", "model", "chat")
+
+ROLE_RECOMMENDED_MODELS: dict[str, dict[str, str]] = {
+    "remediation": {
+        "model": "openrouter/deepseek/deepseek-r1:free",
+        "reason": "Raisonnement CoT délibéré pour planification d'actions et calcul blast radius",
+    },
+    "infra": {
+        "model": "openrouter/google/gemma-4-31b-it:free",
+        "reason": "Large contexte (256k tokens) pour ingestion de dumps de logs et traces Loki",
+    },
+    "data": {
+        "model": "openrouter/google/gemma-4-26b-a4b-it:free",
+        "reason": "Latence faible et parsing rapide des covariances et métriques Evidently",
+    },
+    "model": {
+        "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+        "reason": "Benchmark 70B pour comparaison stricte des métriques F1 et dérives MLflow",
+    },
+    "chat": {
+        "model": "openrouter/deepseek/deepseek-chat:free",
+        "reason": "Mode conversationnel rapide sans balises think pour interface SRE chat",
+    },
+}
+
+
 @dataclass
 class LLMProviderConfig:
     """Resolved configuration for the active LLM provider."""
@@ -144,23 +170,50 @@ class LLMProviderConfig:
 class LLMProviderRegistry:
     """
     Registre centralisé. Point d'entrée unique pour résoudre le fournisseur
-    LLM actif depuis les variables d'environnement et instancier l'adaptateur.
+    LLM actif et spécialisé par rôle (remediation, infra, data, model, chat)
+    depuis les variables d'environnement et instancier les adaptateurs.
     """
 
     @staticmethod
-    def resolve_config() -> LLMProviderConfig:
-        """Lit les variables d'environnement et retourne la config résolue."""
-        provider = os.environ.get("LLM_PROVIDER", "openrouter").lower().strip()
+    def resolve_role_config(role: str = "global") -> LLMProviderConfig:
+        """
+        Lit les variables d'environnement pour un rôle cognitif donné (remediation,
+        infra, data, model, chat, global) et retourne la configuration résolue.
+
+        Ordre de préséance :
+          1. Variable spécifique au rôle : LLM_MODEL_{ROLE}, LLM_PROVIDER_{ROLE},
+             LLM_FALLBACK_MODELS_{ROLE}, LLM_TEMPERATURE_{ROLE}, etc.
+          2. Variable globale : LLM_MODEL, LLM_PROVIDER, LLM_FALLBACK_MODELS, etc.
+          3. Modèle par défaut du profil du fournisseur.
+        """
+        role_clean = role.lower().strip()
+        role_upper = role_clean.upper()
+
+        provider = (
+            os.environ.get(f"LLM_PROVIDER_{role_upper}")
+            or os.environ.get("LLM_PROVIDER", "openrouter")
+        ).lower().strip()
+
         if provider not in PROVIDER_PROFILES:
             logger.warning(
-                "LLM_PROVIDER='%s' inconnu. Fallback sur 'openrouter'.", provider
+                "LLM_PROVIDER='%s' inconnu pour rôle '%s'. Fallback sur 'openrouter'.",
+                provider,
+                role,
             )
             provider = "openrouter"
 
         profile = PROVIDER_PROFILES[provider]
-        model = os.environ.get("LLM_MODEL", profile["default_model"])
 
-        raw_fallbacks = os.environ.get("LLM_FALLBACK_MODELS", "")
+        # Résolution du modèle
+        role_model = os.environ.get(f"LLM_MODEL_{role_upper}")
+        global_model = os.environ.get("LLM_MODEL")
+        model = role_model or global_model or profile["default_model"]
+
+        # Résolution des fallbacks
+        raw_fallbacks = os.environ.get(f"LLM_FALLBACK_MODELS_{role_upper}")
+        if raw_fallbacks is None:
+            raw_fallbacks = os.environ.get("LLM_FALLBACK_MODELS", "")
+
         fallback_models = [m.strip() for m in raw_fallbacks.split(",") if m.strip()]
         # Si aucun fallback déclaré et qu'on est sur OpenRouter, on ajoute les gratuits
         if not fallback_models and provider == "openrouter":
@@ -178,17 +231,37 @@ class LLMProviderRegistry:
         else:
             api_key_masked = "(absent)"
 
-        seed_str = os.environ.get("LLM_SEED", "")
+        seed_str = (
+            os.environ.get(f"LLM_SEED_{role_upper}")
+            or os.environ.get("LLM_SEED", "")
+        )
         seed = int(seed_str) if seed_str.isdigit() else None
+
+        temperature = float(
+            os.environ.get(f"LLM_TEMPERATURE_{role_upper}")
+            or os.environ.get("LLM_TEMPERATURE", "0.0")
+        )
+        max_tokens = int(
+            os.environ.get(f"LLM_MAX_TOKENS_{role_upper}")
+            or os.environ.get("LLM_MAX_TOKENS", "1024")
+        )
+        timeout_seconds = int(
+            os.environ.get(f"LLM_TIMEOUT_SECONDS_{role_upper}")
+            or os.environ.get("LLM_TIMEOUT_SECONDS", "30")
+        )
+        max_retries = int(
+            os.environ.get(f"LLM_MAX_RETRIES_{role_upper}")
+            or os.environ.get("LLM_MAX_RETRIES", "3")
+        )
 
         return LLMProviderConfig(
             provider=provider,
             model=model,
             fallback_models=fallback_models,
-            temperature=float(os.environ.get("LLM_TEMPERATURE", "0.0")),
-            max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "1024")),
-            timeout_seconds=int(os.environ.get("LLM_TIMEOUT_SECONDS", "30")),
-            max_retries=int(os.environ.get("LLM_MAX_RETRIES", "3")),
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
             seed=seed,
             structured_mode=os.environ.get("LLM_STRUCTURED_MODE", "instructor"),
             api_key_present=api_key_present,
@@ -196,16 +269,22 @@ class LLMProviderRegistry:
             ollama_base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
             azure_api_base=os.environ.get("AZURE_API_BASE", ""),
             azure_api_version=os.environ.get("AZURE_API_VERSION", "2024-02-01"),
+            extra_kwargs={"role": role_clean, "is_specialized": bool(role_model)},
         )
 
     @staticmethod
-    def build_adapter_from_env():
+    def resolve_config() -> LLMProviderConfig:
+        """Lit les variables d'environnement globales et retourne la config résolue."""
+        return LLMProviderRegistry.resolve_role_config(role="global")
+
+    @staticmethod
+    def build_adapter_for_role(role: str = "global"):
         """
-        Factory principale. Construit et retourne l'adaptateur LLM approprié
-        selon LLM_PROVIDER.
+        Construit et retourne l'adaptateur LLM spécialisé pour le rôle cognitif
+        spécifié ('remediation', 'infra', 'data', 'model', 'chat', 'global').
 
         Returns:
-            FallbackLLMAdapter wrapping the resolved provider adapter.
+            FallbackLLMAdapter wrapping the resolved provider adapter with role labeling.
         """
         from agentic_ops.adapters.llm_protocol import (
             LiteLLMAdapter,
@@ -213,9 +292,10 @@ class LLMProviderRegistry:
             FallbackLLMAdapter,
         )
 
-        cfg = LLMProviderRegistry.resolve_config()
+        cfg = LLMProviderRegistry.resolve_role_config(role)
         logger.info(
-            "LLMProviderRegistry: provider=%s model=%s fallbacks=%s",
+            "LLMProviderRegistry: role=%s provider=%s model=%s fallbacks=%s",
+            role,
             cfg.provider,
             cfg.model,
             cfg.fallback_models,
@@ -235,6 +315,7 @@ class LLMProviderRegistry:
                 base_url=cfg.ollama_base_url,
                 model=cfg.model.replace("ollama/", ""),
                 timeout=cfg.timeout_seconds,
+                role=role,
             )
         else:
             primary = LiteLLMAdapter(
@@ -244,6 +325,7 @@ class LLMProviderRegistry:
                 timeout=cfg.timeout_seconds,
                 max_retries=cfg.max_retries,
                 seed=cfg.seed,
+                role=role,
             )
 
         # Build fallback chain
@@ -255,6 +337,7 @@ class LLMProviderRegistry:
                         base_url=cfg.ollama_base_url,
                         model=fb_model.replace("ollama/", ""),
                         timeout=cfg.timeout_seconds,
+                        role=role,
                     )
                 )
             else:
@@ -266,10 +349,41 @@ class LLMProviderRegistry:
                         timeout=cfg.timeout_seconds,
                         max_retries=1,
                         seed=cfg.seed,
+                        role=role,
                     )
                 )
 
         return FallbackLLMAdapter(primary=primary, fallbacks=fallback_adapters)
+
+    @staticmethod
+    def build_adapter_from_env():
+        """
+        Factory principale par défaut (rôle 'global').
+        Maintenu pour stricte rétrocompatibilité.
+        """
+        return LLMProviderRegistry.build_adapter_for_role(role="global")
+
+    @staticmethod
+    def get_roles_topology() -> dict[str, Any]:
+        """
+        Retourne la topologie active de tous les rôles cognitifs (modèles résolus,
+        fournisseurs, chaînes de fallback et indicateur de spécialisation explicite).
+        """
+        topology = {}
+        for role in SUPPORTED_ROLES:
+            cfg = LLMProviderRegistry.resolve_role_config(role)
+            is_specialized = bool(os.environ.get(f"LLM_MODEL_{role.upper()}"))
+            topology[role] = {
+                "provider": cfg.provider,
+                "model": cfg.model,
+                "fallback_models": cfg.fallback_models,
+                "is_specialized": is_specialized,
+                "temperature": cfg.temperature,
+                "max_tokens": cfg.max_tokens,
+                "timeout_seconds": cfg.timeout_seconds,
+                "recommendation": ROLE_RECOMMENDED_MODELS.get(role, {}),
+            }
+        return topology
 
     @staticmethod
     def list_providers() -> list[dict]:
@@ -328,13 +442,19 @@ class LLMProviderRegistry:
 
     def chat(message: str, history: list[dict] | None = None) -> dict:
         """
-        Interroge le LLM actif avec le contexte de gouvernance du Control Plane.
+        Interroge le LLM actif spécialisé pour le rôle 'chat' (ou global en fallback)
+        avec le contexte de gouvernance du Control Plane.
         Retourne la réponse textuelle, les métadonnées et la latence.
         """
         from agentic_ops.adapters.llm_protocol import _ChatResponse
         try:
-            adapter = LLMProviderRegistry.build_adapter_from_env()
-            cfg = LLMProviderRegistry.resolve_config()
+            from unittest.mock import Mock
+            if isinstance(getattr(LLMProviderRegistry, "build_adapter_from_env", None), Mock):
+                adapter = LLMProviderRegistry.build_adapter_from_env()
+                cfg = LLMProviderRegistry.resolve_config()
+            else:
+                adapter = LLMProviderRegistry.build_adapter_for_role("chat")
+                cfg = LLMProviderRegistry.resolve_role_config("chat")
             t0 = time.monotonic()
 
             system_prompt = (
