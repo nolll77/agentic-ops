@@ -144,3 +144,47 @@ def verify_chain(self) -> bool:
 ```
 
 If an attacker modifies even a single comma or timestamp in `ledger.jsonl`, `verify_chain()` immediately returns `False` and flags the corrupted block.
+
+---
+
+## 5. Is the Ledger Stored in Render? (Stateless Container vs. Persistent Storage)
+
+Applying the project's **Radical Honesty** rule, the exact physical lifecycle of the WORM ledger in `Render` is governed by the following deployment mechanics:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| PHYSICAL STORAGE DUALITY IN RENDER FREE TIER                                                     |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [1. Immutable Docker Image Layer]                [2. Local Ephemeral Storage (/tmp & /app)]      |
+| - Sealed into container at build time             - Runtime scratch space for active session     |
+| - Path: /app/agentic_ops/evidence_store/*.json    - Path: /app/.../ledger.jsonl & /tmp/.../*.db  |
+| - Contains historical reference blocks (EP-0001   - Captures new live episodes and chaos runs    |
+|   to EP-0005, chaos runs)                         - Resets on container sleep (15 min) or rebuild|
+| - PERMANENT across all wake-ups (0 EUR)           - EPHEMERAL in Free Tier (0 EUR)               |
++--------------------------------------------------------------------------------------------------+
+```
+
+### A. The Reference Archive: Sealed Inside the Docker Image Layer
+During container build (`Dockerfile`), the repository sources are baked into the container image:
+```dockerfile
+COPY agentic_ops/ ./agentic_ops/
+```
+As a result, the reference baseline episodes (`EP-0001` through `EP-0005`, and chaos episodes `EP-CHAOS-31c6e006`, `EP-CHAOS-5950095d`, `EP-CHAOS-d6c18601`) reside permanently in:
+```bash
+/app/agentic_ops/evidence_store/
+```
+They **never disappear**, even when the container spins down after 15 minutes of inactivity or when Render restarts the container.
+
+### B. The Live Execution Ledger: Ephemeral vs. Persistent Disks
+At runtime, whenever new remediation episodes or live tests run:
+1. **Append-Only File**: `agentic_ops/evidence_store/ledger.jsonl` receives newly signed entries.
+2. **Approval SQLite Store**: `/tmp/state/approvals.db` tracks transactional human approvals.
+
+**In the Render Free Tier (`0 EUR`)**:
+- Render's free tier provides an **ephemeral local filesystem** (`Stateless Container`).
+- If the instance goes to sleep (after 15 minutes of HTTP silence) and wakes up later, newly generated runtime entries reset back to the immutable Docker image state.
+
+**In Enterprise Production Deployments**:
+- Production instances attach a **Render Persistent Disk** mounted at `/app/agentic_ops/evidence_store` (or stream sealed blocks to an external WORM object store like **AWS S3 Object Lock** or **GCS Retention Policies**).
+- For our live demonstration and academic jury defense, sealing the reference audit episodes directly into the Docker image guarantees that every auditor accessing `/console` (`WORM Trust Ledger CLI`) sees the certified audit trail 24/7 without requiring paid cloud disks.
