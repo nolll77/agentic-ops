@@ -440,12 +440,16 @@ Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.
 | **`Phase D: Live Agentic Scenarios (10 Tests)`** | [`/api/diagnostics/sandbox_phase_d_mlops_scenarios`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_d_mlops_scenarios) | `pytest tests/scenarios/ -v -s` | **`10 passed`** + live `[INVESTIGATING] -> [DIAGNOSED] -> [PLANNED] -> [POLICY] DENY` traces & `[scripted] n=7 diag_ok=5/7 forbidden_proposed=6 forbidden_executed=0`. |
 | **`Phase E: FSM & Tool Sandboxing (10 Tests)`** | [`/api/diagnostics/sandbox_phase_e_fsm_governance`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_e_fsm_governance) | `pytest tests/test_fsm_orchestrator.py tests/test_grafana_webhook.py tests/test_tools_security.py -v` | **`10 passed`** (`FSM` transitions, `Grafana` webhook validation, `multiprocessing` OS sandboxing). |
 | **`Phase F: CAC Tailscale Connector (13 Tests)`** | [`/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector) | `pytest tests/adapters/test_cac_pull_collector.py -v` | **`13 passed`** (Read-only `GET` enforcement across all 5 `jakatt/cac_mlops` services + offline resilience). |
-| **`Grand Slam: All 42 Sandbox + CAC Tests`** | [`/api/diagnostics/pytest_all`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_all) | Runs `Phases C + D + E + F` in a single `pytest` execution | **`42 passed, 2 skipped`** across all adversarial, scenario, governance, and connector suites. |
+| **`Phase G: MCP Governance Gateway (12 Tests)`** | [`/api/diagnostics/pytest_mcp_gateway`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_mcp_gateway) | `pytest tests/entrypoints/test_mcp_server.py -v` | **`12 passed`** (`MCP` JSON-RPC 2.0 handshake, live `/console` reader, 8 governed tools, 5 resources, 20 starter prompts). |
+| **`Phase H: LLM Provider Hub (8 Tests)`** | [`/api/diagnostics/pytest_llm_hub`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_llm_hub) | `pytest tests/adapters/test_llm_provider_registry.py -v` | **`8 passed`** (8 AI providers detection, automatic fallback chain on 429 rate limit, Ollama JSON parsing, API key masking). |
+| **`Grand Slam: All 62 Sandbox, MCP & LLM Tests`** | [`/api/diagnostics/pytest_all`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_all) | Runs `Phases C + D + E + F + G + H` in a single `pytest` execution | **`62 passed, 2 skipped`** across all adversarial, scenario, governance, connector, MCP, and LLM hub test suites. |
+| **`LLM Provider Live Status`** | [`/api/llm/status`](https://agentic-ops-5ebv.onrender.com/api/llm/status) | `GET /api/llm/status` | Returns active AI provider, resolved model (e.g. `deepseek-r1:free`), fallback chain, and masked API key. |
 | **`WORM Trust Ledger CLI`** | [`/api/diagnostics/trust_ledger_list`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/trust_ledger_list) | `python -m agentic_ops.cli.trust_ledger list` | Lists cryptographically sealed episodes (`SHA-256` + `HMAC-SHA512`) stored in the container ledger. |
 | **`Tailscale Mesh Status`** | [`/api/diagnostics/tailscale_status`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/tailscale_status) | `tailscale --socket=/tmp/tailscaled.sock status` | Displays active `Tailnet` peers (`100.85.198.81` `agentic-ops-render`, `100.117.99.62` `scw-jovial-dubinsky`) with PII redacted. |
 | **`Tailscale DERP Netcheck`** | [`/api/diagnostics/tailscale_netcheck`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/tailscale_netcheck) | `tailscale --socket=/tmp/tailscaled.sock netcheck` | Displays `UDP` / `IPv4` / `DERP` relay latency telemetry from the `Render` container. |
 | **`Live Pull: jakatt/cac_mlops`** | [`/api/cac/snapshot?timeout=3.5`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5) | `CacPullCollector(use_proxy_for_vps=True).collect_all()` | Polls `Loki`, `Prometheus`, `MLflow`, `Prefect`, and `Evidently` over `socks5://127.0.0.1:1055`. |
 | **`Redis Local Daemon Ping`** | [`/api/diagnostics/redis_ping`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/redis_ping) | `redis-cli -h 127.0.0.1 -p 6379 PING` | Returns `PONG` confirming local `Redis` readiness. |
+
 
 > **Architectural Note — Lazy `litellm` Loading (`LiteLLMAdapter.__init__()`) for Sub-Second Execution on `Render`'s `0.1 vCPU`**:
 > On `Render`'s free instance plan, CPU allocation is throttled to **`0.1 vCPU`** (1/10th of a physical core). Eagerly importing `litellm` and `instructor` at module import time inside [`agentic_ops/adapters/llm_protocol.py`](agentic_ops/adapters/llm_protocol.py) previously forced Python to parse `litellm`'s 2 MB token/pricing tables (`~35 to 50 seconds` on `0.1 vCPU`) and attach a global `asyncio` logging filter (`litellm._logging.py` $\rightarrow$ `_ModuleLock('litellm.types.secret_managers.main')` deadlock when concurrent requests arrived).
@@ -836,7 +840,70 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 | **`17`** | `17_secops_prompt_injection_audit` | **SecOps Defense** | Audit indirect prompt injection (`SC-101` `<untrusted_telemetry>` fence + `PolicyEngine` veto on `scale_to_zero`). |
 | **`18`** | `18_secops_tool_sandboxing_verification` | **SecOps Defense** | Run `Phase E` (`sandbox_phase_e_fsm_governance`) and explain OS-level `multiprocessing.Process` `15s` `SIGKILL` isolation. |
 | **`19`** | `19_sre_tailscale_mesh_diagnostics` | **SRE Mesh** | Run `tailscale_status` and `tailscale_netcheck` via `read_console_diagnostic` and verify `_redact_pii()` anonymization. |
-| **`20`** | `20_executive_jury_defense_briefing` | **Jury Defense** | Synthesize a 5-point Executive Jury Defense Briefing from live vitals, `54 passed` tests, and the `WORM` ledger. |
+| **`20`** | `20_executive_jury_defense_briefing` | **Jury Defense** | Synthesize a 5-point Executive Jury Defense Briefing from live vitals, `62 passed` tests, and the `WORM` ledger. |
+
+---
+
+## Universal LLM Provider Hub: Decoupled Reasoning Across 8 AI Providers
+
+> **Dedicated Technical Reference**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Config Template**: **[`.env.example`](.env.example)** | **Test Suite**: [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`8 passed`)
+
+To eliminate AI provider vendor lock-in and enable zero-cost 24/7 cloud operations, `Agentic-Ops` decouples the cognitive reasoning engine (`RemediationAgent` & specialized diagnostic agents) from the physical model implementation through `LLMProviderRegistry` and `llm_protocol.py`.
+
+The active brain can be swapped dynamically via environment variables (`LLM_PROVIDER`, `LLM_MODEL`) without modifying a single line of application code:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS REASONING ENGINE (RemediationAgent / SpecialistAgents / Pydantic ActionIntent)       |
++------------------------------------------------+-------------------------------------------------+
+                                                 | (Standard LLMPort Protocol)
+                                                 v
++--------------------------------------------------------------------------------------------------+
+| LLM PROVIDER REGISTRY (agentic_ops/adapters/llm_provider_registry.py)                            |
+| Resolves: LLM_PROVIDER -> Profiles, Masked Keys, Prometheus Metrics, Auto-Fallback Chain        |
++------------------------------------------------+-------------------------------------------------+
+                                                 |
+         +---------------------------------------+---------------------------------------+
+         |                                       |                                       |
+         v                                       v                                       v
++---------------------------------+ +---------------------------------+ +---------------------------------+
+| 1. OPENROUTER (:free 24/7 Cloud)| | 2. OLLAMA (Local / Tailscale)   | | 3. PROPRIETARY & ENTERPRISE     |
+| - deepseek/deepseek-r1:free     | | - Local: http://localhost:11434 | | - Google Gemini (1.5 Pro/Flash) |
+| - deepseek/deepseek-chat:free   | | - Mesh:  http://100.x.y.z:11434 | | - OpenAI (GPT-4o, GPT-4o-mini)  |
+| - meta-llama/llama-3.3-70b:free | | - Cloudflare Tunnel (HTTPS)     | | - Anthropic (Claude 3.5 Haiku)  |
+| - google/gemini-2.0-flash:free  | | - Vast.ai Cloud GPU VPS         | | - Azure OpenAI & Mistral AI     |
+| -> Cost: 0 EUR (No billing card)| | -> Cost: 0 EUR (Native JSON)    | | -> Cost: Usage-based / Tiered   |
++---------------------------------+ +---------------------------------+ +---------------------------------+
+```
+
+### 1. The 8 Supported AI Model Providers & Cost Comparison
+
+| # | Provider (`LLM_PROVIDER`) | Recommended Model (`LLM_MODEL`) | Cost | Deployment Architecture & Strengths |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **`openrouter` (Default)** | `openrouter/deepseek/deepseek-r1:free` | **0 EUR** | **24/7 Cloud Zero-Cost**: DeepSeek-R1 reasoning rivaling OpenAI o1, accessible without credit card. |
+| **2** | **`openrouter` (Fast JSON)** | `openrouter/deepseek/deepseek-chat:free` | **0 EUR** | **Sub-Second Latency**: Direct JSON responses without think blocks, ideal for high-throughput alerts. |
+| **3** | **`openrouter` (Llama 70B)** | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | **0 EUR** | **Enterprise Open-Weights**: Meta Llama 3.3 70B hosted free by community cloud GPU providers. |
+| **4** | **`gemini`** | `gemini/gemini-1.5-pro-latest` | Free/Paid | **Native Multimodal**: Large 1M+ context window and strict Google structured outputs. |
+| **5** | **`openai`** | `gpt-4o-mini` | Paid | **Industry Reference**: Fast and reliable OpenAI tool-calling standard. |
+| **6** | **`anthropic`** | `claude-3-5-haiku-20241022` | Paid | **Superior Coding & Logic**: Anthropic flagship reasoning with low-latency Haiku pricing. |
+| **7** | **`azure`** | `azure/gpt-4o` | Enterprise | **Sovereign Cloud**: Dedicated enterprise deployment with Azure Active Directory integration. |
+| **8** | **`mistral`** | `mistral/mistral-large-2411` | Paid (Low) | **European Sovereignty**: High-compliance French AI laboratory models with native function calling. |
+| **9** | **`huggingface`** | `huggingface/mistralai/Mistral-7B-Instruct-v0.2` | **0 EUR** | **Serverless Free Tier**: Community open-weights hosted on HuggingFace (~1000 req/month). |
+| **10** | **`ollama`** | `ollama/llama3.2:3b` | **0 EUR** | **Private Mesh / Offline**: Runs locally or accessible to Render via Tailscale private IP (`100.x.y.z:11434`). |
+
+### 2. Zero-Downtime Resilience: Automatic Fallback Chain (`FallbackLLMAdapter`)
+Free tiers on public clouds may occasionally encounter rate limits (`HTTP 429 Too Many Requests`). To prevent an incident diagnosis from stalling:
+1. The primary model is queried first (e.g. `openrouter/deepseek/deepseek-r1:free`).
+2. If it raises a rate-limit or timeout exception, `FallbackLLMAdapter` instantly failovers to the secondary model configured in `LLM_FALLBACK_MODELS` (e.g. `openrouter/deepseek/deepseek-chat:free`), then to `openrouter/meta-llama/llama-3.3-70b-instruct:free`.
+3. Every individual attempt is recorded in Prometheus metrics (`agentic_ops_llm_requests_total{provider=..., model=..., status=...}`) for FinOps auditability.
+
+### 3. SRE Observability & Live Probing Endpoints
+The Control Plane exposes 3 dedicated REST inspection endpoints:
+- **`GET /api/llm/status`**: Inspects active provider, resolved model, fallback chain, and sanitized key status (`sk-or-***`).
+- **`GET /api/llm/models`**: Returns the complete 8-provider catalog and recommendations for zero-cost operation.
+- **`POST /api/llm/probe`**: Actively queries the configured LLM and measures end-to-end roundtrip latency in milliseconds.
+- **Console Button (`Phase H`)**: Interactive 1-click validation of all LLM Hub features from `/console`.
+
 
 ---
 
