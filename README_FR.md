@@ -916,7 +916,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ## Hub Universel de Fournisseurs LLM : Découplage Cognitif sur 8 Fournisseurs d'IA
 
-> **Référence Technique Dédiée** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Gabarit de Configuration** : **[`.env.example`](.env.example)** | **Suite de Tests** : [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`8 passed`)
+> **Référence Technique Dédiée** : **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Module Source** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Gabarit de Configuration** : **[`.env.example`](.env.example)** | **Suite de Tests** : [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`10 passed`)
 
 Pour éliminer le verrouillage propriétaire (Vendor Lock-in) et garantir un fonctionnement cloud continu 24h/24 à **0 EUR**, `Agentic-Ops` découple totalement le moteur de raisonnement cognitif (`RemediationAgent` et agents spécialistes) de l'implémentation physique des modèles grâce à `LLMProviderRegistry` et `llm_protocol.py`.
 

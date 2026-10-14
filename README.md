@@ -916,7 +916,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ## Universal LLM Provider Hub: Decoupled Reasoning Across 8 AI Providers
 
-> **Dedicated Technical Reference**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Config Template**: **[`.env.example`](.env.example)** | **Test Suite**: [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`8 passed`)
+> **Dedicated Technical Reference**: **[`docs/OPENROUTER_FREE_MODELS_GUIDE.md`](docs/OPENROUTER_FREE_MODELS_GUIDE.md)** | **Source Module**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)** | **Config Template**: **[`.env.example`](.env.example)** | **Test Suite**: [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) (`10 passed`)
 
 To eliminate AI provider vendor lock-in and enable zero-cost 24/7 cloud operations, `Agentic-Ops` decouples the cognitive reasoning engine (`RemediationAgent` & specialized diagnostic agents) from the physical model implementation through `LLMProviderRegistry` and `llm_protocol.py`.
 
