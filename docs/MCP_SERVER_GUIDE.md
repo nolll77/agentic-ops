@@ -185,6 +185,31 @@ While OpenAI's web interface (`chatgpt.com`) does not use the Anthropic `MCP` pr
 
 ---
 
+### Option F — Standalone Zero-Dependency Cloud Web Chat (`GET /chat` on Render)
+
+For users who want zero local setup (no Docker, no MongoDB, no local Mac resource usage), `Agentic-Ops` includes a native web chat interface served directly by `FastAPI` at `https://agentic-ops-5ebv.onrender.com/chat`:
+
+1. Open your browser directly at:
+   ```text
+   https://agentic-ops-5ebv.onrender.com/chat
+   ```
+2. The interface automatically connects to `POST /api/chat` and queries the active provider configured in `LLMProviderRegistry` (e.g. `openrouter/deepseek/deepseek-chat:free` or `openrouter/deepseek/deepseek-r1:free`).
+3. It features real-time LLM status probing (`GET /api/llm/status`), structured action metadata cards (`Action`, `Confidence`, `Latency`, `Model`), one-click SRE scenario chips, and full dark-mode styling aligned with the `/console`.
+
+#### Comparative Architecture Matrix: LibreChat (Local Docker) vs. Native Web Chat (Render Cloud)
+
+| Architectural Dimension | Option 1: Local LibreChat (Docker on Mac/PC) | Option 2: Standalone Cloud Web Chat (`/chat` on Render) |
+| :--- | :--- | :--- |
+| **Hosting Location** | Local workstation (`localhost:3080`) | Render Free Tier (`https://agentic-ops-5ebv.onrender.com/chat`) |
+| **Prerequisites** | Docker Desktop, `git clone`, `docker compose up` | Web browser only (zero installation) |
+| **RAM Footprint** | ~1.5 GB RAM (Node.js + MongoDB + Meilisearch) | < 2 MiB RAM (native HTML/JS rendered by existing FastAPI) |
+| **Cloud Availability** | Only when local machine is awake | 24/7 Cloud (Render auto-wake on HTTP request) |
+| **LLM Connection** | Direct client-to-OpenRouter or via local proxy | Server-side via `LLMProviderRegistry` + auto-fallback |
+| **Tool Calling Mode** | MCP client tool attachment (`librechat.yaml`) | Server-side governed execution + `ActionProposal` validation |
+| **User Management** | Multi-user accounts, auth tokens, chat export | Single-operator SRE console session |
+| **Cost** | 0 EUR (local compute) | 0 EUR (Render Free Tier + OpenRouter `:free` tier) |
+
+---
 
 ### Option D — Zero-Install Remote Cloud Connection (`HTTP JSON-RPC 2.0` on Render)
 

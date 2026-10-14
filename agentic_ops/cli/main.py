@@ -109,12 +109,14 @@ def root():
         },
         "endpoints": {
             "web_console": "/console",
+            "web_chat": "/chat",
             "mcp_jsonrpc": "/mcp",
             "mcp_manifest": "/mcp/manifest",
             "swagger_docs": "/docs",
             "llm_status": "/api/llm/status",
             "llm_models": "/api/llm/models",
             "llm_probe": "/api/llm/probe",
+            "llm_chat": "/api/chat",
             "healthz": "/healthz",
             "ready": "/ready",
             "tailscale_status": "/api/tailscale/status",
@@ -315,6 +317,25 @@ def probe_llm(timeout: float = Query(default=10.0)):
     from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
 
     return LLMProviderRegistry.probe(timeout=timeout)
+
+
+from pydantic import BaseModel as _FastApiBaseModel
+
+class ChatPayload(_FastApiBaseModel):
+    message: str
+    history: list[dict] = []
+
+
+@app.post("/api/chat")
+def chat_with_agentic_ops(payload: ChatPayload):
+    """
+    Conversational endpoint powering the zero-dependency Web Chat UI (/chat).
+    Queries the active LLM (OpenRouter, Gemini, OpenAI, Claude, Mistral, Ollama)
+    with MLOps governance context and returns the reasoning response.
+    """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    return LLMProviderRegistry.chat(message=payload.message, history=payload.history)
 
 
 COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
@@ -979,7 +1000,7 @@ def web_console():
     <header>
       <div>
         <h1>Agentic-Ops — SRE & Docker Sandbox Cognitive Web Console</h1>
-        <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas (avec switch Compact/Détaillé) | <a href="/docs" target="_blank">Open Swagger UI (/docs)</a> | <a href="/mcp/manifest" target="_blank">MCP Manifest (/mcp/manifest)</a></div>
+        <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas | <a href="/chat" target="_blank" style="color:#34d399;font-weight:bold;">💬 Open Live AI Chat (/chat)</a> | <a href="/docs" target="_blank">Swagger UI (/docs)</a> | <a href="/mcp/manifest" target="_blank">MCP Manifest (/mcp/manifest)</a></div>
       </div>
       <div class="badges">
         <span class="badge">Redis :6379 Active</span>
@@ -1197,6 +1218,614 @@ Cliquez sur n'importe quel bouton ci-dessus :
   </script>
 </body>
 </html>"""
+
+
+CHAT_HTML = r"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic-Ops — SRE & MLOps Cognitive Chat</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: #0f172a;
+      --card-hover: #1e293b;
+      --border: #1e293b;
+      --border-accent: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #34d399;
+      --accent-blue: #38bdf8;
+      --accent-purple: #c084fc;
+      --accent-amber: #fbbf24;
+      --accent-rose: #fb7185;
+      --user-bg: #1e293b;
+      --bot-bg: #0a1124;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 12px;
+    }
+    .badge-llm {
+      background: #022c22;
+      color: var(--accent);
+      border: 1px solid #059669;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--accent);
+      display: inline-block;
+    }
+    .nav-links {
+      display: flex;
+      gap: 12px;
+    }
+    .nav-links a {
+      color: var(--accent-blue);
+      text-decoration: none;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .nav-links a:hover {
+      text-decoration: underline;
+    }
+    
+    .chat-container {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 20px 14px 20px;
+      overflow: hidden;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .chat-messages::-webkit-scrollbar { width: 6px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    
+    .msg-wrapper {
+      display: flex;
+      flex-direction: column;
+      max-width: 85%;
+      animation: msgIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg-wrapper.user {
+      align-self: flex-end;
+    }
+    .msg-wrapper.bot {
+      align-self: flex-start;
+    }
+    
+    .msg-sender {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .msg-sender.user {
+      justify-content: flex-end;
+    }
+    
+    .msg-bubble {
+      padding: 13px 17px;
+      border-radius: 12px;
+      line-height: 1.55;
+      font-size: 13.5px;
+      word-break: break-word;
+    }
+    .msg-wrapper.user .msg-bubble {
+      background: var(--user-bg);
+      border: 1px solid #334155;
+      color: #f8fafc;
+      border-bottom-right-radius: 3px;
+    }
+    .msg-wrapper.bot .msg-bubble {
+      background: var(--bot-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-bottom-left-radius: 3px;
+    }
+    
+    .msg-bubble pre {
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin: 8px 0;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .msg-bubble code {
+      background: #020617;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      color: #93c5fd;
+      font-size: 12px;
+    }
+    
+    .meta-card {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+    }
+    .meta-pill {
+      background: #020617;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid #1e293b;
+      color: var(--muted);
+    }
+    .meta-pill strong {
+      color: var(--accent-blue);
+    }
+    .meta-pill.action strong {
+      color: var(--accent);
+    }
+    .meta-pill.conf strong {
+      color: var(--accent-amber);
+    }
+    
+    .chips-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .chips-bar::-webkit-scrollbar { height: 4px; }
+    .chips-bar::-webkit-scrollbar-thumb { background: #334155; }
+    .chip-btn {
+      background: var(--card);
+      border: 1px solid var(--border-accent);
+      color: #cbd5e1;
+      padding: 6px 13px;
+      border-radius: 9999px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .chip-btn:hover {
+      background: #1e293b;
+      border-color: var(--accent);
+      color: #fff;
+    }
+    
+    .input-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+    .input-box:focus-within {
+      border-color: var(--accent);
+    }
+    .input-box textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      min-height: 42px;
+      max-height: 120px;
+      line-height: 1.4;
+      padding: 6px 4px;
+    }
+    .input-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn-clear {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid #334155;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-clear:hover {
+      background: #1e293b;
+      color: #fff;
+    }
+    .btn-send {
+      background: #059669;
+      color: #fff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-send:hover:not(:disabled) {
+      background: #10b981;
+    }
+    .btn-send:disabled {
+      background: #334155;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .input-hint {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 6px;
+      display: flex;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .typing-dot {
+      width: 5px;
+      height: 5px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: blink 1.4s infinite both;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1.2); }
+    }
+    .error-banner {
+      background: #450a0a;
+      border: 1px solid #991b1b;
+      color: #fca5a5;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="header-left">
+        <div class="brand-title">
+          <span>💬</span>
+          <span>Agentic-Ops — Cognitive SRE & MLOps Assistant</span>
+        </div>
+        <div class="brand-sub">Universal LLM Interface (OpenRouter, Gemini, Claude, OpenAI, Ollama) | Zero-Dependency Web Client</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="badge-llm" id="llm-status-badge">
+        <span class="badge-dot"></span>
+        <span>Loading LLM Provider...</span>
+      </div>
+      <div class="nav-links">
+        <a href="/console">🖥️ Console</a>
+        <a href="/docs" target="_blank">Swagger (/docs)</a>
+        <a href="/mcp/manifest" target="_blank">MCP Manifest</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="chat-container">
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg-wrapper bot">
+        <div class="msg-sender">🤖 Agentic-Ops SRE Assistant</div>
+        <div class="msg-bubble">
+          Bonjour ! Je suis l'assistant cognitif SRE et MLOps d'<strong>Agentic-Ops Control Plane</strong>.<br><br>
+          Je suis connecté en direct au moteur d'orchestration et au Hub de LLM (OpenRouter par défaut avec fallback automatique). Vous pouvez m'interroger sur l'état de l'infrastructure, l'analyse d'alertes Loki/Prometheus, la dérive Evidently, les politiques de quorum Slack HITL ou les tests de robustesse.<br><br>
+          <em>Cliquez sur une suggestion ci-dessous ou posez directement votre question.</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="chips-bar">
+      <button class="chip-btn" onclick="sendPrompt('Quel est le rôle du circuit breaker en cas de saturation de requêtes ?')">⚡ Circuit Breaker</button>
+      <button class="chip-btn" onclick="sendPrompt('Explique comment fonctionne le quorum Slack HITL à 2 approbateurs (2-man rule).')">👥 Quorum HITL Slack</button>
+      <button class="chip-btn" onclick="sendPrompt('Quels sont les impacts d\'une dérive de données Evidently sur le modèle BAAC ?')">📉 Dérive Evidently BAAC</button>
+      <button class="chip-btn" onclick="sendPrompt('Comment le WORM Trust Ledger garantit-il l\'immuabilité des actions d\'assainissement ?')">🔒 WORM Trust Ledger</button>
+      <button class="chip-btn" onclick="sendPrompt('Pourquoi le pull CAC vers 100.117.99.62 est-il strictement en lecture seule ?')">🛡️ Sécurité CAC Pull</button>
+    </div>
+
+    <div class="input-box">
+      <textarea id="chat-input" placeholder="Posez une question à l'assistant SRE (Entrée pour envoyer, Maj+Entrée pour saut de ligne)..." rows="1" onkeydown="handleKeyDown(event)"></textarea>
+      <div class="input-actions">
+        <button class="btn-clear" onclick="clearChat()" title="Effacer l'historique">Effacer</button>
+        <button class="btn-send" id="btn-send" onclick="sendMessage()">Envoyer ↵</button>
+      </div>
+    </div>
+    <div class="input-hint">
+      <span>Appuyez sur <strong>Entrée</strong> pour envoyer</span>
+      <span id="char-counter">Modèle actif résolu par LLMProviderRegistry</span>
+    </div>
+  </div>
+
+  <script>
+    let conversationHistory = [];
+
+    async function loadLLMStatus() {
+      try {
+        const res = await fetch('/api/llm/status');
+        const data = await res.json();
+        const badge = document.getElementById('llm-status-badge');
+        if (badge && data.provider) {
+          badge.innerHTML = `<span class="badge-dot"></span> Active: <strong>${data.provider}</strong> (${data.model}) — ${data.api_key_masked}`;
+        }
+      } catch (err) {
+        console.error('Failed to load LLM status:', err);
+      }
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function sendPrompt(text) {
+      const input = document.getElementById('chat-input');
+      input.value = text;
+      sendMessage();
+    }
+
+    function clearChat() {
+      conversationHistory = [];
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = `
+        <div class="msg-wrapper bot">
+          <div class="msg-sender">🤖 Agentic-Ops SRE Assistant</div>
+          <div class="msg-bubble">
+            Historique réinitialisé. Comment puis-je vous aider sur le Control Plane Agentic-Ops ?
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      let escaped = escapeHtml(text);
+      escaped = escaped.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+      escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
+      escaped = escaped.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+      escaped = escaped.replace(/\n/g, '<br>');
+      return escaped;
+    }
+
+    function appendMessage(role, text, isPending = false) {
+      const container = document.getElementById('chat-messages');
+      const wrapper = document.createElement('div');
+      wrapper.className = `msg-wrapper ${role}`;
+      const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+      wrapper.id = msgId;
+
+      const sender = document.createElement('div');
+      sender.className = `msg-sender ${role}`;
+      sender.innerHTML = role === 'user' ? '👤 Opérateur' : '🤖 Agentic-Ops SRE Assistant';
+      wrapper.appendChild(sender);
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+
+      if (isPending) {
+        bubble.innerHTML = `
+          <div class="typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+          <span style="font-size:12px;color:var(--muted);margin-left:8px;">Analyse cognitive en cours...</span>
+        `;
+      } else {
+        bubble.innerHTML = formatMarkdown(text);
+      }
+      wrapper.appendChild(bubble);
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+      return msgId;
+    }
+
+    function updateBotMessage(msgId, data) {
+      const wrapper = document.getElementById(msgId);
+      if (!wrapper) return;
+      const bubble = wrapper.querySelector('.msg-bubble');
+      if (!bubble) return;
+
+      if (data.status === 'error') {
+        bubble.innerHTML = `
+          <div class="error-banner">
+            <strong>Incident Fournisseur LLM :</strong> ${escapeHtml(data.error || data.answer)}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px;">
+            Vérifiez vos clés d'API (<code>OPENROUTER_API_KEY</code>, etc.) ou utilisez le modèle local <code>ollama</code>.
+          </div>
+        `;
+        return;
+      }
+
+      let html = formatMarkdown(data.answer);
+
+      const hasMeta = data.action_type || data.confidence_score || data.latency_ms || data.provider;
+      if (hasMeta) {
+        html += `<div class="meta-card">`;
+        if (data.action_type) {
+          html += `<div class="meta-pill action">Action: <strong>${escapeHtml(data.action_type)}</strong></div>`;
+        }
+        if (data.confidence_score !== undefined && data.confidence_score !== null) {
+          const pct = Math.round(data.confidence_score * 100);
+          html += `<div class="meta-pill conf">Confiance: <strong>${pct}%</strong></div>`;
+        }
+        if (data.latency_ms) {
+          html += `<div class="meta-pill">Latence: <strong>${data.latency_ms} ms</strong></div>`;
+        }
+        if (data.provider && data.model) {
+          html += `<div class="meta-pill">LLM: <strong>${escapeHtml(data.provider)} / ${escapeHtml(data.model)}</strong></div>`;
+        }
+        html += `</div>`;
+      }
+
+      bubble.innerHTML = html;
+      const container = document.getElementById('chat-messages');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+
+      appendMessage('user', text);
+      conversationHistory.push({ role: 'user', content: text });
+
+      const sendBtn = document.getElementById('btn-send');
+      sendBtn.disabled = true;
+      sendBtn.innerText = 'Réflexion...';
+
+      const botMsgId = appendMessage('bot', '', true);
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history: conversationHistory })
+        });
+        const data = await res.json();
+        updateBotMessage(botMsgId, data);
+        if (data.answer) {
+          conversationHistory.push({ role: 'assistant', content: data.answer });
+        }
+      } catch (err) {
+        updateBotMessage(botMsgId, {
+          status: 'error',
+          error: 'Impossible de contacter le serveur Agentic-Ops (/api/chat): ' + err
+        });
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerText = 'Envoyer ↵';
+      }
+    }
+
+    const tx = document.getElementById('chat-input');
+    tx.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    loadLLMStatus();
+  </script>
+</body>
+</html>"""
+
+
+@app.get("/chat", response_class=HTMLResponse)
+def web_chat():
+    """
+    Zero-dependency standalone Web Chat UI for Agentic-Ops.
+    Hosted directly on FastAPI/Render at /chat.
+    """
+    return HTMLResponse(content=CHAT_HTML)
 
 
 app.include_router(slack_router)

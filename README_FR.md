@@ -923,7 +923,45 @@ En application de la règle d'**Honnêteté Radicale** du projet, utiliser des m
      - Les adaptateurs `LiteLLMAdapter` (via `instructor.from_litellm`) et `OllamaAdapter` intègrent la fonction `_strip_think_tags()` qui purge les blocs `<think>...</think>` et les balises markdown avant la validation Pydantic.
      - Pour un triage d'alertes à très faible latence, il est recommandé d'utiliser `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, qui génère du JSON direct sans bloc de réflexion.
 
+### 5. Double Interface Client : Web Chat Cloud Sans Dépendance vs. Station LibreChat Locale
 
+Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Ops` via deux interfaces distinctes, selon leurs besoins de déploiement :
+
+```text
++--------------------------------------------------------------------------------------------------+
+| TOPOLOGIE CONVERSATIONNELLE À DOUBLE INTERFACE                                                   |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Option 1 : Client LibreChat Local]              [Option 2 : Web Chat Cloud Sans Dépendance]     |
+| - Conteneur Docker sur poste de travail (Mac/PC) - Hébergé directement sur le Free Tier Render   |
+| - Connecté via la passerelle MCP (/mcp)          - URL : https://agentic-ops-5ebv.onrender.com/chat |
+| - Clone complet de ChatGPT avec historique & PJ  - 0 installation locale, 0 conteneur, 0 EUR    |
+| - Empreinte RAM lourde (~1.5 Go de RAM)          - Empreinte RAM ultra-légère (< 2 Mo de RAM)    |
+|                                                                                                  |
+|             \                                                     /                              |
+|              \                                                   /                               |
+|               +------------------------+------------------------+                                |
+|                                        |                                                         |
+|                                        v                                                         |
+|                     +---------------------------------------+                                    |
+|                     | AGENTIC-OPS CONTROL PLANE (FastAPI)   |                                    |
+|                     | - POST /api/chat                      |                                    |
+|                     | - POST /mcp (Passerelle JSON-RPC 2.0) |                                    |
+|                     | - LLMProviderRegistry (Auto-Fallback) |                                    |
+|                     +---------------------------------------+                                    |
++--------------------------------------------------------------------------------------------------+
+```
+
+| Dimension Architecturale | Option 1 : LibreChat Local (Docker sur Mac/PC) | Option 2 : Web Chat Cloud Standalone (`/chat` sur Render) |
+| :--- | :--- | :--- |
+| **Lieu d'Hébergement** | Poste de travail local (`localhost:3080`) | Cloud Render Free Tier (`https://agentic-ops-5ebv.onrender.com/chat`) |
+| **Prérequis** | Docker Desktop, `git clone`, `docker compose up` | Navigateur web uniquement (zéro installation) |
+| **Empreinte RAM** | ~1.5 Go de RAM (Node.js + MongoDB + Meilisearch) | < 2 Mo de RAM (HTML/JS statique servi par FastAPI) |
+| **Disponibilité Cloud** | Uniquement quand le poste local est allumé | 24h/24 Cloud (réveil automatique Render sur requête HTTP) |
+| **Connexion LLM** | Directe client-vers-OpenRouter ou via proxy local | Côté serveur via `LLMProviderRegistry` + fallback automatique |
+| **Mode d'Appel des Outils** | Outil attaché au client MCP (`librechat.yaml`) | Exécution gouvernée côté serveur + validation `ActionProposal` |
+| **Gestion Utilisateurs** | Multi-utilisateurs, tokens d'authentification, exports | Session console SRE mono-opérateur |
+| **Coût Total** | 0 EUR (calcul local) | 0 EUR (Render Free Tier + OpenRouter tier `:free`) |
 
 ---
 

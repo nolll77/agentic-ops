@@ -923,7 +923,45 @@ Applying the project's **Radical Honesty** rule, utilizing zero-cost public endp
      - Both `LiteLLMAdapter` (via `instructor.from_litellm`) and `OllamaAdapter` embed the regex filter `_strip_think_tags()` to excise `<think>...</think>` envelopes and Markdown fences before passing the JSON payload to `response_model.model_validate()`.
      - For ultra-fast sub-second alert triaging, developers can select `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, which outputs raw JSON directly without thinking blocks.
 
+### 5. Dual Client Interface: Zero-Dependency Cloud Web Chat vs. Local LibreChat Workstation
 
+Operators can interact conversationally with `Agentic-Ops` through two independent frontends, depending on their deployment model:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| DUAL FRONTEND CONVERSATIONAL TOPOLOGY                                                            |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Option 1: Local LibreChat Client]               [Option 2: Standalone Cloud Web Chat]          |
+| - Runs in Docker on workstation (Mac/PC)         - Hosted directly on Render Free Tier          |
+| - Connects via MCP Gateway (/mcp)                - URL: https://agentic-ops-5ebv.onrender.com/chat |
+| - Full ChatGPT clone with presets & uploads      - 0 local install, 0 extra containers, 0 EUR    |
+| - Heavy RAM footprint (~1.5 GB RAM)              - Lightweight RAM footprint (< 2 MiB RAM)      |
+|                                                                                                  |
+|             \                                                     /                              |
+|              \                                                   /                               |
+|               +------------------------+------------------------+                                |
+|                                        |                                                         |
+|                                        v                                                         |
+|                     +---------------------------------------+                                    |
+|                     | AGENTIC-OPS CONTROL PLANE (FastAPI)   |                                    |
+|                     | - POST /api/chat                      |                                    |
+|                     | - POST /mcp (JSON-RPC 2.0 Gateway)    |                                    |
+|                     | - LLMProviderRegistry (Auto-Fallback) |                                    |
+|                     +---------------------------------------+                                    |
++--------------------------------------------------------------------------------------------------+
+```
+
+| Architectural Dimension | Option 1: Local LibreChat (Docker on Mac/PC) | Option 2: Standalone Cloud Web Chat (`/chat` on Render) |
+| :--- | :--- | :--- |
+| **Hosting Location** | Local workstation (`localhost:3080`) | Render Free Tier (`https://agentic-ops-5ebv.onrender.com/chat`) |
+| **Prerequisites** | Docker Desktop, `git clone`, `docker compose up` | Web browser only (zero installation) |
+| **RAM Footprint** | ~1.5 GB RAM (Node.js + MongoDB + Meilisearch) | < 2 MiB RAM (native HTML/JS rendered by existing FastAPI) |
+| **Cloud Availability** | Only when local machine is awake | 24/7 Cloud (Render auto-wake on HTTP request) |
+| **LLM Connection** | Direct client-to-OpenRouter or via local proxy | Server-side via `LLMProviderRegistry` + auto-fallback |
+| **Tool Calling Mode** | MCP client tool attachment (`librechat.yaml`) | Server-side governed execution + `ActionProposal` validation |
+| **User Management** | Multi-user accounts, auth tokens, chat export | Single-operator SRE console session |
+| **Cost** | 0 EUR (local compute) | 0 EUR (Render Free Tier + OpenRouter `:free` tier) |
 
 ---
 

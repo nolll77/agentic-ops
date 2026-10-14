@@ -98,6 +98,13 @@ class _ProbeResponse(BaseModel):
     answer: str
 
 
+class _ChatResponse(BaseModel):
+    answer: str
+    action_type: str = "investigate"
+    confidence_score: float = 0.95
+    rationale: str = ""
+
+
 # ---------------------------------------------------------------------------
 # LiteLLMAdapter — universal adapter (OpenRouter, OpenAI, Gemini, Anthropic,
 #                                     Azure, Mistral, HuggingFace, ...)

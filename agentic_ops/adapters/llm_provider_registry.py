@@ -324,6 +324,62 @@ class LLMProviderRegistry:
                 "latency_ms": None,
             }
 
+    @staticmethod
+
+    def chat(message: str, history: list[dict] | None = None) -> dict:
+        """
+        Interroge le LLM actif avec le contexte de gouvernance du Control Plane.
+        Retourne la réponse textuelle, les métadonnées et la latence.
+        """
+        from agentic_ops.adapters.llm_protocol import _ChatResponse
+        try:
+            adapter = LLMProviderRegistry.build_adapter_from_env()
+            cfg = LLMProviderRegistry.resolve_config()
+            t0 = time.monotonic()
+
+            system_prompt = (
+                "Tu es l'assistant cognitif SRE et MLOps d'Agentic-Ops Control Plane. "
+                "Tu analyses les pannes d'infrastructure et de données (dérives Evidently, saturation Redis, "
+                "crash de pods, fausses alertes Loki, registres MLflow). "
+                "Tu respectes strictement le principe de moindre privilège et de gouvernance déterministe. "
+                "Réponds en français avec précision technique, concision et rigueur d'ingénieur SRE."
+            )
+
+            # Si l'utilisateur pose une question libre
+            user_content = message
+            if history:
+                conversation_summary = "\n".join(
+                    [f"{h.get('role', 'user')}: {h.get('content', '')}" for h in history[-4:]]
+                )
+                user_content = f"Historique récent:\n{conversation_summary}\n\nNouvelle question:\n{message}"
+
+            result = adapter.complete(
+                system=system_prompt,
+                user=user_content,
+                response_model=_ChatResponse,
+                temperature=0.2,
+            )
+            latency_ms = round((time.monotonic() - t0) * 1000, 1)
+            return {
+                "status": "ok",
+                "answer": result.answer,
+                "action_type": result.action_type,
+                "confidence_score": result.confidence_score,
+                "rationale": result.rationale,
+                "provider": cfg.provider,
+                "model": cfg.model,
+                "latency_ms": latency_ms,
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "error": str(exc),
+                "answer": f"Erreur de communication avec le fournisseur LLM ({exc}).",
+                "provider": os.environ.get("LLM_PROVIDER", "openrouter"),
+                "model": os.environ.get("LLM_MODEL", "unknown"),
+                "latency_ms": None,
+            }
+
 
 def _set_env_if_missing(key: str, value: str) -> None:
     if key not in os.environ and value:
