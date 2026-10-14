@@ -85,3 +85,32 @@ def test_post_api_chat_error_resilience(mock_build_adapter):
     assert data["status"] == "error"
     assert "Erreur de communication" in data["answer"]
     assert "429" in data["error"]
+
+
+def test_get_prompts_catalog_api():
+    """GET /api/prompts must return the 20 cognitive starter prompts catalog."""
+    resp = client.get("/api/prompts")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 20
+    assert len(data["prompts"]) == 20
+    names = {p["name"] for p in data["prompts"]}
+    assert "01_console_grand_slam_audit" in names
+    assert "05_policy_veto_corrupted_sensor" in names
+    assert "09_worm_ledger_chain_verification" in names
+    assert "13_taxonomy_deep_search_drift" in names
+    assert "20_executive_jury_defense_briefing" in names
+
+
+def test_get_chat_ui_contains_prompts_catalog_elements():
+    """GET /chat must contain the catalog modal, search bar, category tabs, and API hook."""
+    resp = client.get("/chat")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "catalog-modal" in html
+    assert "btn-catalog-toggle" in html
+    assert "chip-catalog" in html
+    assert "catalog-search" in html
+    assert "catalog-categories" in html
+    assert "/api/prompts" in html
+

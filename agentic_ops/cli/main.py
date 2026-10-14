@@ -117,6 +117,7 @@ def root():
             "llm_models": "/api/llm/models",
             "llm_probe": "/api/llm/probe",
             "llm_chat": "/api/chat",
+            "starter_prompts": "/api/prompts",
             "healthz": "/healthz",
             "ready": "/ready",
             "tailscale_status": "/api/tailscale/status",
@@ -336,6 +337,20 @@ def chat_with_agentic_ops(payload: ChatPayload):
     from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
 
     return LLMProviderRegistry.chat(message=payload.message, history=payload.history)
+
+
+@app.get("/api/prompts")
+def list_starter_prompts():
+    """
+    Returns the 20 cognitive starter prompts catalog from mcp_server.
+    Used by the Web Chat UI (/chat) and external API consumers.
+    """
+    from agentic_ops.entrypoints.mcp_server import MCP_PROMPTS
+
+    return {
+        "count": len(MCP_PROMPTS),
+        "prompts": MCP_PROMPTS,
+    }
 
 
 COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
@@ -1285,8 +1300,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .header-right {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       font-size: 12px;
+      flex-wrap: wrap;
     }
     .badge-llm {
       background: #022c22;
@@ -1307,6 +1323,25 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-radius: 50%;
       box-shadow: 0 0 6px var(--accent);
       display: inline-block;
+    }
+    .btn-catalog-toggle {
+      background: #3b0764;
+      color: #e9d5ff;
+      border: 1px solid #7e22ce;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-catalog-toggle:hover {
+      background: #581c87;
+      border-color: #a855f7;
+      color: #fff;
     }
     .nav-links {
       display: flex;
@@ -1467,6 +1502,17 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-color: var(--accent);
       color: #fff;
     }
+    .chip-catalog {
+      background: #2e1065 !important;
+      border-color: #7e22ce !important;
+      color: #e9d5ff !important;
+      font-weight: 600;
+    }
+    .chip-catalog:hover {
+      background: #3b0764 !important;
+      border-color: #a855f7 !important;
+      color: #fff !important;
+    }
     
     .input-box {
       background: var(--card);
@@ -1574,6 +1620,228 @@ CHAT_HTML = r"""<!DOCTYPE html>
       font-size: 12px;
       margin-top: 6px;
     }
+
+    /* Modal Overlay & Drawer */
+    .catalog-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: modalFadeIn 0.15s ease-out;
+    }
+    .catalog-modal-overlay.open {
+      display: flex;
+    }
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .catalog-modal-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 920px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+    }
+    .catalog-modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      background: #0b1329;
+      flex-shrink: 0;
+    }
+    .catalog-modal-title h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .catalog-modal-title p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .btn-close-modal {
+      background: transparent;
+      border: 1px solid #334155;
+      color: var(--muted);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .btn-close-modal:hover {
+      background: #1e293b;
+      color: #fff;
+    }
+    .catalog-search-bar {
+      padding: 12px 20px;
+      border-bottom: 1px solid #1e293b;
+      background: #0f172a;
+      flex-shrink: 0;
+    }
+    .catalog-search-bar input {
+      width: 100%;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border 0.15s;
+    }
+    .catalog-search-bar input:focus {
+      border-color: var(--accent);
+    }
+    .catalog-categories {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 10px 20px;
+      background: #090d16;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .catalog-categories::-webkit-scrollbar { height: 4px; }
+    .catalog-categories::-webkit-scrollbar-thumb { background: #334155; }
+    .cat-pill {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .cat-pill:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .cat-pill.active {
+      background: #059669;
+      border-color: #10b981;
+      color: #fff;
+      font-weight: 600;
+    }
+    .catalog-cards-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .catalog-cards-grid::-webkit-scrollbar { width: 6px; }
+    .catalog-cards-grid::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .prompt-card {
+      background: #0b1329;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 14px 16px;
+      transition: all 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .prompt-card:hover {
+      border-color: #38bdf8;
+      background: #0d1838;
+    }
+    .prompt-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .prompt-id-badge {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .prompt-id-badge.cat-I { background: #082f49; color: #38bdf8; border: 1px solid #0284c7; }
+    .prompt-id-badge.cat-II { background: #022c22; color: #34d399; border: 1px solid #059669; }
+    .prompt-id-badge.cat-III { background: #451a03; color: #fbbf24; border: 1px solid #d97706; }
+    .prompt-id-badge.cat-IV { background: #3b0764; color: #c084fc; border: 1px solid #7e22ce; }
+    .prompt-id-badge.cat-V { background: #4c0519; color: #fb7185; border: 1px solid #e11d48; }
+    .prompt-card-desc {
+      font-size: 12.5px;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+    .prompt-card-template {
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 11.5px;
+      color: #94a3b8;
+      max-height: 85px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .prompt-card-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+    .btn-prompt-insert {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .btn-prompt-insert:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .btn-prompt-run {
+      background: #059669;
+      border: none;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn-prompt-run:hover {
+      background: #10b981;
+    }
   </style>
 </head>
 <body>
@@ -1592,6 +1860,10 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <span class="badge-dot"></span>
         <span>Loading LLM Provider...</span>
       </div>
+      <button class="btn-catalog-toggle" onclick="toggleCatalog(true)" title="Explorer les 20 Prompts Cognitifs MCP">
+        <span>📚</span>
+        <span>20 Prompts MCP</span>
+      </button>
       <div class="nav-links">
         <a href="/console">🖥️ Console</a>
         <a href="/docs" target="_blank">Swagger (/docs)</a>
@@ -1607,12 +1879,13 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <div class="msg-bubble">
           Bonjour ! Je suis l'assistant cognitif SRE et MLOps d'<strong>Agentic-Ops Control Plane</strong>.<br><br>
           Je suis connecté en direct au moteur d'orchestration et au Hub de LLM (OpenRouter par défaut avec fallback automatique). Vous pouvez m'interroger sur l'état de l'infrastructure, l'analyse d'alertes Loki/Prometheus, la dérive Evidently, les politiques de quorum Slack HITL ou les tests de robustesse.<br><br>
-          <em>Cliquez sur une suggestion ci-dessous ou posez directement votre question.</em>
+          <em>Cliquez sur le bouton <strong>📚 20 Prompts MCP</strong> pour explorer le catalogue de scénarios d'audit prêts à l'emploi.</em>
         </div>
       </div>
     </div>
 
     <div class="chips-bar">
+      <button class="chip-btn chip-catalog" onclick="toggleCatalog(true)">📚 Catalogue des 20 Prompts MCP...</button>
       <button class="chip-btn" onclick="sendPrompt('Quel est le rôle du circuit breaker en cas de saturation de requêtes ?')">⚡ Circuit Breaker</button>
       <button class="chip-btn" onclick="sendPrompt('Explique comment fonctionne le quorum Slack HITL à 2 approbateurs (2-man rule).')">👥 Quorum HITL Slack</button>
       <button class="chip-btn" onclick="sendPrompt('Quels sont les impacts d\'une dérive de données Evidently sur le modèle BAAC ?')">📉 Dérive Evidently BAAC</button>
@@ -1633,8 +1906,160 @@ CHAT_HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- PROMPT CATALOG MODAL -->
+  <div class="catalog-modal-overlay" id="catalog-modal" onclick="onOverlayClick(event)">
+    <div class="catalog-modal-box">
+      <div class="catalog-modal-header">
+        <div class="catalog-modal-title">
+          <h2>📚 Catalogue des 20 Prompts Cognitifs MCP</h2>
+          <p>Modèles de requêtes prêts à l'emploi pour auditer le Control Plane, évaluer les politiques et vérifier le WORM Ledger.</p>
+        </div>
+        <button class="btn-close-modal" onclick="toggleCatalog(false)" title="Fermer (Échap)">✕</button>
+      </div>
+      
+      <div class="catalog-search-bar">
+        <input type="text" id="catalog-search" placeholder="🔍 Rechercher un prompt (ex: drift, worm, slack, veto, vitals, r1, jury)..." oninput="filterPrompts()">
+      </div>
+      
+      <div class="catalog-categories" id="catalog-category-pills">
+        <button class="cat-pill active" onclick="selectCategory('ALL', this)">Tous (20)</button>
+        <button class="cat-pill" onclick="selectCategory('I', this)">I. Console Live (4)</button>
+        <button class="cat-pill" onclick="selectCategory('II', this)">II. PolicyEngine (4)</button>
+        <button class="cat-pill" onclick="selectCategory('III', this)">III. WORM Ledger (4)</button>
+        <button class="cat-pill" onclick="selectCategory('IV', this)">IV. Taxonomie 435 (4)</button>
+        <button class="cat-pill" onclick="selectCategory('V', this)">V. SecOps & Jury (4)</button>
+      </div>
+      
+      <div class="catalog-cards-grid" id="catalog-cards-container">
+        <div style="text-align:center;color:var(--muted);padding:40px;">Chargement du catalogue MCP...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let conversationHistory = [];
+    let allPrompts = [];
+    let currentCategory = 'ALL';
+
+    function toggleCatalog(open) {
+      const modal = document.getElementById('catalog-modal');
+      if (open) {
+        modal.classList.add('open');
+        if (allPrompts.length === 0) {
+          loadPromptsCatalog();
+        } else {
+          document.getElementById('catalog-search').focus();
+        }
+      } else {
+        modal.classList.remove('open');
+      }
+    }
+
+    function onOverlayClick(e) {
+      if (e.target.id === 'catalog-modal') {
+        toggleCatalog(false);
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        toggleCatalog(false);
+      }
+    });
+
+    async function loadPromptsCatalog() {
+      try {
+        const res = await fetch('/api/prompts');
+        const data = await res.json();
+        allPrompts = data.prompts || [];
+        renderPrompts();
+        setTimeout(() => {
+          const searchInput = document.getElementById('catalog-search');
+          if (searchInput) searchInput.focus();
+        }, 50);
+      } catch (err) {
+        console.error('Failed to load prompts catalog:', err);
+        const container = document.getElementById('catalog-cards-container');
+        if (container) {
+          container.innerHTML = `<div class="error-banner">Impossible de charger le catalogue de prompts : ${err}</div>`;
+        }
+      }
+    }
+
+    function getPromptCategory(name) {
+      const num = parseInt(name.split('_')[0], 10);
+      if (num >= 1 && num <= 4) return { code: 'I', label: 'I. Console Live', badge: 'cat-I' };
+      if (num >= 5 && num <= 8) return { code: 'II', label: 'II. PolicyEngine', badge: 'cat-II' };
+      if (num >= 9 && num <= 12) return { code: 'III', label: 'III. WORM Ledger', badge: 'cat-III' };
+      if (num >= 13 && num <= 16) return { code: 'IV', label: 'IV. Taxonomie 435', badge: 'cat-IV' };
+      return { code: 'V', label: 'V. SecOps & Jury', badge: 'cat-V' };
+    }
+
+    function selectCategory(cat, btn) {
+      currentCategory = cat;
+      const pills = document.querySelectorAll('.cat-pill');
+      pills.forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderPrompts();
+    }
+
+    function filterPrompts() {
+      renderPrompts();
+    }
+
+    function renderPrompts() {
+      const container = document.getElementById('catalog-cards-container');
+      if (!container) return;
+      const query = (document.getElementById('catalog-search').value || '').toLowerCase().trim();
+
+      const filtered = allPrompts.filter(p => {
+        const cat = getPromptCategory(p.name);
+        if (currentCategory !== 'ALL' && cat.code !== currentCategory) return false;
+        if (!query) return true;
+        const searchCorpus = (p.name + ' ' + (p.description || '') + ' ' + (p.template || '')).toLowerCase();
+        return searchCorpus.includes(query);
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px;">Aucun prompt correspondant à votre recherche.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(p => {
+        const cat = getPromptCategory(p.name);
+        const escapedTemplate = escapeHtml(p.template);
+        const jsonSafeTemplate = JSON.stringify(p.template);
+        return `
+          <div class="prompt-card">
+            <div class="prompt-card-top">
+              <span class="prompt-id-badge ${cat.badge}">${cat.label} — ${escapeHtml(p.name)}</span>
+            </div>
+            <div class="prompt-card-desc">${escapeHtml(p.description)}</div>
+            <div class="prompt-card-template">${escapedTemplate}</div>
+            <div class="prompt-card-actions">
+              <button class="btn-prompt-insert" onclick='insertPrompt(${jsonSafeTemplate})'>✎ Insérer dans le Chat</button>
+              <button class="btn-prompt-run" onclick='runPrompt(${jsonSafeTemplate})'>↵ Exécuter Directement</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function insertPrompt(text) {
+      const input = document.getElementById('chat-input');
+      input.value = text;
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+      toggleCatalog(false);
+      input.focus();
+    }
+
+    function runPrompt(text) {
+      const input = document.getElementById('chat-input');
+      input.value = text;
+      toggleCatalog(false);
+      sendMessage();
+    }
 
     async function loadLLMStatus() {
       try {
