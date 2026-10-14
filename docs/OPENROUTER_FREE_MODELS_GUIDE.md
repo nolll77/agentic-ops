@@ -155,7 +155,68 @@ When an incident strikes production, an agent cannot be left hanging due to an A
 
 ---
 
-## 6. Zero-Cost Configuration Best Practice
+---
+
+## 6. Unified LLM Engine Architecture: Web Chat (`/chat`) vs. Autonomous Agents
+
+A critical architectural question is whether the interactive Web Chat interface ([`/chat`](https://agentic-ops-5ebv.onrender.com/chat) / `POST /api/chat`) runs on a different or degraded model compared to the autonomous remediation agents (`RemediationAgent`, `SpecialistAgent`).
+
+### A. Strict Engine Unification (Same Physical LLM & Factory)
+In `Agentic-Ops`, **both the autonomous agents and the conversational Web Chat utilize the EXACT same LLM adapter and resolution factory**:
+```python
+# From agentic_ops/adapters/llm_provider_registry.py
+@staticmethod
+def chat(message: str, history: list[dict] | None = None) -> dict:
+    adapter = LLMProviderRegistry.build_adapter_from_env()
+    ...
+```
+- If `LLM_MODEL=openrouter/google/gemma-4-31b-it:free` is configured, **Gemma 31B powers both the agents and the Web Chat**.
+- Swapping the active provider or model immediately switches the entire platform simultaneously.
+
+```text
++--------------------------------------------------------------------------------------------------+
+| UNIFIED COGNITIVE BACKBONE TOPOLOGY                                                              |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Autonomous MLOps Agents]                        [Interactive Web Chat (/chat)]                 |
+| - RemediationAgent (FSM Diagnostic)              - Human SRE Operator Interface                 |
+| - SpecialistAgent (Root Cause Analysis)          - 20 MCP Cognitive Starter Prompts Modal       |
+|                                                                                                  |
+|                                \                /                                                |
+|                                 \              /                                                 |
+|                                  v            v                                                  |
+|                   +--------------------------------------------+                                 |
+|                   | LLMProviderRegistry.build_adapter_from_env |                                 |
+|                   +---------------------+----------------------+                                 |
+|                                         |                                                        |
+|                                         v                                                        |
+|                   +--------------------------------------------+                                 |
+|                   | FallbackLLMAdapter (Auto-Failover Chain)   |                                 |
+|                   +---------------------+----------------------+                                 |
+|                                         |                                                        |
+|                                         v                                                        |
+|                   +--------------------------------------------+                                 |
+|                   | OpenRouter Gateway (:free 24/7 Cloud Hub)  |                                 |
+|                   +--------------------------------------------+                                 |
++--------------------------------------------------------------------------------------------------+
+```
+
+### B. Is the Fallback Chain Also Active for the Web Chat?
+**Yes, unconditionally.**
+Because `build_adapter_from_env()` wraps the primary model in `FallbackLLMAdapter`, all conversational queries submitted to `/chat` inherit full failover protection:
+1. If the primary model encounters an `HTTP 429 Too Many Requests` (OpenRouter rate limit) or a timeout, the chat interface does not crash or return a 500 error.
+2. `FallbackLLMAdapter` transparently catches the error and resubmits the user's message to the fallback model (e.g., `nvidia/nemotron...:free`, then `openrouter/free`).
+3. The human operator receives their answer seamlessly with accurate latency and model metadata.
+
+### C. The 4 MLOps Rationale Pillars for Engine Unification:
+1. **Zero Cognitive Divergence**: If an operator discusses an ongoing incident in `/chat` while the autonomous `RemediationAgent` investigates in the background, both must interpret logs and data contracts identically. Running two different models would introduce contradictory diagnoses.
+2. **Strict Schema Contract Enforced (`_ChatResponse`)**: Even in free conversational mode, the chat endpoint parses the LLM output into a validated Pydantic contract (`answer`, `action_type`, `confidence_score`, `rationale`). This powers the SRE action metadata cards in the UI.
+3. **Consolidated FinOps & Zero-Cost Quotas**: Pointing both interfaces to the same OpenRouter or Ollama gateway simplifies credential management, keeps billing at strictly **0.00 EUR**, and unifies Prometheus latency and token tracking under a single dashboard metric (`agentic_ops_llm_requests_total`).
+4. **Single-Point Environment Configuration**: SREs never need to update disconnected configurations for conversational tools versus autonomous routines; setting `LLM_MODEL` updates all platform touchpoints in one place.
+
+---
+
+## 7. Zero-Cost Configuration Best Practice
 
 To achieve continuous 24/7 autonomous governance without ever incurring billing costs, set the following configuration in your `.env` file:
 
