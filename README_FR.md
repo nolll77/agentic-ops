@@ -743,11 +743,43 @@ Afin de transformer un simple tableau de bord passif en un véritable **Control 
 - `INVESTIGATE_LOGS` : L'agent récupère de manière autonome les logs du service défaillant (ex: via `Loki` ou `kubectl logs`) et utilise son LLM pour générer un résumé de la cause racine (*Root Cause Analysis*) sans intervention humaine.
 - `CREATE_ISSUE` : Génération d'un ticket formaté (GitHub/Jira/GitLab) contenant le contexte de l'incident, les métriques déviantes, et une recommandation de correctif ou d'ajustement des hyperparamètres.
 - `SCALE_UP` / `SCALE_TO_ZERO` : Interaction directe avec le plan de contrôle de l'infrastructure (Kubernetes HPA, AWS ASG, API Docker) pour allouer de la puissance de calcul face à un pic de requêtes, ou couper un service qui génère des prédictions dangereuses (mode coupe-circuit).
-- `TRIGGER_RETRAINING` : Appel asynchrone à un orchestrateur de pipelines (`Prefect`, `Airflow`, `GitHub Actions`) avec les bonnes balises temporelles pour forcer un ré-entraînement du modèle sur des données fraîches.
+- `TRIGGER_RETRAINING` / `PROPOSE_RETRAIN` : Appel asynchrone à un orchestrateur de pipelines (`Prefect`, `Airflow`, `GitHub Actions`) avec les bonnes balises temporelles pour forcer un ré-entraînement du modèle sur des données fraîches.
 - `PROMOTE_MODEL` : Une fois le ré-entraînement validé, l'agent déplace le nouveau modèle du statut `Staging` à `@Production` dans le *Model Registry* (`MLflow`) pour amorcer son déploiement.
-- `RESTART_PIPELINE` / `RESTART_PODS` : Redémarrage brutal (hard-reset) d'un job de données bloqué ou d'un service d'inférence Web victime de fuite mémoire (OOM).
+- `RESTART_PIPELINE` / `RESTART_PODS` (`restart_pod`) : Redémarrage brutal (hard-reset) d'un job de données bloqué ou d'un service d'inférence Web victime de fuite mémoire (OOM).
 - `ROLLBACK` : En cas de dégradation extrême (baisse dramatique de l'accuracy suite à un nouveau modèle), l'agent bascule immédiatement le trafic vers la version `N-1`.
 - `NOTIFY_ONCALL` : L'agent alerte l'ingénieur d'astreinte sur Slack/PagerDuty en lui poussant directement le contexte pré-mâché, les logs pertinents et la décision qui a été prise.
+
+### Taxonomie des Actions Gouvernées : Actions Mutantes vs. Non-Mutantes
+
+Dans `Agentic-Ops`, toutes les actions n'ont pas le même statut de risque. Elles sont formellement partitionnées en deux catégories au sein de `action_catalog.yaml` et de `autonomy_policy.yaml` :
+
+| Action (`ActionType`) | Classe | Mutante ? | Réversible ? | Mode Blast Radius | Niveau d'Autonomie par Défaut | Quorum Exigé | Rate Limit | Cible Principale & Garde-fous Appliqués |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **`create_issue`** | `ticket` | **`False`** (Non-Mutante) | `True` | `fixed: 0` (max 2) | **`L1`** | **`ALLOW` Autonome** (0 Approbateur) | Illimité | API GitHub / Jira / GitLab (`^[a-z0-9][a-z0-9_-]{1,62}$`). |
+| **`investigate`** | `diagnostic` | **`False`** (Non-Mutante) | `True` | `fixed: 0` | **`L1`** | **`ALLOW` Autonome** (0 Approbateur) | Illimité | Collecte de logs Loki / Prometheus / Kubernetes (Lecture Seule). |
+| **`restart_pod`** | `service_mutation` | **`True`** (Mutante) | `True` | `target_replicas` (max 2) | **`L2`** | **`REQUIRE_APPROVAL`** (1 SRE Humain) | `1/heure` | Annotation de redémarrage Kubernetes (`^baac-[a-z-]+$`). Soumis à `ALLOWED_PATCH_PATHS`. |
+| **`scale_up`** | `service_mutation` | **`True`** (Mutante) | `True` | `target_replicas` (max 3) | **`L2`** | **`REQUIRE_APPROVAL`** (1 SRE Humain) | `2/heure` | Mise à l'échelle des réplicas Kubernetes (`^baac-[a-z-]+$`). Soumis à `ALLOWED_PATCH_PATHS`. |
+| **`scale_to_zero`** | `service_mutation` | **`True`** (Mutante) | `True` | `target_replicas` (Tous) | **`L2`** | **`REQUIRE_APPROVAL`** (1 SRE Humain) | `1/heure` | Coupe-circuit d'urgence stoppant l'inférence lors d'émissions toxiques. |
+| **`rollback`** | `service_mutation` | **`True`** (Mutante) | `True` | `target_replicas` (Tous) | **`L2`** | **`REQUIRE_APPROVAL`** (1 SRE Humain) | `1/heure` | Rétrograde le conteneur ou le modèle vers la version `N-1`. |
+| **`propose_retrain`** | `model_mutation` | **`True`** (Mutante) | **`False`** | `fixed: 3` | **`L3`** | **`REQUIRE_APPROVAL`** (2 SREs Humains) | `1/jour` | Déclenchement asynchrone `Prefect` / `Airflow`. Consomme du quota GPU/CPU et génère de nouveaux artefacts. |
+| **`promote_model`** | `model_mutation` | **`True`** (Mutante) | **`False`** | `fixed: 5` (Global) | **`L3`** | **`REQUIRE_APPROVAL`** (2 SREs Humains) | `1/jour` | Réassigne l'alias `@Production` dans `MLflow Model Registry`. Bascule 100% du trafic d'inférence en direct. |
+
+#### Règles Déterministes de Gouvernance (`autonomy_policy.yaml`)
+1. **Règle `R-001` (`upstream_masks_service`)** :
+   - S'applique aux classes : `[service_mutation, model_mutation]`.
+   - Condition : Si une anomalie de données amont (*data/feature drift*) de sévérité supérieure ou égale à `WARNING` est active (ex: dérive de features `DATA-042`), toute mutation de service ou de modèle (`restart_pod`, `scale_up`, `propose_retrain`) est **strictement interdite (`DENY`)**. Redémarrer un service web ou ré-entraîner sur un jeu de données corrompu ne répare pas une dérive de données amont.
+2. **Règle `R-002` (`risk_register_forbids`)** :
+   - S'applique aux classes : `[service_mutation, model_mutation]`.
+   - Condition : Les actions déclarées dans `risk_register.yaml` sous la section `forbidden_actions` pour le `risk_id` courant sont rejetées inconditionnellement, court-circuitant toute recommandation du LLM.
+3. **Pare-Feu d'Admission Kubernetes Durci (`ALLOWED_PATCH_PATHS`)** :
+   - Dans `KubernetesExecutionAdapter`, tout patch JSON envoyé par le moteur d'exécution est filtré contre une liste blanche stricte de pointeurs JSON :
+     ```python
+     ALLOWED_PATCH_PATHS = [
+         "/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt",
+         "/spec/replicas"
+     ]
+     ```
+   - Toute tentative de modifier un `serviceAccountName`, de monter des volumes non autorisés ou d'altérer les privilèges du conteneur déclenche une exception `PermissionError` et est scellée avec le statut `FAILED` dans le grand livre immuable WORM.
 
 ---
 

@@ -743,11 +743,43 @@ To turn passive monitoring into an **Auto-Remediation Control Plane**, `executor
 - `INVESTIGATE_LOGS`: Autonomously retrieves logs from the failing service (e.g., via `Loki` or `kubectl logs`) and uses the LLM to synthesize a *Root Cause Analysis* without human intervention.
 - `CREATE_ISSUE`: Generates a formatted ticket (GitHub/Jira/GitLab) containing incident context, deviating metrics, and recommended hyperparameter or code fixes.
 - `SCALE_UP` / `SCALE_TO_ZERO`: Interacts directly with infrastructure control planes (Kubernetes HPA, AWS ASG, Docker API) to allocate compute during traffic spikes or shut down a service emitting dangerous predictions.
-- `TRIGGER_RETRAINING`: Sends an asynchronous call to a pipeline orchestrator (`Prefect`, `Airflow`, `GitHub Actions`) with temporal parameters to trigger model retraining on fresh data.
+- `TRIGGER_RETRAINING` / `PROPOSE_RETRAIN`: Sends an asynchronous call to a pipeline orchestrator (`Prefect`, `Airflow`, `GitHub Actions`) with temporal parameters to trigger model retraining on fresh data.
 - `PROMOTE_MODEL`: Once retraining is validated, transitions the candidate model from `Staging` to `@Production` in the *Model Registry* (`MLflow`).
-- `RESTART_PIPELINE` / `RESTART_PODS`: Performs a hard reset of a stalled data job or an inference service suffering from a memory leak (OOM).
+- `RESTART_PIPELINE` / `RESTART_PODS` (`restart_pod`): Performs a hard reset of a stalled data job or an inference service suffering from a memory leak (OOM).
 - `ROLLBACK`: Upon severe accuracy degradation following a rollout, immediately shifts traffic back to version `N-1`.
 - `NOTIFY_ONCALL`: Alerts the on-call engineer on Slack/PagerDuty with pre-digested context, relevant logs, and the governance decision taken.
+
+### Governed Action Taxonomy: Mutating vs. Non-Mutating Actions
+
+In `Agentic-Ops`, actions are not treated equally. They are formally partitioned into two distinct categories in `action_catalog.yaml` and `autonomy_policy.yaml`:
+
+| Action (`ActionType`) | Class | Mutating? | Reversible? | Blast Radius Mode | Default Autonomy Level | Quorum Requirement | Rate Limit | Primary Target / Enforced Guardrails |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| **`create_issue`** | `ticket` | **`False`** (Non-Mutating) | `True` | `fixed: 0` (max 2) | **`L1`** | **Autonomous `ALLOW`** (0 Approver) | Unlimited | GitHub / Jira / GitLab API (`^[a-z0-9][a-z0-9_-]{1,62}$`). |
+| **`investigate`** | `diagnostic` | **`False`** (Non-Mutating) | `True` | `fixed: 0` | **`L1`** | **Autonomous `ALLOW`** (0 Approver) | Unlimited | Loki / Prometheus / Kubernetes log pull (Read-Only). |
+| **`restart_pod`** | `service_mutation` | **`True`** (Mutating) | `True` | `target_replicas` (max 2) | **`L2`** | **`REQUIRE_APPROVAL`** (1 Human SRE) | `1/hour` | Kubernetes rolling restart annotation (`^baac-[a-z-]+$`). Enforces `ALLOWED_PATCH_PATHS`. |
+| **`scale_up`** | `service_mutation` | **`True`** (Mutating) | `True` | `target_replicas` (max 3) | **`L2`** | **`REQUIRE_APPROVAL`** (1 Human SRE) | `2/hour` | Kubernetes Deployment replica scale (`^baac-[a-z-]+$`). Enforces `ALLOWED_PATCH_PATHS`. |
+| **`scale_to_zero`** | `service_mutation` | **`True`** (Mutating) | `True` | `target_replicas` (All) | **`L2`** | **`REQUIRE_APPROVAL`** (1 Human SRE) | `1/hour` | Emergency Circuit Breaker shutting down inference on toxic predictions. |
+| **`rollback`** | `service_mutation` | **`True`** (Mutating) | `True` | `target_replicas` (All) | **`L2`** | **`REQUIRE_APPROVAL`** (1 Human SRE) | `1/hour` | Reverts deployment or model container image to version `N-1`. |
+| **`propose_retrain`** | `model_mutation` | **`True`** (Mutating) | **`False`** | `fixed: 3` | **`L3`** | **`REQUIRE_APPROVAL`** (2 Human SREs) | `1/day` | Asynchronous trigger to `Prefect` / `Airflow`. Consumes GPU/CPU quota and mutates artifacts. |
+| **`promote_model`** | `model_mutation` | **`True`** (Mutating) | **`False`** | `fixed: 5` (Global) | **`L3`** | **`REQUIRE_APPROVAL`** (2 Human SREs) | `1/day` | Reassigns `@Production` alias in `MLflow Model Registry`. Diverts 100% of live traffic. |
+
+#### Deterministic Governance Rules (`autonomy_policy.yaml`)
+1. **Rule `R-001` (`upstream_masks_service`)**:
+   - Applies to classes: `[service_mutation, model_mutation]`.
+   - Condition: If an upstream data or feature anomaly is detected with severity greater than or equal to `WARNING` (e.g., feature drift `DATA-042`), all downstream service and model mutations (`restart_pod`, `scale_up`, `propose_retrain`) are **strictly forbidden (`DENY`)**. Restarting a service or retraining on corrupted data will not fix corrupted upstream inputs.
+2. **Rule `R-002` (`risk_register_forbids`)**:
+   - Applies to classes: `[service_mutation, model_mutation]`.
+   - Condition: Actions explicitly declared in `risk_register.yaml` under `forbidden_actions` for the active `risk_id` are blocked unconditionally, overriding any LLM recommendation.
+3. **Hardened Kubernetes Admission Firewall (`ALLOWED_PATCH_PATHS`)**:
+   - In `KubernetesExecutionAdapter`, mutating patches submitted by the engine are intercepted and filtered against a strict JSON pointer whitelist:
+     ```python
+     ALLOWED_PATCH_PATHS = [
+         "/spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt",
+         "/spec/replicas"
+     ]
+     ```
+   - Any attempt to mutate `serviceAccountName`, mount host paths, or alter container security contexts raises `PermissionError` and is sealed as `FAILED` in the immutable WORM ledger.
 
 ---
 
