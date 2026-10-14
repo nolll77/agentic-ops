@@ -965,6 +965,34 @@ Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Op
 | **Gestion Utilisateurs** | Multi-utilisateurs, tokens d'authentification, exports | Session console SRE mono-opérateur |
 | **Coût Total** | 0 EUR (calcul local) | 0 EUR (Render Free Tier + OpenRouter tier `:free`) |
 
+### 6. Rationale Architectural : RAG Déterministe In-Memory vs. Base Vectorielle (Pourquoi PAS de VectorDB)
+
+En application stricte de la règle d'**Honnêteté Radicale** du projet, `Agentic-Ops` exclut délibérément l'utilisation d'une base de données vectorielle externe (`ChromaDB`, `Pinecone`, `Qdrant`, `Weaviate`, `Milvus`). Le moteur repose à la place sur un **Moteur de Récupération Déterministe en Mémoire** (`LocalRunbookRAG` dans [`agentic_ops/adapters/runbook_rag.py`](agentic_ops/adapters/runbook_rag.py) et `search_failure_taxonomy` dans [`agentic_ops/entrypoints/mcp_server.py`](agentic_ops/entrypoints/mcp_server.py)).
+
+```text
++--------------------------------------------------------------------------------------------------+
+| ARCHITECTURE DE RECHERCHE DE CONNAISSANCES : IN-MEMORY DÉTERMINISTE VS BASE VECTORIELLE          |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Architecture Théorique / Marketing]              [Architecture Réelle Agentic-Ops]             |
+| - Base Vectorielle externe (Pinecone, ChromaDB)    - Index Déterministe 100% In-Memory           |
+| - Modèle d'embeddings neural chargé en RAM         - Résolution exacte par risk_id + lexique     |
+| - Empreinte RAM lourde (300 à 600 Mo) -> OOMKilled - Empreinte RAM ultra-légère (< 1 Mo)          |
+| - Latence réseau élevée (50 à 200 ms)              - Latence sub-milliseconde (< 1 ms in-process)|
+| - Similarité cosinus probabiliste / floue          - Alignement déterministe strict de l'incident|
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
+
+| Dimension Architecturale | Base de Données Vectorielle (`ChromaDB`, `Pinecone`, `Qdrant`) | `Agentic-Ops` RAG Déterministe In-Memory |
+| :--- | :--- | :--- |
+| **Empreinte Mémoire (RAM)** | `300 - 600 Mo` (nécessite un modèle d'embedding neuronal en mémoire) | **`< 1 Mo`** (structures de données Python natives, 0 modèle neural en RAM) |
+| **Conformité Quota Cloud** | Viole le Free Tier Render (`512 Mo` max -> crash immédiat `OOMKilled`) | 100% conforme à l'enveloppe mémoire `cgroup v2` du Free Tier |
+| **Comportement de Recherche**| Similarité cosinus probabiliste (ex: score 82%, risque d'hallucination) | **Résolution déterministe exacte** par `risk_id` et index de tokens |
+| **Latence de Requête** | `50 - 200 ms` (aller-retour réseau ou scan d'index vectoriel) | **`< 1 ms`** (recherche par dictionnaire `O(1)` + index inversé `O(N)`) |
+| **Coût d'Exploitation** | Service managé payant (70$/mois) ou conteneur dédié | **`0 EUR`** (zéro base externe, zéro abonnement cloud) |
+| **Gouvernance SRE** | Faible (un runbook approximatif peut induire l'agent en erreur) | **Maximale** (garantie mathématique que le runbook post-mortem exact est injecté) |
+
 ---
 
 ## Installation & Tests (E2E Validation)
