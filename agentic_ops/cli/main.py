@@ -76,6 +76,7 @@ class DiagnosticCommand(str, Enum):
     sandbox_phase_e_fsm_governance = "sandbox_phase_e_fsm_governance"
     pytest_cac_connector = "pytest_cac_connector"
     pytest_mcp_gateway = "pytest_mcp_gateway"
+    pytest_llm_hub = "pytest_llm_hub"
     pytest_security = "pytest_security"
     pytest_all = "pytest_all"
     trust_ledger_list = "trust_ledger_list"
@@ -92,16 +93,28 @@ def root():
     Auto-wake landing route. Visiting the container URL or calling it from a
     frontend wakes the container and returns the live Control Plane status.
     """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    llm_cfg = LLMProviderRegistry.resolve_config()
     return {
         "service": "agentic-ops-control-plane",
         "status": "awake",
         "redis_local_6379": _is_port_open("127.0.0.1", 6379),
         "tailscale_socks5_1055": _is_port_open("127.0.0.1", 1055),
+        "llm_hub": {
+            "provider": llm_cfg.provider,
+            "model": llm_cfg.model,
+            "api_key_configured": llm_cfg.api_key_present,
+            "fallback_models": llm_cfg.fallback_models,
+        },
         "endpoints": {
             "web_console": "/console",
             "mcp_jsonrpc": "/mcp",
             "mcp_manifest": "/mcp/manifest",
             "swagger_docs": "/docs",
+            "llm_status": "/api/llm/status",
+            "llm_models": "/api/llm/models",
+            "llm_probe": "/api/llm/probe",
             "healthz": "/healthz",
             "ready": "/ready",
             "tailscale_status": "/api/tailscale/status",
@@ -110,6 +123,7 @@ def root():
             "slack_webhook": "/slack/interactive",
         },
     }
+
 
 
 @app.get("/healthz")
@@ -221,6 +235,86 @@ def get_cac_snapshot(use_proxy: bool = Query(default=True), timeout: float = Que
     )
     snapshot = collector.collect_all()
     return snapshot.model_dump(mode="json")
+
+
+@app.get("/api/llm/status")
+def get_llm_status():
+    """
+    Returns the active LLM provider configuration, resolved model,
+    masked API key status, fallback chain, and connection parameters.
+    """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    cfg = LLMProviderRegistry.resolve_config()
+    return {
+        "provider": cfg.provider,
+        "model": cfg.model,
+        "api_key_configured": cfg.api_key_present,
+        "api_key_masked": cfg.api_key_masked,
+        "fallback_models": cfg.fallback_models,
+        "temperature": cfg.temperature,
+        "max_tokens": cfg.max_tokens,
+        "timeout_seconds": cfg.timeout_seconds,
+        "max_retries": cfg.max_retries,
+        "structured_mode": cfg.structured_mode,
+        "ollama_base_url": cfg.ollama_base_url if cfg.provider == "ollama" else None,
+        "azure_api_base": cfg.azure_api_base if cfg.provider == "azure" else None,
+        "free_tier_supported": cfg.provider in ("openrouter", "gemini", "huggingface", "ollama"),
+    }
+
+
+@app.get("/api/llm/models")
+def list_llm_models():
+    """
+    Returns the comprehensive catalog of all 8 supported LLM providers,
+    their free models (0 EUR), rate limits, and configuration status.
+    """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    return {
+        "providers": LLMProviderRegistry.list_providers(),
+        "free_brain_recommendations": [
+            {
+                "tier": "Primary (24/7 Cloud)",
+                "provider": "openrouter",
+                "model": "openrouter/deepseek/deepseek-r1:free",
+                "cost": "0 EUR",
+                "reason": "Top reasoning benchmark (DeepSeek-R1), requires only OPENROUTER_API_KEY with no billing card.",
+            },
+            {
+                "tier": "Fast Cloud (Fallback)",
+                "provider": "openrouter",
+                "model": "openrouter/deepseek/deepseek-chat:free",
+                "cost": "0 EUR",
+                "reason": "Direct JSON output without think tags, fast p95 latency.",
+            },
+            {
+                "tier": "Meta Llama (Fallback)",
+                "provider": "openrouter",
+                "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+                "cost": "0 EUR",
+                "reason": "Enterprise-grade 70B parameter model hosted for free.",
+            },
+            {
+                "tier": "Tailscale / Local Mesh",
+                "provider": "ollama",
+                "model": "ollama/llama3.2:3b",
+                "cost": "0 EUR",
+                "reason": "Runs on developer workstation or home server, reachable by Render via Tailscale private IP.",
+            },
+        ],
+    }
+
+
+@app.post("/api/llm/probe")
+def probe_llm(timeout: float = Query(default=10.0)):
+    """
+    Actively probes the configured LLM provider with a minimal deterministic
+    health-check query, measuring latency and verifying API key validity.
+    """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    return LLMProviderRegistry.probe(timeout=timeout)
 
 
 COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
@@ -475,6 +569,25 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "[GUIDE:HOW_IT_PASSES]   3. Arbitrage PolicyEngine (DENY sur DATA-042 + propose_retrain, ALLOW sur create_issue) + WORM validés.",
         "========================================================================================",
     ],
+    DiagnosticCommand.pytest_llm_hub: [
+        "========================================================================================",
+        "[GUIDE:ROLE] RÔLE DU BOUTON (Phase H — Universal LLM Provider Hub : OpenRouter, Ollama & 8 Fournisseurs) :",
+        "[GUIDE:ROLE]   Valide l'architecture du Hub universel de modèles d'IA (agentic_ops/adapters/llm_provider_registry.py",
+        "[GUIDE:ROLE]   et llm_protocol.py) : résolution dynamique de configuration, masquage sécurisé de clé API,",
+        "[GUIDE:ROLE]   chaîne de secours automatique (FallbackLLMAdapter) en cas de rate-limit et adaptateur Ollama local/Tailscale.",
+        "[GUIDE:AGENT] AGENT IA INVOQUÉ : Cerveau cognitif de l'Orchestrateur (RemediationAgent & Specialists).",
+        "[GUIDE:AGENT]   Permet de basculer instantanément de Gemini vers DeepSeek-R1 (0 EUR via OpenRouter :free),",
+        "[GUIDE:AGENT]   Llama 3.3 70B, GPT-4o, Claude 3.5 ou Ollama sans modifier une seule ligne de code métier.",
+        "[GUIDE:SLACK] INTERACTION SLACK HITL : Aucune directe. Quel que soit le LLM (gratuit ou propriétaire),",
+        "[GUIDE:SLACK]   ses propositions d'actions sont soumises à la même FSM stricte et au PolicyEngine déterministe.",
+        "[GUIDE:PROD] IMPACT SUR LE MLOPS CIBLE (PROD) : RÉSILIENCE & FINOPS. La chaîne de fallback bascule",
+        "[GUIDE:PROD]   automatiquement sur un modèle de secours si le modèle principal est surchargé ou rate-limité.",
+        "[GUIDE:HOW_IT_PASSES] POURQUOI & COMMENT ÇA PASSE :",
+        "[GUIDE:HOW_IT_PASSES]   1. Teste la détection et le chargement des 8 profils de fournisseurs (OpenRouter, Gemini, OpenAI...).",
+        "[GUIDE:HOW_IT_PASSES]   2. Valide que FallbackLLMAdapter tente le modèle suivant dès que le premier lève une exception.",
+        "[GUIDE:HOW_IT_PASSES]   3. Valide le format JSON Pydantic strict d'OllamaAdapter et l'anonymisation de clé API dans /api/llm/status.",
+        "========================================================================================",
+    ],
 }
 
 
@@ -509,6 +622,9 @@ def run_diagnostic_command(command: DiagnosticCommand):
         DiagnosticCommand.pytest_mcp_gateway: [
             py, "-m", "pytest", "tests/entrypoints/test_mcp_server.py", "-v"
         ],
+        DiagnosticCommand.pytest_llm_hub: [
+            py, "-m", "pytest", "tests/adapters/test_llm_provider_registry.py", "-v"
+        ],
         DiagnosticCommand.pytest_security: [
             py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
         ],
@@ -522,6 +638,7 @@ def run_diagnostic_command(command: DiagnosticCommand):
             "tests/test_tools_security.py",
             "tests/adapters/test_cac_pull_collector.py",
             "tests/entrypoints/test_mcp_server.py",
+            "tests/adapters/test_llm_provider_registry.py",
             "-v",
         ],
         DiagnosticCommand.trust_ledger_list: [
@@ -901,13 +1018,21 @@ def web_console():
         <strong>Phase G: MCP Governance Gateway (12 Tests)</strong>
         <span>8 Tools (/console reader), 5 Resources, 20 Prompts</span>
       </button>
+      <button class="purple" onclick="runCmd('pytest_llm_hub')">
+        <strong>Phase H: LLM Provider Hub (OpenRouter & Ollama)</strong>
+        <span>pytest test_llm_provider_registry (fallback & 8 providers)</span>
+      </button>
       <button class="emerald" onclick="runCmd('pytest_all')">
-        <strong>Grand Slam: All 54 Sandbox + MCP Tests</strong>
-        <span>Exécute les Phases C + D + E + F + G en une passe</span>
+        <strong>Grand Slam: All 57+ Sandbox, MCP & LLM Tests</strong>
+        <span>Exécute les Phases C + D + E + F + G + H en une passe</span>
       </button>
       <button class="amber" onclick="runCmd('trust_ledger_list')">
         <strong>WORM Trust Ledger CLI</strong>
         <span>python -m agentic_ops.cli.trust_ledger list</span>
+      </button>
+      <button onclick="runJson('/api/llm/status')">
+        <strong>LLM Provider Live Status</strong>
+        <span>GET /api/llm/status (Active provider, model, masked key)</span>
       </button>
       <button onclick="runCmd('tailscale_status')">
         <strong>Tailscale Mesh Status</strong>

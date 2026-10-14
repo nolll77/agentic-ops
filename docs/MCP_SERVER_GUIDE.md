@@ -231,7 +231,7 @@ All 20 prompts below are natively registered inside `agentic_ops/entrypoints/mcp
 
 | # | Prompt ID (`prompts/get`) | Ready-to-Use Starter Prompt (Copy-Paste) | `MCP` Tools Chained | Expected Deterministic Verification |
 | :--- | :--- | :--- | :--- | :--- |
-| **`01`** | `01_console_grand_slam_audit` | *"Exécute le Grand Slam complet sur la console Web via `read_console_diagnostic(command='pytest_all')` et dresse un tableau d'audit SRE par Phase en vérifiant que `forbidden_executed=0`."* | `read_console_diagnostic` | `54 passed` (`Phases C + D + E + F + G`), `forbidden_executed=0`. |
+| **`01`** | `01_console_grand_slam_audit` | *"Exécute le Grand Slam complet sur la console Web via `read_console_diagnostic(command='pytest_all')` et dresse un tableau d'audit SRE par Phase en vérifiant que `forbidden_executed=0`."* | `read_console_diagnostic` | `62 passed` (`Phases C + D + E + F + G + H`), `forbidden_executed=0`. |
 | **`02`** | `02_console_vitals_and_cgroup_check` | *"Lis la Phase A de la console (`sandbox_phase_a_vitals`) et `inspect_control_plane_vitals` pour auditer l'enveloppe mémoire `cgroup v2`, `Redis :6379`, `Tailscale SOCKS5 :1055` et `SQLite WAL`."* | `read_console_diagnostic`, `inspect_control_plane_vitals` | Confirms `512 MiB` cgroup limit compliance and live TCP sockets. |
 | **`03`** | `03_console_redteam_slack_spoof` | *"Déclenche la Phase B de la console (`sandbox_phase_b_slack_spoof`) et explique comment `slack_webhook.py` bloque le payload forgé `fake_tampered_attack` en `HTTP 401`."* | `read_console_diagnostic` | `HTTP/1.1 401 Unauthorized` in `~2ms` via `HMAC-SHA256` check. |
 | **`04`** | `04_console_live_pull_cac_mlops` | *"Interroge en direct les 5 endpoints de la plateforme cible `jakatt/cac_mlops` via `poll_target_mlops_snapshot` à travers le tunnel `Tailscale`."* | `poll_target_mlops_snapshot` | `100% Read-Only` snapshot (`OK` or graceful `REMOTE_TARGET_OFFLINE`). |
@@ -270,4 +270,27 @@ All 20 prompts below are natively registered inside `agentic_ops/entrypoints/mcp
 | **`17`** | `17_secops_prompt_injection_audit` | *"Analyse le scénario `SC-101` (`sc_101_log_injection.yaml`) via `get_scenario_blueprint` et montre comment la double barrière (`PromptGuard` + `PolicyEngine`) bloque une injection ordonnant `scale_to_zero`."* | `get_scenario_blueprint`, `evaluate_governance_policy` | `scale_to_zero` is absent from `action_catalog.yaml` -> immediate `DENY` (`unknown_action`). |
 | **`18`** | `18_secops_tool_sandboxing_verification` | *"Exécute `sandbox_phase_e_fsm_governance` via `read_console_diagnostic` et explique comment `AgentTool` isole chaque outil dans un `multiprocessing.Process` avec `SIGKILL` à `15s`."* | `read_console_diagnostic` | `10 passed` in Phase E (`test_tools_security.py` + `test_fsm_orchestrator.py`). |
 | **`19`** | `19_sre_tailscale_mesh_diagnostics` | *"Exécute `tailscale_status` et `tailscale_netcheck` via `read_console_diagnostic` pour auditer le mesh WireGuard userspace, la latence DERP et l'anonymisation `_redact_pii()`."* | `read_console_diagnostic` | Displays live mesh peers (`[REDACTED_ACCOUNT]`) and UDP/DERP latencies. |
-| **`20`** | `20_executive_jury_defense_briefing` | *"Exécute `inspect_control_plane_vitals`, `read_console_diagnostic(command='pytest_all', include_guides=False)` et `inspect_worm_trust_ledger(limit=5)` pour générer une note de synthèse Jury en 5 points."* | `inspect_control_plane_vitals`, `read_console_diagnostic`, `inspect_worm_trust_ledger` | Executive 5-point synthesis backed by live `54 passed` tests and cryptographic hashes. |
+| **`20`** | `20_executive_jury_defense_briefing` | *"Exécute `inspect_control_plane_vitals`, `read_console_diagnostic(command='pytest_all', include_guides=False)` et `inspect_worm_trust_ledger(limit=5)` pour générer une note de synthèse Jury en 5 points."* | `inspect_control_plane_vitals`, `read_console_diagnostic`, `inspect_worm_trust_ledger` | Executive 5-point synthesis backed by live `62 passed` tests and cryptographic hashes. |
+
+---
+
+## 7. Universal LLM Provider Hub Configuration
+
+The Control Plane decouples reasoning from infrastructure via `agentic_ops/adapters/llm_provider_registry.py` and `llm_protocol.py`. The active provider can be selected dynamically via environment variables without code modification:
+
+| Provider (`LLM_PROVIDER`) | Recommended Model (`LLM_MODEL`) | Cost | Deployment Architecture |
+| :--- | :--- | :--- | :--- |
+| **`openrouter` (Default)** | `openrouter/deepseek/deepseek-r1:free` | **0 EUR** | 24/7 Cloud via OpenRouter free tier (20 req/min). |
+| **`openrouter` (Fast JSON)** | `openrouter/deepseek/deepseek-chat:free` | **0 EUR** | Low latency, direct JSON outputs without think blocks. |
+| **`openrouter` (Llama 70B)** | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | **0 EUR** | Enterprise-grade 70B parameter open weights. |
+| **`gemini`** | `gemini/gemini-1.5-pro-latest` | Free/Paid | Native Google Gemini multimodal reasoning. |
+| **`openai`** | `gpt-4o-mini` | Paid | OpenAI ChatCompletion API. |
+| **`anthropic`** | `claude-3-5-haiku-20241022` | Paid | Anthropic Claude 3.5 family. |
+| **`azure`** | `azure/gpt-4o` | Enterprise | Azure OpenAI with dedicated endpoints. |
+| **`mistral`** | `mistral/mistral-large-2411` | Paid (Cheap) | Native European sovereign model provider. |
+| **`huggingface`** | `huggingface/mistralai/Mistral-7B-Instruct-v0.2` | **0 EUR** | Serverless free inference (1000 req/month). |
+| **`ollama` (Local/Mesh)** | `ollama/llama3.2:3b` | **0 EUR** | Local workstation, reachable by Render via Tailscale private IP (`OLLAMA_BASE_URL=http://100.x.y.z:11434`). |
+
+### Automatic Failover Chain (`FallbackLLMAdapter`)
+If the primary model is throttled or raises a rate-limit error (`429 Too Many Requests`), the adapter automatically tries the fallback chain declared in `LLM_FALLBACK_MODELS` (e.g. `openrouter/deepseek/deepseek-chat:free,openrouter/meta-llama/llama-3.3-70b-instruct:free`) sequentially before raising an exception.
+

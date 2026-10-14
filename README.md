@@ -881,5 +881,8 @@ python -m agentic_ops.entrypoints.mcp_server
    Complete reference for the `MCP` Server (`STDIO` & `HTTP JSON-RPC 2.0` on `/mcp`), live `/console` reading via `read_console_diagnostic`, 8 governed tools, 5 knowledge resources, client configuration files (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`), and the 20 Cognitive Starter Prompts catalog.
 8. **[Historical Security Audit & Technical Remediation Matrix (`docs/HISTORICAL_AUDIT_AND_REMEDIATION.md`)](docs/HISTORICAL_AUDIT_AND_REMEDIATION.md)**:
    Full verbatim transcription of the early external architectural critique, followed by an exhaustive 9-point technical remediation matrix (`P0.1` to `P1.3`) demonstrating how every single flagged vulnerability (Slack HITL HMAC, sub-process isolation, Merkle cryptographic ledger, atomic Redis rate limiting, out-of-band blast radius calculation, and Prompt Hygiene) was systematically engineered, audited, and verified across 54 automated tests.
+9. **[Universal LLM Provider Hub & Configuration Template (`.env.example`)](.env.example)**:
+   Comprehensive guide to connecting the Control Plane to 8 AI model providers: OpenRouter (24/7 free tier including DeepSeek-R1 and Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, and Ollama (local or Tailscale mesh-routed at `0 EUR`). Includes automatic failover chains (`FallbackLLMAdapter`) and Prometheus metrics instrumentation.
+
 
 
