@@ -1,0 +1,54 @@
+# ==============================================================================
+# LibreChat MCP Configuration for Agentic-Ops Control Plane
+# ==============================================================================
+# Mount this file into your LibreChat Docker container:
+#   volumes:
+#     - ./librechat.yaml:/app/librechat.yaml
+# Or place it in the root directory of your LibreChat local installation.
+# Reference: https://www.librechat.ai/docs/configuration/librechat_yaml/ai_endpoints/mcp
+# ==============================================================================
+
+version: 1.2.0
+
+# Security Settings for Remote MCP Connections
+mcpSettings:
+  allowedDomains:
+    - "agentic-ops-5ebv.onrender.com"
+  allowedAddresses:
+    - "127.0.0.1:8001"
+    - "localhost:8001"
+
+# MCP Servers Definition
+mcpServers:
+  # Option 1: Remote Cloud Control Plane (Live on Render)
+  agentic-ops-cloud:
+    type: streamable-http
+    url: https://agentic-ops-5ebv.onrender.com/mcp
+    timeout: 60000
+    serverInstructions: "Autonomous SRE and MLOps Governance Firewall. Prioritize read_console_diagnostic to audit tests and evaluate_governance_policy before executing any infrastructure changes."
+
+  # Option 2: Local Subprocess via STDIO
+  agentic-ops-local:
+    type: stdio
+    command: python
+    args:
+      - -m
+      - agentic_ops.entrypoints.mcp_server
+      - --stdio
+    env:
+      AGENTIC_OPS_ENV: production
+      PYTHONPATH: .
+    timeout: 30000
+
+# OpenRouter Endpoints Definition for LibreChat Web UI
+endpoints:
+  custom:
+    - name: "OpenRouter (Agentic-Ops Recommended)"
+      apiKey: "${OPENROUTER_API_KEY}"
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        default: ["deepseek/deepseek-r1:free"]
+        fetch: true
+      titleConvo: true
+      titleModel: "deepseek/deepseek-chat:free"
+      modelDisplayLabel: "OpenRouter AI Hub"

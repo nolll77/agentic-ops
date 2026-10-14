@@ -166,6 +166,26 @@ While OpenAI's web interface (`chatgpt.com`) does not use the Anthropic `MCP` pr
 
 ---
 
+### Option E — LibreChat Web UI (`OpenRouter Brain` + `Agentic-Ops MCP Gateway`)
+
+[LibreChat](https://www.librechat.ai) is the leading open-source ChatGPT alternative supporting **both OpenRouter AI models and the Model Context Protocol (`MCP`)**. This architecture allows you to select any model on Earth via OpenRouter (e.g. `deepseek/deepseek-r1:free`) while giving it direct tool-access to your Render Control Plane.
+
+1. A production-ready configuration template is provided at [`librechat.yaml`](../librechat.yaml).
+2. To run LibreChat with `Agentic-Ops` MCP enabled:
+   ```yaml
+   # docker-compose.override.yml in your LibreChat directory
+   services:
+     api:
+       volumes:
+         - /path/to/agentic-ops-core/librechat.yaml:/app/librechat.yaml
+       environment:
+         - OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxx
+   ```
+3. In LibreChat, the MCP tools (`read_console_diagnostic`, `evaluate_governance_policy`, `run_governed_incident_episode`) become available as native tool attachments to DeepSeek-R1, Mistral Large, or Llama 3.3 conversations.
+
+---
+
+
 ### Option D — Zero-Install Remote Cloud Connection (`HTTP JSON-RPC 2.0` on Render)
 
 Because the `MCP` router is mounted directly on the live `FastAPI` container (`https://agentic-ops-5ebv.onrender.com`), you can query the `MCP` server from any terminal, CI runner, or HTTP `MCP` client without installing Python locally:

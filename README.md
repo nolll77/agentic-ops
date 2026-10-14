@@ -816,6 +816,10 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
 ```
 
+#### E. Connect `LibreChat` Web UI (`OpenRouter AI Hub` + `Agentic-Ops MCP Gateway`)
+[LibreChat](https://www.librechat.ai) is the open-source ChatGPT equivalent supporting both **OpenRouter models** and **the `MCP` Protocol**. By mounting the included [`librechat.yaml`](librechat.yaml) configuration file into your LibreChat container (`volumes: [./librechat.yaml:/app/librechat.yaml]`), any chosen OpenRouter model (`deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free`, `mistralai/mistral-large-2411`) gains full direct tool-calling access to the live Render Control Plane via `https://agentic-ops-5ebv.onrender.com/mcp`.
+
+
 
 ### 3. Complete Catalog of the 20 Cognitive Starter Prompts (`prompts/list` & `prompts/get`)
 
