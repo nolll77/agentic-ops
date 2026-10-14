@@ -39,6 +39,9 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
 3. **Tailscale Pull Interconnection Report with Target Platform [`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)**:
    Userspace `Tailscale` tunneling (`--tun=userspace-networking` / `SOCKS5` proxy / `DERP` relays), strict read-only ingestion across 5 observability sources (`Loki`, `Prometheus`, `MLflow`, `Prefect`, `Evidently`), and validation via 13 unit tests:  
    **[Read the Tailscale Pull Connector Architecture & Validation Report (`CAC_TAILSCALE_PULL_CONNECTOR.md`)](CAC_TAILSCALE_PULL_CONNECTOR.md)**
+4. **Target Outage & Scaleway/Tailscale Degradation Resilience Guide**:
+   Explains why the Control Plane never crashes if the supervised VPS goes down, detailing `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` error absorption, Fail-Closed governance, autonomous local test execution, and 1-minute self-healing recovery:  
+   **[Read the Target Outage & Resilience Guide (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
 
 ---
 

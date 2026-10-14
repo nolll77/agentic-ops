@@ -39,6 +39,9 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
 3. **Rapport d'Interconnexion Tailscale Pull avec la Plateforme Cible [`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)** :
    Tunnelisation `Tailscale` en espace utilisateur (`userspace-networking` / proxy `SOCKS5` / relais `DERP`), ingestion en lecture seule stricte des 5 sources (`Loki`, `Prometheus`, `MLflow`, `Prefect`, `Evidently`) et validation par 13 tests unitaires :  
    **[Consulter l'Architecture et la Validation du Connecteur Tailscale Pull (`CAC_TAILSCALE_PULL_CONNECTOR.md`)](CAC_TAILSCALE_PULL_CONNECTOR.md)**
+4. **Guide de Résilience face aux Pannes Cibles (Scaleway / Déconnexion Tailscale)** :
+   Explique pourquoi le Control Plane ne plante jamais en cas de coupure du VPS supervisé, détaillant l'absorption d'erreurs `RemoteServiceStatus.REMOTE_TARGET_OFFLINE`, la gouvernance Fail-Closed, l'exécution autonome des tests locaux et la reconnexion automatique en 1 minute :  
+   **[Consulter le Guide de Résilience face aux Pannes Cibles (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
 
 ---
 
