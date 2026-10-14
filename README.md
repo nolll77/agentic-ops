@@ -858,5 +858,7 @@ python -m agentic_ops.entrypoints.mcp_server
    36 multi-failure simulation scenarios structured around a 7-block SRE blueprint (with the first 8–9 foundational scenarios expanded to full mathematical, architectural, and executable Python depth).
 7. **[Model Context Protocol (`MCP`) Governance Gateway Guide (`docs/MCP_SERVER_GUIDE.md`)](docs/MCP_SERVER_GUIDE.md)**:
    Complete reference for the `MCP` Server (`STDIO` & `HTTP JSON-RPC 2.0` on `/mcp`), live `/console` reading via `read_console_diagnostic`, 8 governed tools, 5 knowledge resources, client configuration files (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`), and the 20 Cognitive Starter Prompts catalog.
+8. **[Historical Security Audit & Technical Remediation Matrix (`docs/HISTORICAL_AUDIT_AND_REMEDIATION.md`)](docs/HISTORICAL_AUDIT_AND_REMEDIATION.md)**:
+   Full verbatim transcription of the early external architectural critique, followed by an exhaustive 9-point technical remediation matrix (`P0.1` to `P1.3`) demonstrating how every single flagged vulnerability (Slack HITL HMAC, sub-process isolation, Merkle cryptographic ledger, atomic Redis rate limiting, out-of-band blast radius calculation, and Prompt Hygiene) was systematically engineered, audited, and verified across 54 automated tests.
 
 
