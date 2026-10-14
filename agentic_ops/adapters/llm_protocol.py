@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from typing import Protocol, TypeVar
 
@@ -31,6 +32,23 @@ from tenacity import (
 logger = logging.getLogger("LLMAdapter")
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _strip_think_tags(text: str) -> str:
+    """
+    Règle de l'Honnêteté Radicale : Les modèles de raisonnement pur (comme DeepSeek-R1)
+    émettent des balises <think>...</think> contenant leur chaîne de pensée.
+    Cette fonction élimine ces blocs pour isoler le JSON pur attendu par Pydantic.
+    """
+    if not text:
+        return text
+    # Enlève tout le bloc <think>...</think> (multiligne)
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Enlève d'éventuels backticks markdown ```json ... ```
+    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned.strip(), flags=re.MULTILINE)
+    cleaned = re.sub(r"\s*```$", "", cleaned.strip())
+    return cleaned.strip()
+
 
 # ---------------------------------------------------------------------------
 # Prometheus metrics
@@ -256,6 +274,9 @@ class OllamaAdapter:
                 resp.raise_for_status()
             data = resp.json()
             content = data.get("message", {}).get("content", "")
+            # [Honnêteté Radicale / Modèles de Raisonnement R1]
+            # Nettoyer les balises <think>...</think> avant parsing JSON
+            content = _strip_think_tags(content)
             # Parse JSON and validate against response_model
             parsed = json.loads(content)
             result = response_model.model_validate(parsed)

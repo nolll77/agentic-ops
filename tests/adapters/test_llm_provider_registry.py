@@ -148,3 +148,52 @@ class TestLLMProviderRegistry:
 
         assert res.action == "propose_retrain"
         assert res.target == "baac_rf"
+
+    def test_strip_think_tags_removes_r1_reasoning_blocks(self):
+        """Verifies that <think>...</think> chain-of-thought blocks are cleanly stripped."""
+        from agentic_ops.adapters.llm_protocol import _strip_think_tags
+
+        raw_r1_output = """<think>
+Here is my deep reasoning process.
+I must propose a safe action for this incident.
+The target is baac_rf.
+</think>
+```json
+{
+  "action": "create_issue",
+  "target": "baac_rf"
+}
+```"""
+        cleaned = _strip_think_tags(raw_r1_output)
+        assert "<think>" not in cleaned
+        assert "deep reasoning" not in cleaned
+        assert cleaned == '{\n  "action": "create_issue",\n  "target": "baac_rf"\n}'
+
+    @patch("httpx.Client")
+    def test_ollama_adapter_handles_r1_with_think_tags(self, mock_client_cls):
+        """Validates OllamaAdapter parses response even if model emits <think> blocks."""
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "message": {
+                "content": "<think>Analyzing root cause...</think>{\"action\": \"create_issue\", \"target\": \"baac-api\"}"
+            }
+        }
+        mock_resp.raise_for_status.return_value = None
+
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__enter__.return_value = mock_client
+        mock_client.__exit__.return_value = None
+        mock_client_cls.return_value = mock_client
+
+        adapter = OllamaAdapter(base_url="http://localhost:11434", model="deepseek-r1:7b")
+        res = adapter.complete(
+            system="system",
+            user="user",
+            response_model=DummyAction,
+            temperature=0.0,
+        )
+
+        assert res.action == "create_issue"
+        assert res.target == "baac-api"
+

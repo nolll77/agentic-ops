@@ -904,6 +904,22 @@ Le Control Plane expose 3 endpoints REST dédiés à l'inspection :
 - **`POST /api/llm/probe`** : Sonde active qui teste en direct le LLM et mesure la latence d'aller-retour en millisecondes.
 - **Bouton Console (`Phase H`)** : Déclenchement et audit en 1 clic de toutes les fonctionnalités du Hub depuis `/console`.
 
+### 4. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
+
+En application de la règle d'**Honnêteté Radicale** du projet, utiliser des modèles cloud à 0 EUR implique deux contraintes techniques strictes que nous avons traitées directement dans l'architecture :
+
+1. **Le Rate-Limiting (Nombre de Requêtes / Minute)** :
+   - **La Réalité** : Les endpoints `:free` sur OpenRouter appliquent un quota strict (généralement **`20 requêtes par minute`** et environ **`200 requêtes par jour`** par IP ou clé d'API).
+   - **Verdict** : C'est largement suffisant pour faire des démonstrations live, exécuter la suite de tests de scénarios et réussir une soutenance de projet. En revanche, pour une entreprise avec 10 000 alertes/minute, il est obligatoire de basculer sur les tiers payants (qui restent dérisoires : DeepSeek-V3 coûte `0.14$` le million de tokens en entrée, soit 50 fois moins cher qu'OpenAI GPT-4o).
+   - **Parade Implémentée** : Dès qu'une erreur `HTTP 429` est interceptée, `FallbackLLMAdapter` redirige automatiquement la requête vers le modèle suivant dans `LLM_FALLBACK_MODELS` sans faire échouer l'orchestration.
+
+2. **Le Respect du Structured Output (`Pydantic` & Balises `<think>`)** :
+   - **La Réalité** : Le Control Plane exige que chaque action proposée respecte le contrat Pydantic `ActionIntent` (`action`, `target`, `rationale`, `declared_blast_radius`). Les modèles de raisonnement pur (comme `DeepSeek-R1`) émettent parfois leur chaîne de pensée entre des balises `<think>...</think>` avant de délivrer leur JSON.
+   - **Parades Implémentées** :
+     - Les adaptateurs `LiteLLMAdapter` (via `instructor.from_litellm`) et `OllamaAdapter` intègrent la fonction `_strip_think_tags()` qui purge les blocs `<think>...</think>` et les balises markdown avant la validation Pydantic.
+     - Pour un triage d'alertes à très faible latence, il est recommandé d'utiliser `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, qui génère du JSON direct sans bloc de réflexion.
+
+
 
 ---
 

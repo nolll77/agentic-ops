@@ -904,6 +904,22 @@ The Control Plane exposes 3 dedicated REST inspection endpoints:
 - **`POST /api/llm/probe`**: Actively queries the configured LLM and measures end-to-end roundtrip latency in milliseconds.
 - **Console Button (`Phase H`)**: Interactive 1-click validation of all LLM Hub features from `/console`.
 
+### 4. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
+
+Applying the project's **Radical Honesty** rule, utilizing zero-cost public endpoints entails two concrete technical constraints that have been engineered into `Agentic-Ops`:
+
+1. **Rate-Limiting (Request/Minute Throttling)**:
+   - **The Reality**: OpenRouter `:free` tiers enforce strict thresholds (typically **`20 requests/minute`** and **`~200 requests/day`** per IP/token).
+   - **Evaluation**: This quota is more than sufficient for live demonstrations, running the full scenario test suites, and academic defenses. However, in an enterprise receiving 10,000 monitoring alerts/minute, production systems must route to paid endpoints (which remain extraordinarily inexpensive: DeepSeek-V3 costs `$0.14` per million input tokens, approximately 50x cheaper than OpenAI GPT-4o).
+   - **Architectural Defense**: When a rate-limit error (`HTTP 429`) is caught, `FallbackLLMAdapter` automatically redirects traffic to the next model in `LLM_FALLBACK_MODELS` without interrupting the active `FSM` transition.
+
+2. **Structured Output Integrity (`Pydantic` / `<think>` Blocks)**:
+   - **The Reality**: The Control Plane strictly enforces Pydantic contracts (`ActionIntent` with fields `action`, `target`, `rationale`, `declared_blast_radius`). Pure reasoning models (such as `DeepSeek-R1`) output their internal chain-of-thought enclosed in `<think>...</think>` tags before delivering the final answer.
+   - **Architectural Defense**:
+     - Both `LiteLLMAdapter` (via `instructor.from_litellm`) and `OllamaAdapter` embed the regex filter `_strip_think_tags()` to excise `<think>...</think>` envelopes and Markdown fences before passing the JSON payload to `response_model.model_validate()`.
+     - For ultra-fast sub-second alert triaging, developers can select `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, which outputs raw JSON directly without thinking blocks.
+
+
 
 ---
 
