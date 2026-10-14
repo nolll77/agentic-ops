@@ -765,23 +765,43 @@ In enterprise AI operations, connecting autonomous IDE or desktop clients (`Clau
 
 ### 2. How to Connect (`STDIO` Local Client vs. Remote Cloud `HTTP JSON-RPC 2.0`)
 
-#### A. Connect `Claude Desktop`, `Cursor`, `Windsurf`, or `Google Antigravity` (`STDIO`)
-Add the following block to `claude_desktop_config.json`, `.cursor/mcp.json`, or `mcp_config.json`:
+#### A. Connect `Claude Desktop` Locally (`STDIO` on macOS & Windows)
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 ```json
 {
   "mcpServers": {
     "agentic-ops-governance": {
-      "command": "/path/to/agentic-ops-core/.venv/bin/python",
-      "args": ["-m", "agentic_ops.entrypoints.mcp_server"],
+      "command": "/Users/nolll/Documents/car_acc/agentic-ops-core/.venv/bin/python",
+      "args": ["-m", "agentic_ops.entrypoints.mcp_server", "--stdio"],
+      "cwd": "/Users/nolll/Documents/car_acc/agentic-ops-core",
       "env": {
-        "PYTHONPATH": "/path/to/agentic-ops-core"
+        "AGENTIC_OPS_ENV": "production",
+        "PYTHONPATH": "/Users/nolll/Documents/car_acc/agentic-ops-core"
       }
     }
   }
 }
 ```
 
-#### B. Connect Directly to the Live `Render` Cloud Instance (`HTTP JSON-RPC 2.0`)
+#### B. Connect `Cursor`, `Windsurf` or `Google Antigravity` (`STDIO` or Remote Cloud)
+Configure `.cursor/mcp.json` or `mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "agentic-ops-remote": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+
+#### C. Connect `ChatGPT Web` (`chatgpt.com`) via Custom GPT Action (`OpenAPI / REST`)
+OpenAI's web interface supports OpenAPI 3.0 Actions. In **ChatGPT** -> **My GPTs** -> **Create a GPT** -> **Configure** -> **Actions** -> **Create new action**:
+- Click **Import from URL** and paste: `https://agentic-ops-5ebv.onrender.com/openapi.json`
+- Privacy Policy: `https://agentic-ops-5ebv.onrender.com/healthz`
+- ChatGPT will automatically ingest all live endpoints (`/api/diagnostics/{command}`, `/api/cac/snapshot`, `/api/tailscale/status`, `/mcp/manifest`).
+
+#### D. Connect Directly via Terminal / Remote Cloud (`HTTP JSON-RPC 2.0` on Render)
 ```bash
 # 1. Inspect the live MCP manifest (8 Tools, 5 Resources, 20 Starter Prompts)
 curl -s https://agentic-ops-5ebv.onrender.com/mcp/manifest | jq .counts
@@ -791,6 +811,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
 ```
+
 
 ### 3. Complete Catalog of the 20 Cognitive Starter Prompts (`prompts/list` & `prompts/get`)
 

@@ -765,23 +765,43 @@ En entreprise, brancher des clients IA autonomes (`Claude Desktop`, `Cursor`, `W
 
 ### 2. Comment se brancher dessus ? (`STDIO` Local vs Cloud `Render` `HTTP JSON-RPC 2.0`)
 
-#### A. Branchement Local `STDIO` (`Claude Desktop`, `Cursor`, `Windsurf`, `Google Antigravity`)
-Ajoutez ce bloc dans `claude_desktop_config.json`, `.cursor/mcp.json` ou `mcp_config.json` :
+#### A. Connexion Locale `Claude Desktop` (`STDIO` sous macOS & Windows)
+Ajoutez dans `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows) :
 ```json
 {
   "mcpServers": {
     "agentic-ops-governance": {
-      "command": "/chemin/vers/agentic-ops-core/.venv/bin/python",
-      "args": ["-m", "agentic_ops.entrypoints.mcp_server"],
+      "command": "/Users/nolll/Documents/car_acc/agentic-ops-core/.venv/bin/python",
+      "args": ["-m", "agentic_ops.entrypoints.mcp_server", "--stdio"],
+      "cwd": "/Users/nolll/Documents/car_acc/agentic-ops-core",
       "env": {
-        "PYTHONPATH": "/chemin/vers/agentic-ops-core"
+        "AGENTIC_OPS_ENV": "production",
+        "PYTHONPATH": "/Users/nolll/Documents/car_acc/agentic-ops-core"
       }
     }
   }
 }
 ```
 
-#### B. Branchement Direct Sans Installation sur le Cloud `Render` (`HTTP JSON-RPC 2.0`)
+#### B. Connexion `Cursor`, `Windsurf` ou `Google Antigravity` (`STDIO` ou Cloud Distant)
+Configurez `.cursor/mcp.json` ou `mcp_config.json` :
+```json
+{
+  "mcpServers": {
+    "agentic-ops-remote": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+
+#### C. Connexion `ChatGPT Web` (`chatgpt.com`) via Action Custom GPT (`OpenAPI / REST`)
+L'interface web d'OpenAI supporte les actions OpenAPI 3.0. Dans **ChatGPT** -> **My GPTs** -> **Create a GPT** -> **Configure** -> **Actions** -> **Create new action** :
+- Cliquez sur **Import from URL** et collez : `https://agentic-ops-5ebv.onrender.com/openapi.json`
+- Politique de confidentialité : `https://agentic-ops-5ebv.onrender.com/healthz`
+- ChatGPT ingère automatiquement toutes les routes en direct (`/api/diagnostics/{command}`, `/api/cac/snapshot`, `/api/tailscale/status`, `/mcp/manifest`).
+
+#### D. Connexion Directe en Ligne de Commande / Cloud (`HTTP JSON-RPC 2.0` sur Render)
 ```bash
 # 1. Inspecter le manifeste MCP en direct (8 Tools, 5 Resources, 20 Starter Prompts)
 curl -s https://agentic-ops-5ebv.onrender.com/mcp/manifest | jq .counts
@@ -791,6 +811,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
 ```
+
 
 ### 3. Catalogue Complet des 20 Starter Prompts Cognitifs (`prompts/list` & `prompts/get`)
 

@@ -84,20 +84,28 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 ## 5. How to Connect (`Comment se brancher dessus`)
 
-### Option A — Local `STDIO` Connection (`Claude Desktop`, `Cursor`, `Windsurf`, `Google Antigravity`)
+### Option A — Claude Desktop Local `STDIO` Connection (Mac & Windows)
 
-Add the following block to your client configuration file:
-- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Cursor**: `.cursor/mcp.json`
-- **Windsurf / Google Antigravity**: `~/.gemini/antigravity/mcp_config.json`
+The Model Context Protocol (`MCP`) is natively supported by Anthropic's **Claude Desktop** application.
+
+1. Open your Claude Desktop configuration file:
+   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+2. Insert the `agentic-ops-governance` server definition:
 
 ```json
 {
   "mcpServers": {
     "agentic-ops-governance": {
       "command": "/Users/nolll/Documents/car_acc/agentic-ops-core/.venv/bin/python",
-      "args": ["-m", "agentic_ops.entrypoints.mcp_server"],
+      "args": [
+        "-m",
+        "agentic_ops.entrypoints.mcp_server",
+        "--stdio"
+      ],
+      "cwd": "/Users/nolll/Documents/car_acc/agentic-ops-core",
       "env": {
+        "AGENTIC_OPS_ENV": "production",
         "PYTHONPATH": "/Users/nolll/Documents/car_acc/agentic-ops-core"
       }
     }
@@ -105,9 +113,63 @@ Add the following block to your client configuration file:
 }
 ```
 
-### Option B — Zero-Install Remote Cloud Connection (`HTTP JSON-RPC 2.0` on Render)
+3. Restart Claude Desktop. An icon indicating available tools will appear in the chat prompt area, giving Claude direct local access to all 8 governed tools and 5 knowledge resources.
+
+*(Note: The web version at `claude.ai` does not yet support arbitrary third-party local `MCP` processes; Claude Desktop is the official and supported Anthropic client for `MCP`).*
+
+---
+
+### Option B — Cursor, Windsurf & Google Antigravity Configuration
+
+For agentic IDEs, configure the local `MCP` server in their respective settings:
+- **Cursor**: `.cursor/mcp.json`
+- **Windsurf / Google Antigravity**: `~/.gemini/antigravity/mcp_config.json`
+
+Both local process execution (`command` / `args` above) and remote HTTP endpoints are supported:
+
+```json
+{
+  "mcpServers": {
+    "agentic-ops-remote": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+
+---
+
+### Option C — ChatGPT Web Integration via Custom GPT Action (`OpenAPI / REST`)
+
+While OpenAI's web interface (`chatgpt.com`) does not use the Anthropic `MCP` protocol directly, you can connect ChatGPT to `Agentic-Ops` in 2 minutes using its native **Custom GPT Actions** backed by the live Render OpenAPI specification:
+
+1. Navigate to **`https://chatgpt.com/gpts/editor`** (or click your profile -> **My GPTs** -> **Create a GPT**).
+2. Go to the **Configure** tab:
+   - **Name**: `Agentic-Ops Control Plane`
+   - **Description**: `Autonomous and governed SRE control plane for MLOps platforms.`
+3. Scroll down to **Actions** and click **Create new action**.
+4. In the **Schema** section, click **Import from URL** and paste:
+   ```text
+   https://agentic-ops-5ebv.onrender.com/openapi.json
+   ```
+5. Click **Import**. ChatGPT will parse the endpoints:
+   - `GET /api/diagnostics/{command}` (execute `/console` test phases: `sandbox_phase_a_vitals` through `pytest_all`).
+   - `GET /api/cac/snapshot` (real-time read-only pull from `jakatt/cac_mlops`).
+   - `GET /api/tailscale/status` (mesh VPN topology inspection).
+   - `GET /mcp/manifest` (complete catalog of tools, prompts, and resources).
+6. Under **Privacy Policy**, enter `https://agentic-ops-5ebv.onrender.com/healthz`.
+7. In the Instructions box, add:
+   ```text
+   You are the Agentic-Ops SRE Assistant. When requested, trigger diagnostic suites using GET /api/diagnostics/{command} and explain the governance verdicts, WORM evidence seals, and policy constraints.
+   ```
+8. Save and publish (private or link-shared). You can now interact with your Render cluster directly from `chatgpt.com`.
+
+---
+
+### Option D — Zero-Install Remote Cloud Connection (`HTTP JSON-RPC 2.0` on Render)
 
 Because the `MCP` router is mounted directly on the live `FastAPI` container (`https://agentic-ops-5ebv.onrender.com`), you can query the `MCP` server from any terminal, CI runner, or HTTP `MCP` client without installing Python locally:
+
 
 #### 1. Inspect the Full `MCP` Manifest (`GET /mcp/manifest`)
 ```bash
