@@ -195,6 +195,8 @@ For users who want zero local setup (no Docker, no MongoDB, no local Mac resourc
    ```
 2. The interface automatically connects to `POST /api/chat` and queries the active provider configured in `LLMProviderRegistry` (e.g. `openrouter/deepseek/deepseek-chat:free` or `openrouter/deepseek/deepseek-r1:free`).
 3. It features real-time LLM status probing (`GET /api/llm/status`), structured action metadata cards (`Action`, `Confidence`, `Latency`, `Model`), one-click SRE scenario chips, and full dark-mode styling aligned with the `/console`.
+4. **Interactive 20 MCP Cognitive Prompts Catalog**: Clicking the `20 Prompts MCP` header button opens a searchable modal catalog grouping all 20 starter prompts across 5 MLOps categories. Operators can search by keyword (e.g. `drift`, `worm`, `veto`, `slack`), insert templates into the input for customization (`Insert in Chat`), or execute them immediately (`Execute Directly`).
+5. **Dedicated Prompts API (`GET /api/prompts`)**: Exposes the full JSON list of the 20 cognitive prompts for external automation or third-party web clients.
 
 #### Comparative Architecture Matrix: LibreChat (Local Docker) vs. Native Web Chat (Render Cloud)
 
@@ -270,7 +272,9 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ## 6. Complete Catalog of the 20 Cognitive Starter Prompts
 
-All 20 prompts below are natively registered inside `agentic_ops/entrypoints/mcp_server.py` (retrievable via `prompts/list` and `prompts/get`) and can also be pasted directly into any `MCP`-connected chat interface:
+All 20 prompts below are natively registered inside `agentic_ops/entrypoints/mcp_server.py` (retrievable via `prompts/list`, `prompts/get`, `GET /mcp/manifest`, and `GET /api/prompts`).
+
+They are also **directly executable in 1 click** inside the Standalone Web Chat at [`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat) using the built-in `20 Prompts MCP` catalog browser:
 
 ### Category I — Live Web Console (`/console`) Reading & Auditing (Prompts `01` to `04`)
 

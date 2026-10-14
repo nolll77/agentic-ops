@@ -902,10 +902,12 @@ Free tiers on public clouds may occasionally encounter rate limits (`HTTP 429 To
 3. Every individual attempt is recorded in Prometheus metrics (`agentic_ops_llm_requests_total{provider=..., model=..., status=...}`) for FinOps auditability.
 
 ### 3. SRE Observability & Live Probing Endpoints
-The Control Plane exposes 3 dedicated REST inspection endpoints:
+The Control Plane exposes 5 dedicated REST inspection and conversational endpoints:
 - **`GET /api/llm/status`**: Inspects active provider, resolved model, fallback chain, and sanitized key status (`sk-or-***`).
 - **`GET /api/llm/models`**: Returns the complete 8-provider catalog and recommendations for zero-cost operation.
 - **`POST /api/llm/probe`**: Actively queries the configured LLM and measures end-to-end roundtrip latency in milliseconds.
+- **`GET /api/prompts`**: Returns the complete JSON catalog of the 20 MCP Cognitive Starter Prompts.
+- **`GET /chat` & `POST /api/chat`**: Standalone browser chat interface embedding a searchable 20-prompt catalog modal with 1-click execution.
 - **Console Button (`Phase H`)**: Interactive 1-click validation of all LLM Hub features from `/console`.
 
 ### 4. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses

@@ -902,10 +902,12 @@ Les tiers gratuits cloud peuvent occasionnellement subir un rate limit (`HTTP 42
 3. Chaque tentative individuelle incrémente les métriques Prometheus (`agentic_ops_llm_requests_total{provider=..., model=..., status=...}`) pour une traçabilité FinOps totale.
 
 ### 3. Endpoints REST d'Observabilité SRE & Sondes Live
-Le Control Plane expose 3 endpoints REST dédiés à l'inspection :
+Le Control Plane expose 5 endpoints REST et conversationnels dédiés :
 - **`GET /api/llm/status`** : Fournisseur actif, modèle résolu, chaîne de repli et clé API masquée (`sk-or-***`).
 - **`GET /api/llm/models`** : Catalogue complet des 8 fournisseurs et recommandations pour opérer à 0 EUR.
 - **`POST /api/llm/probe`** : Sonde active qui teste en direct le LLM et mesure la latence d'aller-retour en millisecondes.
+- **`GET /api/prompts`** : Catalogue complet au format JSON des 20 prompts cognitifs MCP.
+- **`GET /chat` & `POST /api/chat`** : Interface de chat web autonome embarquant un explorateur modal des 20 prompts avec recherche et exécution en 1 clic.
 - **Bouton Console (`Phase H`)** : Déclenchement et audit en 1 clic de toutes les fonctionnalités du Hub depuis `/console`.
 
 ### 4. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
