@@ -460,6 +460,8 @@ Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.
 
 #### 5. Live `WORM Trust Ledger` Audit Trail & Concrete Impact on Target MLOps (`jakatt/cac_mlops`)
 
+> **Dedicated Technical Reference**: **[`docs/WORM_TRUST_LEDGER_GUIDE.md`](docs/WORM_TRUST_LEDGER_GUIDE.md)** | **Source Module**: **[`agentic_ops/core/evidence.py`](agentic_ops/core/evidence.py)** | **Audit Route**: `GET /api/diagnostics/trust_ledger_list`
+
 Clicking **`WORM Trust Ledger CLI`** in [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) executes `python -m agentic_ops.cli.trust_ledger list` inside the `Render` container and returns the cryptographically sealed `WORM` audit trail (`agentic_ops/evidence_store/*.json`):
 
 ```text

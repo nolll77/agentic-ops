@@ -460,6 +460,8 @@ L'intégralité des phases de validation documentées dans [`reports/DOCKER_SAND
 
 #### 5. Journal d'Audit `WORM Trust Ledger` en Direct & Impact Physique sur le MLOps Cible (`jakatt/cac_mlops`)
 
+> **Référence Technique Dédiée** : **[`docs/WORM_TRUST_LEDGER_GUIDE.md`](docs/WORM_TRUST_LEDGER_GUIDE.md)** | **Module Source** : **[`agentic_ops/core/evidence.py`](agentic_ops/core/evidence.py)** | **Route d'Audit** : `GET /api/diagnostics/trust_ledger_list`
+
 Cliquer sur **`WORM Trust Ledger CLI`** dans [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) exécute `python -m agentic_ops.cli.trust_ledger list` dans le conteneur `Render` et affiche la piste d'audit immuable `WORM` (`agentic_ops/evidence_store/*.json`) :
 
 ```text
