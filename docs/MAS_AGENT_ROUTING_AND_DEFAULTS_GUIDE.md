@@ -147,3 +147,119 @@ This guarantees that:
 1. **Zero Configuration Burden**: Leaving all environment variables blank automatically provisions each agent with its expert model (`remediation` $\rightarrow$ `deepseek-r1`, `infra` $\rightarrow$ `gemma-4-31b`, `data` $\rightarrow$ `gemma-4-26b`, `model` $\rightarrow$ `llama-3.3-70b`, `chat` $\rightarrow$ `deepseek-chat`).
 2. **Deterministic Fallbacks**: Every agent automatically inherits a 5-stage zero-cost fallback chain to absorb rate limits (`HTTP 429`) and timeouts without workflow disruption.
 3. **Upstream Decoupling**: Orchestration, state machine transitions, and policy evaluations remain 100% decoupled from LLM provider selection and model configuration.
+
+---
+
+## 6. Architecture of Non-Cognitive Components: Why Other System Actors Have No LLM (Deterministic Actuators, Sensors & Circuit Breakers)
+
+A foundational architectural requirement in production MLOps is the **strict, physical separation between the Probabilistic Cognitive Layer and the Deterministic System Layer**. 
+
+While the 5 cognitive roles (`RemediationAgent`, `InfraSpecialist`, `DataSpecialist`, `ModelSpecialist`, `WebChatCopilot`) leverage specialized Large Language Models, all other system actors, actuators, sensors, and safety nets **do not use any LLM by design (0-Token / Zero-LLM Python Pur)**.
+
+```text
++==================================================================================================+
+| ARCHITECTURAL ISOLATION: COGNITIVE AGENTS VS. ZERO-LLM DETERMINISTIC ACTUATORS                   |
++==================================================================================================+
+|                                                                                                  |
+| [ PROBABILISTIC COGNITIVE LAYER : POWERED BY SPECIALIZED LLMs ]                                  |
+| - RemediationAgent   -> DeepSeek-R1 (CoT, Blast Radius 0-5)                                      |
+| - InfraSpecialist    -> Gemma-4 31B (256k Loki log ingestion)                                    |
+| - DataSpecialist     -> Gemma-4 26B MoE (Pandera / Evidently tabular triage)                      |
+| - ModelSpecialist    -> Llama 3.3 70B (Concept drift P(Y|X) discrimination)                      |
+| - WebChatCopilot     -> DeepSeek-Chat (Low-latency SRE interaction)                              |
+|                                                                                                  |
+| ============================== STRICT ARCHITECTURAL BOUNDARY =================================== |
+|                                                                                                  |
+| [ DETERMINISTIC SYSTEM LAYER : ZERO-LLM / 100% PURE DETERMINISTIC PYTHON ]                       |
+|                                                                                                  |
+| 1. CircuitBreakerFallback (0-Token Hardcoded Fail-Safe)                                          |
+|    Triggered on API outage or rate limit storm -> Emits fixed Diagnosis -> Forces CREATE_ISSUE   |
+|                                                                                                  |
+| 2. ActionExecutor (Zero-Trust Isolated Actuator)                                                 |
+|    Applies mutations via multiprocessing.Process -> Hard 30s SIGTERM/SIGKILL -> No hallucinations |
+|                                                                                                  |
+| 3. CacPullCollector (High-Throughput Telemetry Sensor)                                           |
+|    Polls Prometheus/Loki/MLflow/Prefect over Tailscale -> Pure HTTP/JSON Data Engineering        |
+|                                                                                                  |
+| 4. SlackWebhookAgent (Cryptographic Security Gatekeeper)                                         |
+|    Validates HMAC-SHA256 signatures & 300s replay TTL -> SQLite atomic lock -> Zero probabilistic|
+|                                                                                                  |
+| 5. Governed AgentTools (Deterministic Probes & Hands)                                            |
+|    CheckDatabaseHealth, CheckDockerContainer, ValidatePanderaSchema -> Sandboxed <15s execution |
+|                                                                                                  |
+| 6. MCPServerGateway (Open Protocol Bridge)                                                       |
+|    Exposes tools via JSON-RPC 2.0 -> LLM engine is delegated to the external client (Claude, etc)|
++==================================================================================================+
+```
+
+### A. Deep Dive: Non-Cognitive System Components
+
+#### 1. `CircuitBreakerFallback`: The Zero-Token Safety Anchor
+- **Source Code**: [`agentic_ops/core/orchestrator.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/orchestrator.py), [`agentic_ops/core/circuit_breaker.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/circuit_breaker.py)
+- **Engine**: 100% Deterministic Hardcoded Python (Zero Tokens Consumed).
+- **Why No LLM?**
+  The circuit breaker trips specifically when OpenRouter or upstream model providers experience catastrophic failures: `HTTP 429 Too Many Requests` storms, quota exhaustion, `HTTP 503 Service Unavailable`, or systemic network partitions. Attempting to invoke an LLM when the circuit breaker is active would violate the core definition of a circuit breaker, introducing cascading latency and guaranteed failure.
+- **Concrete Behavior**:
+  Generates an immutable `Diagnosis` contract (`issue="CIRCUIT_BREAKER_ACTIVE"`, `confidence=1.0`, `root_cause="LLM Provider Rate Limit or Quota Exceeded"`) and enforces the passive, non-mutating action `ActionType.CREATE_ISSUE` to page on-call SRE engineers without executing automated cluster changes.
+
+#### 2. `ActionExecutor`: The Zero-Trust Mutation Actuator
+- **Source Code**: [`agentic_ops/core/executor.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/executor.py)
+- **Engine**: Pure Python Operating System Subprocess Worker.
+- **Why No LLM?**
+  The `ActionExecutor` is the "hand" of the platform that applies physical changes to production infrastructure (e.g., executing `docker restart`, invoking `systemctl restart`, triggering Prefect workflow runs, or rolling back MLflow registered model versions). Under the **Zero-Trust** security model and the **Principle of Least Privilege**, an LLM must never have direct, unmitigated shell or execution privileges.
+- **Concrete Safeguards**:
+  - Operates inside an isolated `multiprocessing.Process` with dedicated operating system PID separation.
+  - Enforces a hard 30-second execution deadline (`SIGTERM`, followed by `SIGKILL` after a 5-second grace window).
+  - Validates all action arguments against a strictly defined whitelist before execution.
+
+#### 3. `CacPullCollector`: The High-Throughput Telemetry Sensor
+- **Source Code**: [`agentic_ops/adapters/cac_pull_collector.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/cac_pull_collector.py)
+- **Engine**: Pure Asynchronous Python Network Client (`httpx` + `socks5://127.0.0.1:1055`).
+- **Why No LLM?**
+  This component acts as the continuous sensory organ of `Agentic-Ops`. It periodically queries 5 disparate production services on `jakatt/cac_mlops` across the Tailscale WireGuard mesh (Grafana Loki logs, Prometheus metrics, MLflow Model Registry, Prefect flow runs, and Evidently drift reports). Its tasks—network handshake traversal, JSON response deserialization, metric delta calculations, and emitting immutable `CacCollectedSnapshot` schemas—are pure Data Engineering. Using an LLM for network polling would incur prohibitive financial costs and unacceptable latency.
+
+#### 4. `SlackWebhookAgent`: The Cryptographic Gatekeeper
+- **Source Code**: [`agentic_ops/cli/main.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/cli/main.py), [`agentic_ops/core/approvals.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/approvals.py)
+- **Engine**: Pure Cryptographic Python (`hmac`, `hashlib`, `sqlite3`).
+- **Why No LLM?**
+  When human SRE operators click **`[ APPROVE ]`** or **`[ DENY ]`** buttons inside Slack Block Kit notifications, the inbound request (`POST /slack/interactive`) must be authenticated with zero tolerance for ambiguity or probabilistic error.
+- **Concrete Safeguards**:
+  - Calculates `HMAC-SHA256` signatures using the platform's `SLACK_SIGNING_SECRET`.
+  - Rejects replay attacks by enforcing a strict 300-second timestamp freshness window (`X-Slack-Request-Timestamp`).
+  - Acquires an atomic `SQLite BEGIN IMMEDIATE` transaction lock in `/tmp/state/approvals.db` to prevent double-spending or race conditions.
+
+#### 5. The 8 Governed `AgentTool`s: Pure Deterministic Probes
+- **Source Code**: [`agentic_ops/tools/`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/tools/) (`db.py`, `docker.py`, `drift.py`, `logs.py`, `metrics.py`, `models.py`, `retraining.py`, `security.py`)
+- **Engine**: Pure Python Probes & Diagnostics.
+- **Why No LLM?**
+  Tools are not autonomous thinkers; they are the specific sensory probes called by cognitive specialists via Tool Calling. They execute bounded actions:
+  - `CheckDatabaseHealth`: Runs raw SQL ping and connection pool queries via `psycopg2`.
+  - `CheckDockerContainer`: Inspects `/var/run/docker.sock` for container health, OOM kills, and restarts.
+  - `ValidatePanderaSchema`: Validates tabular DataFrames against strict Pandera schema contracts.
+  - `CheckMLflowModel`: Reads metadata from MLflow tracking APIs.
+  Every tool runs inside a 15-second sandbox and returns structured facts to the calling agent.
+
+#### 6. `MCPServerGateway`: The Protocol Bridge
+- **Source Code**: [`agentic_ops/entrypoints/mcp_server.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/entrypoints/mcp_server.py)
+- **Engine**: Protocol Adapter (JSON-RPC 2.0 over `stdio` and HTTP `SSE`).
+- **Which LLM Powers It?**
+  The MCP Server Gateway does not embed an internal LLM because it is a passive server governed by the Model Context Protocol. Its cognitive driver is **the external client connected to it** (e.g. Claude 3.7 Sonnet inside Claude Desktop, GPT-4o / Claude inside Cursor, or Antigravity). The gateway validates incoming RPC calls, checks tool permissions, and streams standardized responses.
+
+---
+
+### B. Comprehensive Taxonomy: Cognitive Agents vs. Deterministic System Components
+
+| Component / System Actor | Architectural Layer | Default LLM / Engine | Token Cost | Nature of Execution | Core Operational Function |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`RemediationAgent`** | Cognitive Coordination | `deepseek/deepseek-r1:free` | Dynamic (CoT) | Probabilistic Reasoning | Cross-system blast radius evaluation (0-5) and action proposal. |
+| **`InfraSpecialist`** | Cognitive Investigation | `google/gemma-4-31b-it:free` | Dynamic (256k) | Probabilistic Reasoning | Raw Loki log dump analysis and Linux kernel fault diagnosis. |
+| **`DataSpecialist`** | Cognitive Investigation | `google/gemma-4-26b-a4b-it:free` | Dynamic (MoE) | Probabilistic Reasoning | Tabular schema mutation, Pandera contract & drift diagnosis. |
+| **`ModelSpecialist`** | Cognitive Investigation | `meta-llama/llama-3.3-70b-instruct:free` | Dynamic (70B) | Probabilistic Reasoning | Statistical performance degradation and concept drift analysis. |
+| **`WebChatCopilot`** | Cognitive Interface | `deepseek/deepseek-chat:free` | Dynamic (Fast) | Probabilistic Dialogue | Interactive operator chat, prompt execution & ledger audit. |
+| **`CircuitBreakerFallback`** | Resilience Safety Net | **None (Pure Python)** | **0 Tokens** | 100% Deterministic | Hardcoded fail-safe emitting diagnosis and forcing `CREATE_ISSUE`. |
+| **`ActionExecutor`** | Executive Mutation | **None (Pure Python)** | **0 Tokens** | 100% Deterministic | Subprocess sandboxing, PID isolation & whitelist mutation. |
+| **`CacPullCollector`** | Telemetry Ingestion | **None (Pure Python)** | **0 Tokens** | 100% Deterministic | High-frequency HTTP polling of Prometheus, Loki & MLflow. |
+| **`SlackWebhookAgent`** | Human Verification | **None (Pure Python)** | **0 Tokens** | 100% Deterministic | Cryptographic `HMAC-SHA256` signature verification & locking. |
+| **8 `AgentTools`** | Sensory Probes & Hands | **None (Pure Python)** | **0 Tokens** | 100% Deterministic | 15s sandboxed diagnostic probes (SQL, Docker, Pandera). |
+| **`MCPServerGateway`** | Protocol Bridge | **Delegated to Client** | Client-side | Standard JSON-RPC 2.0 | Exposes tools and resources to external IDEs and agents. |
+

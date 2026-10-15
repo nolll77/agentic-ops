@@ -1059,6 +1059,21 @@ To avoid the single-agent bottleneck and prevent judicial conflicts of interest 
 | **`RemediationAgent`**<br>(`role="remediation"`) | Independent planning, blast radius (0-5) & reversibility | Executed on every incident during FSM state `PLANNED` | `deepseek/deepseek-r1:free` | **Anti-Bias Separation**: Specialists only diagnose facts; only the Remediation Agent evaluates cross-system blast radius and action proportionality. |
 | **`WebChatCopilot`**<br>(`role="chat"`) | Interactive operator assistance & WORM ledger audits | Triggered via `/chat` and `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimized for low-latency dialogue and immediate execution of the 20 MCP Cognitive Starter Prompts without Chain-of-Thought delay. |
 
+#### Why Other System Actors Have No LLM (Deterministic Actuators vs. Cognitive Brains)
+
+> **Dedicated Technical Reference**: **[`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#6-architecture-of-non-cognitive-components-why-other-system-actors-have-no-llm-deterministic-actuators-sensors--circuit-breakers`](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#6-architecture-of-non-cognitive-components-why-other-system-actors-have-no-llm-deterministic-actuators-sensors--circuit-breakers)**
+
+While the 5 cognitive roles above are powered by specialized LLMs, **all other system components, actuators, sensors, and safety nets operate with ZERO LLMs (0-Token, 100% Deterministic Python)** to satisfy the Zero-Trust security model:
+
+| System Actor / Component | Architectural Role | Default Engine | Token Consumption | Operational Safeguard & Rationale |
+| :--- | :--- | :--- | :--- | :--- |
+| **`CircuitBreakerFallback`** | Emergency Fail-Safe | **None (Pure Python)** | **0 Tokens** | Hardcoded fail-safe triggered on rate limit storms (`HTTP 429`) or API outages. Emits fixed `Diagnosis` and forces non-mutating `CREATE_ISSUE` without calling downstream LLMs. |
+| **`ActionExecutor`** | Infrastructure Mutation | **None (Pure Python)** | **0 Tokens** | Zero-Trust execution barrier. Applies system mutations (`docker restart`, model rollback) inside isolated `multiprocessing.Process` workers with hard 30s `SIGTERM` deadlines and argument whitelists. LLMs are strictly forbidden from having direct execution privileges. |
+| **`CacPullCollector`** | Telemetry Ingestion | **None (Pure Python)** | **0 Tokens** | Scrapes 5 endpoints on `jakatt/cac_mlops` (Loki, Prometheus, MLflow, Prefect, Evidently) over Tailscale via async `httpx`. High-frequency polling is pure Data Engineering. |
+| **`SlackWebhookAgent`** | Human Approval Gate | **None (Pure Python)** | **0 Tokens** | Validates inbound operator clicks (`POST /slack/interactive`) using cryptographic `HMAC-SHA256` signatures and 300s anti-replay timestamps with atomic `SQLite BEGIN IMMEDIATE` locks. |
+| **8 `AgentTools`** | Sensory Probes & Hands | **None (Pure Python)** | **0 Tokens** | Deterministic diagnostic tools (`CheckDatabaseHealth`, `CheckDockerContainer`, `ValidatePanderaSchema`) invoked by cognitive specialists in sandboxes under 15 seconds. |
+| **`MCPServerGateway`** | Protocol Bridge | **Delegated to Client** | Client-side | Exposes tools and resources via JSON-RPC 2.0. The cognitive intelligence is powered by the caller's external AI client (Claude Desktop, Cursor, Antigravity). |
+
 ### 6. Multi-Agent System (MAS) Fallback Architecture & Mapping Keys
 
 > **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Cognitive Specialization Guide**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
@@ -1227,7 +1242,7 @@ python -m agentic_ops.entrypoints.mcp_server
 10. **[Multi-Agent System (MAS) Fallback Architecture & Mapping Keys (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)**:
     Exhaustive architectural breakdown of the 5 cascading resilience and safety fallback layers in `Agentic-Ops`: Cognitive Multi-LLM failover, FinOps Circuit Breaker, Specialist routing fallback, Policy Engine fail-closed enforcement, and Remote VPS/Tailscale partition locks. Includes complete code mapping keys, trigger conditions, and fallback states.
 11. **[Multi-Agent System (MAS) Agent Selection & Default Routing Architecture (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)**:
-    In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default.
+    In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive architectural breakdown of non-cognitive components (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools`, and `MCPServerGateway`) operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model.
 
 
 

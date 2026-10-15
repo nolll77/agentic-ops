@@ -1059,6 +1059,21 @@ Pour éliminer le goulot d'étranglement de l'agent unique et bannir les conflit
 | **`RemediationAgent`**<br>(`role="remediation"`) | Planification indépendante, calcul du rayon d'impact (0-5) & réversibilité | Exécuté systématiquement lors de l'état FSM `PLANNED` | `deepseek/deepseek-r1:free` | **Séparation Anti-Biais** : Les spécialistes se limitent au constat factuel ; seul le coordinateur évalue le rayon d'impact systémique et la proportionnalité de l'action. |
 | **`WebChatCopilot`**<br>(`role="chat"`) | Assistance conversationnelle de l'opérateur & audit du Grand Livre WORM | Déclenché via `/chat` et `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimisé pour le dialogue à très faible latence et l'exécution immédiate des 20 Starter Prompts Cognitifs MCP sans délai de réflexion CoT. |
 
+#### Pourquoi les Autres Acteurs du Système n'ont Aucun LLM (Actionneurs Déterministes vs. Cerveaux Cognitifs)
+
+> **Référence Technique Dédiée** : **[`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#6-architecture-of-non-cognitive-components-why-other-system-actors-have-no-llm-deterministic-actuators-sensors--circuit-breakers`](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#6-architecture-of-non-cognitive-components-why-other-system-actors-have-no-llm-deterministic-actuators-sensors--circuit-breakers)**
+
+Alors que les 5 rôles cognitifs ci-dessus sont pilotés par des LLMs spécialisés, **tous les autres composants du système, actionneurs, capteurs et coupe-circuits fonctionnent avec ZÉRO LLM (0-Token, 100% Python Déterministe)** pour respecter le modèle de sécurité Zero-Trust :
+
+| Acteur Système / Composant | Rôle d'Architecture | Moteur par Défaut | Consommation Tokens | Rationale & Garde-Fou Opérationnel |
+| :--- | :--- | :--- | :--- | :--- |
+| **`CircuitBreakerFallback`** | Filet de Sécurité d'Urgence | **Aucun (Python Pur)** | **0 Tokens** | Coupe-circuit hardcodé déclenché sur tempête de rate limits (`HTTP 429`) ou panne API. Émet un `Diagnosis` figé et force l'action passive `CREATE_ISSUE` sans appeler aucun LLM secondaire. |
+| **`ActionExecutor`** | Mutation d'Infrastructure | **Aucun (Python Pur)** | **0 Tokens** | Barrière d'exécution Zero-Trust. Applique les mutations système (`docker restart`, rollback de modèle) au sein de sous-processus isolés `multiprocessing.Process` avec timeout dur `SIGTERM` de 30s et whitelist stricte. Les LLMs ont interdiction absolue d'exécuter des mutations directes. |
+| **`CacPullCollector`** | Ingestion Télémétrique | **Aucun (Python Pur)** | **0 Tokens** | Interroge périodiquement 5 services sur `jakatt/cac_mlops` (Loki, Prometheus, MLflow, Prefect, Evidently) via Tailscale en HTTP asynchrone (`httpx`). Le polling haute fréquence relève du Data Engineering pur. |
+| **`SlackWebhookAgent`** | Portier d'Approbation Humaine | **Aucun (Python Pur)** | **0 Tokens** | Authentifie les clics d'astreinte (`POST /slack/interactive`) par vérification cryptographique `HMAC-SHA256` et horodatage anti-rejeu de 300s avec verrous atomiques `SQLite BEGIN IMMEDIATE`. |
+| **8 `AgentTools`** | Sondes & Bras Armés | **Aucun (Python Pur)** | **0 Tokens** | Outils de diagnostic déterministes (`CheckDatabaseHealth`, `CheckDockerContainer`, `ValidatePanderaSchema`) appelés par les spécialistes cognitifs dans des sandboxes de moins de 15 secondes. |
+| **`MCPServerGateway`** | Passerelle Protocolaire | **Délégué au Client** | Côté client | Expose les outils et ressources en JSON-RPC 2.0. L'intelligence cognitive est déléguée au client IA externe connecté (Claude Desktop, Cursor, Antigravity). |
+
 ### 6. Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping
 
 > **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Guide de Spécialisation Cognitive** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
@@ -1227,7 +1242,7 @@ python -m agentic_ops.entrypoints.mcp_server
 10. **[Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** :
     Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs et états de repli.
 11. **[Architecture de Sélection des Agents & Routage par Défaut du MAS (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** :
-    Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme.
+    Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust.
 
 
 
