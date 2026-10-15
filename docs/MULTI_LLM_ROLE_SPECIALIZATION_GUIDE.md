@@ -48,15 +48,46 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 
 ---
 
-## 3. Cognitive Profiles Matrix
+## 3. Cognitive Profiles Matrix & Deep Architectural Rationale
 
-| Role (`role`) | Primary Focus | Recommended 0 EUR Model | Context Window | Key Capability |
+| Role (`role`) | Primary Focus | Default 0 EUR Model | Context Window | Key Capability |
 | :--- | :--- | :--- | :--- | :--- |
 | **`remediation`** | Action Planning & Blast Radius | `openrouter/deepseek/deepseek-r1:free` | `64,000` tokens | Deep CoT reasoning, risk impact grading (`0-5`), strict reversibility checks. |
-| **`infra`** | Loki Logs & Network Saturation | `openrouter/google/gemma-4-31b-it:free` | `262,144` tokens | Multi-page log ingestion, kernel trace anomaly extraction. |
-| **`data`** | Evidently Drift & Schema Checks | `openrouter/google/gemma-4-26b-a4b-it:free` | `262,144` tokens | Fast Mixture-of-Experts JSON extraction, Pandera error parsing. |
-| **`model`** | Model Drift & MLflow Evaluation | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `128,000` tokens | High-parameter benchmark evaluation, false positive suppression. |
+| **`infra`** | Loki Logs & Network Saturation | `openrouter/google/gemma-4-31b-it:free` | `262,144` tokens | Multi-page log ingestion, kernel trace anomaly extraction without truncation. |
+| **`data`** | Evidently Drift & Schema Checks | `openrouter/google/gemma-4-26b-a4b-it:free` | `262,144` tokens | Fast Mixture-of-Experts JSON extraction, Pandera error parsing at sub-second latency. |
+| **`model`** | Model Drift & MLflow Evaluation | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `128,000` tokens | High-parameter benchmark evaluation, false positive suppression on minority classes. |
 | **`chat`** | Human SRE Copilot & Console UI | `openrouter/deepseek/deepseek-chat:free` | `64,000` tokens | Immediate interactive response, no `<think>` tags, structured metadata cards. |
+
+---
+
+### Detailed Rationale for Each Agent's Default Model Selection
+
+#### 1. RemediationAgent (`role="remediation"`) -> `DeepSeek-R1:free`
+- **The Operational Challenge**: The remediation coordinator does not merely read logs; it holds the responsibility of deciding whether to trigger container restarts, pod evacuations, or production rollbacks. Proposing an uncalculated mutation can cascade a minor incident into a total platform outage.
+- **Why DeepSeek-R1 is Non-Negotiable**: DeepSeek-R1 is an open-weights reasoning model that performs deliberate, multi-step Chain-of-Thought (CoT) reflection enclosed in `<think>...</think>` tags prior to delivering its JSON payload. This allows the model to perform out-of-band causal deduction:
+  - *Dependency cross-check*: Does this latency spike originate from a database deadlock or from downstream queue starvation?
+  - *Blast radius calibration*: It mathematically estimates the blast radius score ($0$ to $5$) and reversibility flag required by `ActionIntent` before passing the proposal to the `PolicyEngine`.
+- **Verdict**: A fast, non-reasoning model would produce hasty, destructive action proposals; DeepSeek-R1 enforces judicial deliberation.
+
+#### 2. InfraSpecialist (`role="infra"`) -> `Google Gemma-4 31B:free`
+- **The Operational Challenge**: Infrastructure crashes (e.g. Linux kernel out-of-memory kills, TCP socket exhaustion, Docker container crash loops, PostgreSQL connection pool starvation) emit thousands of lines of dense, interleaved telemetry.
+- **Why Gemma-4 31B is Non-Negotiable**: Standard LLMs truncate prompts at 8,000 or 16,000 tokens, inevitably dropping the root-cause stack trace located in the middle of a log dump. Gemma-4 31B features a massive **256,000-token context window**. It ingests raw Loki log streams, systemd journals, and kernel ring buffers in a single pass without pre-truncation, identifying the exact timestamp and thread where the hardware or networking boundary failed.
+- **Verdict**: Context window capacity is the primary constraint in SRE debugging; 256k tokens eliminates telemetry blindness.
+
+#### 3. DataSpecialist (`role="data"`) -> `Google Gemma-4 26B (MoE):free`
+- **The Operational Challenge**: Data quality failures (e.g. Pandera contract breaches, missing categorical levels in the BAAC road accident tables, covariate drift detected by Evidently) require sub-second triage across structured schemas and statistical tables.
+- **Why Gemma-4 26B is Non-Negotiable**: Data investigation requires high-throughput tabular comprehension, strict Pydantic JSON serialization, and minimal latency. Utilizing a 671B reasoning model for basic schema validation is economically wasteful and operationally sluggish. Gemma-4 26B uses an efficient Mixture-of-Experts (MoE) architecture that delivers immediate, deterministic diagnostics of drift matrices and schema anomalies with zero token waste.
+- **Verdict**: Pure schema and distribution validation demands throughput and precision rather than philosophical contemplation; Gemma-4 26B delivers sub-second extraction.
+
+#### 4. ModelSpecialist (`role="model"`) -> `Meta Llama 3.3 70B:free`
+- **The Operational Challenge**: Machine learning models in production rarely fail with simple syntax errors; they fail through subtle statistical decay (concept drift, prediction distribution shifts, covariate degradation). In the BAAC road accident severity domain, the model must maintain high F1-Score sensitivity on sparse, critical minority classes (fatalities and severe injuries) against the MLflow reference baseline.
+- **Why Llama 3.3 70B is Non-Negotiable**: Differentiating between genuine concept drift ($P(Y \mid X)$ shift requiring retraining) and transient input noise ($P(X)$ feature anomaly) requires strong mathematical and statistical reasoning capacity. With 70 billion parameters, Llama 3.3 provides the conceptual depth needed to interpret confusion matrices, evaluate ROC-AUC degradation, and suppress false-positive retraining proposals.
+- **Verdict**: High parameter count is essential to prevent costly, unwarranted model retraining cycles.
+
+#### 5. WebChatCopilot (`role="chat"`) -> `DeepSeek-Chat:free`
+- **The Operational Challenge**: Unlike autonomous agents operating asynchronously in the background, the Web Chat interface (`/chat`) directly serves human SRE engineers and on-call operators in live operational war-rooms.
+- **Why DeepSeek-Chat is Non-Negotiable**: If `DeepSeek-R1` were assigned to `/chat`, the operator would wait 10 to 25 seconds while the model generated hundreds of invisible `<think>` tokens before displaying the first word. `deepseek-chat:free` (DeepSeek-V3) operates without thinking envelopes, streaming tokens instantaneously (sub-second Time-to-First-Token) while providing full markdown formatting and immediate execution of the 20 MCP Cognitive Starter Prompts.
+- **Verdict**: Human interaction requires instantaneous conversational streaming; DeepSeek-Chat provides immediate response times with zero cognitive lag.
 
 ---
 

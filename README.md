@@ -996,6 +996,12 @@ Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an arc
 | **`chat`** | Interactive Web Chat Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
 
 - **Native Distributed Intelligence Out-of-the-Box**: Without setting a single environment variable, each agent is natively routed to its expert LLM above. If `LLM_MODEL` is explicitly defined, it serves as a universal override; if `LLM_MODEL_{ROLE}` is defined, it overrides that specific agent.
+- **Why These Specific Default Models? (Architectural Rationale)**:
+  - **`remediation` $\rightarrow$ `DeepSeek-R1`**: Deliberate Chain-of-Thought reasoning within `<think>` tags to evaluate blast radius ($0-5$), system dependencies, and action reversibility before mutating production.
+  - **`infra` $\rightarrow$ `Gemma-4 31B`**: Massive 256,000-token context window to ingest complete Loki log dumps, systemd journals, and Linux kernel traces in a single pass without truncation.
+  - **`data` $\rightarrow$ `Gemma-4 26B (MoE)`**: Ultra-low latency and deterministic Pydantic JSON extraction for sub-second schema validation (Pandera) and covariate drift triage (Evidently).
+  - **`model` $\rightarrow$ `Llama 3.3 70B`**: High-capacity 70B parameter statistical rigor to differentiate genuine concept drift ($P(Y \mid X)$) from transient input noise ($P(X)$) on minority classes (fatalities/injuries).
+  - **`chat` $\rightarrow$ `DeepSeek-Chat`**: Instantaneous conversational streaming without thinking delays (sub-second TTFT) for smooth operator assistance on `/chat`.
 - **Granular FinOps Metrics**: Prometheus isolates token consumption and latency per role: `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Live Topology**: Active roles and their models are dynamically inspectable via `GET /api/llm/status` under the `roles_topology` key.
 

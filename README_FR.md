@@ -996,6 +996,12 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 | **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
 
 - **Intelligence Distribuée Native Sans Configuration** : Sans définir la moindre variable d'environnement, chaque agent hérite nativement et automatiquement de son modèle expert ci-dessus. Si `LLM_MODEL` est renseigné, il agit comme un override universel pour tous les agents ; si `LLM_MODEL_{ROLE}` est défini, il surcharge spécifiquement cet agent.
+- **Pourquoi ces Modèles Spécifiques par Défaut ? (Justification Architecturale)** :
+  - **`remediation` $\rightarrow$ `DeepSeek-R1`** : Raisonnement délibéré pas-à-pas (Chain-of-Thought) au sein des balises `<think>` pour évaluer le rayon d'impact (*Blast Radius* de 0 à 5), les dépendances du cluster et la réversibilité avant toute mutation en production.
+  - **`infra` $\rightarrow$ `Gemma-4 31B`** : Contexte massif de 256 000 tokens permettant d'ingérer des dumps complets de logs système Loki, de journaux systemd et de traces noyau Linux en une seule passe sans troncature.
+  - **`data` $\rightarrow$ `Gemma-4 26B (MoE)`** : Latence ultra-faible et extraction JSON Pydantic déterministe pour le triage rapide des schémas tabulaires (Pandera) et des dérives de covariables (Evidently).
+  - **`model` $\rightarrow$ `Llama 3.3 70B`** : Rigueur statistique d'un modèle lourd de 70 milliards de paramètres pour différencier une vraie dérive de concept ($P(Y \mid X)$) d'un bruit passager d'entrées ($P(X)$) sur les classes rares (tués et blessés graves BAAC).
+  - **`chat` $\rightarrow$ `DeepSeek-Chat`** : Streaming conversationnel instantané sans délai de réflexion `<think>` (TTFT sub-seconde) pour une assistance fluide de l'opérateur SRE sur `/chat`.
 - **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 
