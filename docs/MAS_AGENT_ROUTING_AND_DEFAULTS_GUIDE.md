@@ -17,58 +17,58 @@ To resolve these challenges, `Agentic-Ops` implements a **Multi-Agent System (MA
 - **Strict Separation of Diagnostic Investigation and Remediation Planning**: Specialists investigate anomalies and emit a typed `Diagnosis` contract. The `RemediationAgent` receives this factual evidence out-of-band and formulates an `ActionIntent` proposal.
 - **Deterministic Risk Taxonomy Routing with Safe Defaults**: Agent assignment is governed by explicit taxonomic routing rules in `Orchestrator._get_specialist()`. Any unknown or unclassified incident is captured by the default fallback specialist.
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS MAS AGENT TOPOLOGY & FLOW PIPELINE                                                   |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-|                                       [Incoming Incident Signal]                                 |
-|                                     (risk_id, signal_id, metrics)                                |
-|                                                    |                                             |
-|                                                    v                                             |
-|                                   +----------------------------------+                           |
-|                                   |  Orchestrator Routing Mechanism  |                           |
-|                                   |     _get_specialist(risk_id)     |                           |
-|                                   +----------------------------------+                           |
-|                                                    |                                             |
-|                    +-------------------------------+-------------------------------+             |
-|                    |                               |                               |             |
-|         "MODEL" in risk_id.upper()      "INFRA" in risk_id.upper()           Default / Fallback   |
-|                    |                               |                               |             |
-|                    v                               v                               v             |
-|         +---------------------+         +---------------------+         +---------------------+  |
-|         |   ModelSpecialist   |         |   InfraSpecialist   |         |   DataSpecialist    |  |
-|         |  (role="model")     |         |  (role="infra")     |         |  (role="data")      |  |
-|         |  MLflow / F1 Drift  |         |  Loki / Kernel Logs |         | [DEFAULT AGENT]     |  |
-|         +---------------------+         +---------------------+         +---------------------+  |
-|                    \                               |                               /             |
-|                     \                              |                              /              |
-|                      +-----------------------------+-----------------------------+               |
-|                                                    |                                             |
-|                                                    v Emits Diagnosis Contract                    |
-|                                   +----------------------------------+                           |
-|                                   |         RemediationAgent         |                           |
-|                                   |       (role="remediation")       |                           |
-|                                   |  Evaluates Blast Radius (CoT)    |                           |
-|                                   +----------------------------------+                           |
-|                                                    |                                             |
-|                                                    v Emits ActionIntent Contract                 |
-|                                   +----------------------------------+                           |
-|                                   |           PolicyEngine           |                           |
-|                                   |    (Zero-Trust OPA Gatekeeper)   |                           |
-|                                   +----------------------------------+                           |
-|                                                    |                                             |
-|                    +-------------------------------+-------------------------------+             |
-|                    |                                                               |             |
-|                    v DecisionEnum.ALLOW                                            v             |
-|         +---------------------+                                         +---------------------+  |
-|         | ActionExecutor      |                                         | Slack HITL Workflow |  |
-|         | (Safe Subprocess)   |                                         | (Awaiting Approval) |  |
-|         +---------------------+                                         +---------------------+  |
-|                                                                                                  |
-| [Independent Conversational Track]                                                               |
-| Web Chat Copilot (/chat) -> role="chat" (Fast-response, non-blocking operator interface)          |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS MAS AGENT TOPOLOGY & FLOW PIPELINE                                                   [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m                                       [Incoming Incident Signal]                                 [1;34m|[0m
+[1;34m|[0m                                     (risk_id, signal_id, metrics)                                [1;34m|[0m
+[1;34m|[0m                                                    |                                             [1;34m|[0m
+[1;34m|[0m                                                    v                                             [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                   |  [1;32mOrchestrator[0m Routing Mechanism  |                           [1;34m|[0m
+[1;34m|[0m                                   |     _get_specialist(risk_id)     |                           [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                                    |                                             [1;34m|[0m
+[1;34m|[0m[1;34m                    +-------------------------------+-------------------------------+             [0m[1;34m|[0m
+[1;34m|[0m                    |                               |                               |             [1;34m|[0m
+[1;34m|[0m         "MODEL" in risk_id.upper()      "INFRA" in risk_id.upper()           Default / Fallback   [1;34m|[0m
+[1;34m|[0m                    |                               |                               |             [1;34m|[0m
+[1;34m|[0m                    v                               v                               v             [1;34m|[0m
+[1;34m|[0m         +---------------------+         +---------------------+         +---------------------+  [1;34m|[0m
+[1;34m|[0m         |   [1;35mModelSpecialist[0m   |         |   [1;35mInfraSpecialist[0m   |         |   [1;35mDataSpecialist[0m    |  [1;34m|[0m
+[1;34m|[0m         |  (role="model")     |         |  (role="infra")     |         |  (role="data")      |  [1;34m|[0m
+[1;34m|[0m         |  MLflow / F1 Drift  |         |  Loki / Kernel Logs |         | [1;35m[DEFAULT AGENT][0m     |  [1;34m|[0m
+[1;34m|[0m         +---------------------+         +---------------------+         +---------------------+  [1;34m|[0m
+[1;34m|[0m                    \                               |                               /             [1;34m|[0m
+[1;34m|[0m                     \                              |                              /              [1;34m|[0m
+[1;34m|[0m[1;34m                      +-----------------------------+-----------------------------+               [0m[1;34m|[0m
+[1;34m|[0m                                                    |                                             [1;34m|[0m
+[1;34m|[0m                                                    v Emits Diagnosis Contract                    [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                   |         [1;35mRemediationAgent[0m         |                           [1;34m|[0m
+[1;34m|[0m                                   |       (role="remediation")       |                           [1;34m|[0m
+[1;34m|[0m                                   |  Evaluates Blast Radius (CoT)    |                           [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                                    |                                             [1;34m|[0m
+[1;34m|[0m                                                    v Emits ActionIntent Contract                 [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                   |           [1;32mPolicyEngine[0m           |                           [1;34m|[0m
+[1;34m|[0m                                   |    (Zero-Trust OPA Gatekeeper)   |                           [1;34m|[0m
+[1;34m|[0m[1;34m                                   +----------------------------------+                           [0m[1;34m|[0m
+[1;34m|[0m                                                    |                                             [1;34m|[0m
+[1;34m|[0m[1;34m                    +-------------------------------+-------------------------------+             [0m[1;34m|[0m
+[1;34m|[0m                    |                                                               |             [1;34m|[0m
+[1;34m|[0m                    v DecisionEnum.ALLOW                                            v             [1;34m|[0m
+[1;34m|[0m         +---------------------+                                         +---------------------+  [1;34m|[0m
+[1;34m|[0m         | ActionExecutor      |                                         | Slack HITL Workflow |  [1;34m|[0m
+[1;34m|[0m         | (Safe Subprocess)   |                                         | (Awaiting Approval) |  [1;34m|[0m
+[1;34m|[0m         +---------------------+                                         +---------------------+  [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [Independent Conversational Track]                                                               [1;34m|[0m
+[1;34m|[0m Web Chat Copilot (/chat) [1;36m->[0m role="chat" (Fast-response, non-blocking operator interface)          [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ---
@@ -156,40 +156,40 @@ A foundational architectural requirement in production MLOps is the **strict, ph
 
 While the 5 cognitive roles (`RemediationAgent`, `InfraSpecialist`, `DataSpecialist`, `ModelSpecialist`, `WebChatCopilot`) leverage specialized Large Language Models, all other system actors, actuators, sensors, and safety nets **do not use any LLM by design (0-Token / Zero-LLM Python Pur)**.
 
-```text
-+==================================================================================================+
-| ARCHITECTURAL ISOLATION: COGNITIVE AGENTS VS. ZERO-LLM DETERMINISTIC ACTUATORS                   |
-+==================================================================================================+
-|                                                                                                  |
-| [ PROBABILISTIC COGNITIVE LAYER : POWERED BY SPECIALIZED LLMs ]                                  |
-| - RemediationAgent   -> DeepSeek-R1 (CoT, Blast Radius 0-5)                                      |
-| - InfraSpecialist    -> Gemma-4 31B (256k Loki log ingestion)                                    |
-| - DataSpecialist     -> Gemma-4 26B MoE (Pandera / Evidently tabular triage)                      |
-| - ModelSpecialist    -> Llama 3.3 70B (Concept drift P(Y|X) discrimination)                      |
-| - WebChatCopilot     -> DeepSeek-Chat (Low-latency SRE interaction)                              |
-|                                                                                                  |
-| ============================== STRICT ARCHITECTURAL BOUNDARY =================================== |
-|                                                                                                  |
-| [ DETERMINISTIC SYSTEM LAYER : ZERO-LLM / 100% PURE DETERMINISTIC PYTHON ]                       |
-|                                                                                                  |
-| 1. CircuitBreakerFallback (0-Token Hardcoded Fail-Safe)                                          |
-|    Triggered on API outage or rate limit storm -> Emits fixed Diagnosis -> Forces CREATE_ISSUE   |
-|                                                                                                  |
-| 2. ActionExecutor (Zero-Trust Isolated Actuator)                                                 |
-|    Applies mutations via multiprocessing.Process -> Hard 30s SIGTERM/SIGKILL -> No hallucinations |
-|                                                                                                  |
-| 3. CacPullCollector (High-Throughput Telemetry Sensor)                                           |
-|    Polls Prometheus/Loki/MLflow/Prefect over Tailscale -> Pure HTTP/JSON Data Engineering        |
-|                                                                                                  |
-| 4. SlackWebhookAgent (Cryptographic Security Gatekeeper)                                         |
-|    Validates HMAC-SHA256 signatures & 300s replay TTL -> SQLite atomic lock -> Zero probabilistic|
-|                                                                                                  |
-| 5. Governed AgentTools (Deterministic Probes & Hands)                                            |
-|    CheckDatabaseHealth, CheckDockerContainer, ValidatePanderaSchema -> Sandboxed <15s execution |
-|                                                                                                  |
-| 6. MCPServerGateway (Open Protocol Bridge)                                                       |
-|    Exposes tools via JSON-RPC 2.0 -> LLM engine is delegated to the external client (Claude, etc)|
-+==================================================================================================+
+```ansi
+[1;34m+==================================================================================================+[0m
+[1;34m|[0m ARCHITECTURAL ISOLATION: COGNITIVE AGENTS VS. ZERO-LLM DETERMINISTIC ACTUATORS                   [1;34m|[0m
+[1;34m+==================================================================================================+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[ PROBABILISTIC COGNITIVE LAYER : POWERED BY SPECIALIZED LLMs ][0m                                  [1;34m|[0m
+[1;34m|[0m - [1;35mRemediationAgent[0m   [1;36m->[0m DeepSeek-R1 (CoT, Blast Radius 0-5)                                      [1;34m|[0m
+[1;34m|[0m - [1;35mInfraSpecialist[0m    [1;36m->[0m Gemma-4 31B (256k Loki log ingestion)                                    [1;34m|[0m
+[1;34m|[0m - [1;35mDataSpecialist[0m     [1;36m->[0m Gemma-4 26B MoE (Pandera / Evidently tabular triage)                      [1;34m|[0m
+[1;34m|[0m - [1;35mModelSpecialist[0m    [1;36m->[0m Llama 3.3 70B (Concept drift P(Y|X) discrimination)                      [1;34m|[0m
+[1;34m|[0m - [1;35mWebChatCopilot[0m     [1;36m->[0m DeepSeek-Chat (Low-latency SRE interaction)                              [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;36m[1m============================== STRICT ARCHITECTURAL BOUNDARY ===================================[0m [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[ DETERMINISTIC SYSTEM LAYER : ZERO-LLM / 100% PURE DETERMINISTIC PYTHON ][0m                       [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 1. CircuitBreakerFallback ([1;32m0-Token[0m Hardcoded Fail-Safe)                                          [1;34m|[0m
+[1;34m|[0m    Triggered on API outage or rate limit storm [1;36m->[0m Emits fixed Diagnosis [1;36m->[0m Forces CREATE_ISSUE   [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 2. ActionExecutor (Zero-Trust Isolated Actuator)                                                 [1;34m|[0m
+[1;34m|[0m    Applies mutations via multiprocessing.Process [1;36m->[0m Hard 30s SIGTERM/SIGKILL [1;36m->[0m No hallucinations [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 3. CacPullCollector (High-Throughput Telemetry Sensor)                                           [1;34m|[0m
+[1;34m|[0m    Polls Prometheus/Loki/MLflow/Prefect over Tailscale [1;36m->[0m Pure HTTP/JSON Data Engineering        [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 4. SlackWebhookAgent (Cryptographic Security Gatekeeper)                                         [1;34m|[0m
+[1;34m|[0m    Validates HMAC-SHA256 signatures & 300s replay TTL [1;36m->[0m SQLite atomic lock [1;36m->[0m Zero probabilistic[1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 5. Governed AgentTools (Deterministic Probes & Hands)                                            [1;34m|[0m
+[1;34m|[0m    CheckDatabaseHealth, CheckDockerContainer, ValidatePanderaSchema [1;36m->[0m Sandboxed <15s execution [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 6. MCPServerGateway (Open Protocol Bridge)                                                       [1;34m|[0m
+[1;34m|[0m    Exposes tools via JSON-RPC 2.0 -> LLM engine is delegated to the external client (Claude, etc)[1;34m|[0m
+[1;34m+==================================================================================================+[0m
 ```
 
 ### A. Deep Dive: Non-Cognitive System Components
@@ -292,48 +292,48 @@ Deploying complex interactive observability on free cloud tiers presents severe 
 
 The modal employs a 2-column responsive layout: the left sidebar provides category filters (`All`, `Cognitive Brains (LLM)`, `Deterministic (0-Token)`) and selectable component cards; the right panel displays the comprehensive **Encart Dédié** (Dedicated Component Card):
 
-```text
-+--------------------------------------------------------------------------------------------------+
-|  MAS ARCHITECTURE & LIVE COMPONENT INSPECTOR                                       [ X Close ]  |
-+--------------------------------------------------------------------------------------------------+
-|  [Filter: All (11)]  [Filter: Cognitive Brains (5)]  [Filter: Deterministic Actuators (6)]       |
-+------------------------------------+-------------------------------------------------------------+
-|  COMPONENT SELECTION LIST          |  DEDICATED COMPONENT DOSSIER ("ENCART DEDIE")               |
-|                                    |                                                             |
-|  [*] RemediationAgent              |  [Role: RemediationAgent]  | Domain: SRE Incident Recovery  |
-|      deepseek-r1:free (CoT)        |  Status: LIVE ONLINE       | Type: Cognitive LLM Brain      |
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m  MAS ARCHITECTURE & LIVE COMPONENT INSPECTOR                                       [ X Close ]  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m  [Filter: All (11)]  [Filter: Cognitive Brains (5)]  [Filter: Deterministic Actuators (6)]       [1;34m|[0m
+[1;34m+------------------------------------+-------------------------------------------------------------+[0m
+[1;34m|[0m [1;36m[1mCOMPONENT SELECTION LIST          |  DEDICATED COMPONENT DOSSIER ("ENCART DEDIE")[0m [1;34m|[0m
+[1;34m|[0m                                    |                                                             [1;34m|[0m
+[1;34m|[0m  [*] [1;35mRemediationAgent[0m              |  [Role: [1;35mRemediationAgent[0m]  | Domain: SRE Incident Recovery  [1;34m|[0m
+[1;34m|[0m      deepseek-r1:free (CoT)        |  Status: LIVE ONLINE       | Type: Cognitive LLM Brain      [1;34m|[0m
 |                                    +-------------------------------------------------------------+
-|  [ ] InfraSpecialist               |                                                             |
-|      gemma-4-31b-it:free (256k)    |  1. IDENTITY & OPERATIONAL MISSION                          |
-|                                    |     - Responsibility: Causal inference & blast radius plan  |
-|  [ ] DataSpecialist                |     - FSM Trigger: Executed unconditionally in [PLANNED]    |
-|      gemma-4-26b-a4b-it:free (MoE) |     - Judicial Safeguard: Anti-bias separation of powers    |
-|                                    |                                                             |
-|  [ ] ModelSpecialist               |  2. ACTIVE ENGINE & INFERENCE CONFIGURATION                 |
-|      llama-3.3-70b-instruct:free   |     - Active Model: openrouter/deepseek/deepseek-r1:free    |
-|                                    |     - Reasoning Mode: Chain-of-Thought (<think> filtered)   |
-|  [ ] WebChatCopilot                |     - Cascading Fallbacks: deepseek-chat -> llama-3.3-70b   |
-|      deepseek-chat:free            |     - Hyperparameters: Temp = 0.0 | MaxTokens = 4096 | 30s  |
-|                                    |     - Override Variable: LLM_MODEL_REMEDIATION              |
-|  [ ] CircuitBreakerFallback        |     - Architectural Rationale: Only free model with deep    |
-|      0-Token Pure Python           |       causal CoT capability for blast radius assessment.    |
-|                                    |                                                             |
-|  [ ] ActionExecutor                |  3. DATA CONTRACTS & SYSTEM DEPENDENCIES                    |
-|      0-Token Subprocess Sandbox    |     - Input Contract: Pydantic Diagnosis                    |
-|                                    |     - Output Contract: Pydantic ActionIntent                |
-|  [ ] CacPullCollector             |     - Connected Services: Redis (:6379), OPA PolicyEngine   |
-|      0-Token Telemetry Ingestion   |     - Permitted Tools: None (Judicially isolated)           |
-|                                    |                                                             |
-|  [ ] SlackWebhookAgent             |  4. SECURITY, BLAST RADIUS & FINOPS OBSERVABILITY           |
-|      0-Token HMAC Gate             |     - Authorized Blast Radius: 0 to 5 (PolicyEngine veto)   |
-|                                    |     - WORM Ledger: Merkle cryptographically sealed (SHA256) |
-|  [ ] 8 AgentTools                  |     - PromQL Metric: agentic_ops_llm_requests_total{role=""} |
-|      0-Token Sensory Probes        |     - Failure Domain: Trips CircuitBreaker on 429/timeout   |
-|                                    |                                                             |
-|  [ ] MCPServerGateway              |  5. INTERACTIVE LIVE ACTIONS                                |
-|      JSON-RPC 2.0 Bridge           |     [ Test LLM Probe (/api/llm/probe) ]                     |
-|                                    |     [ Copy PromQL Metric Query ]                            |
-+------------------------------------+-------------------------------------------------------------+
+[1;34m|[0m  [ ] [1;35mInfraSpecialist[0m               |                                                             [1;34m|[0m
+[1;34m|[0m      gemma-4-31b-it:[1;32mfree[0m (256k)    |  1. IDENTITY & OPERATIONAL MISSION                          [1;34m|[0m
+[1;34m|[0m                                    |     - Responsibility: Causal inference & blast radius plan  [1;34m|[0m
+[1;34m|[0m  [ ] [1;35mDataSpecialist[0m                |     - FSM Trigger: Executed unconditionally in [PLANNED]    [1;34m|[0m
+[1;34m|[0m      gemma-4-26b-a4b-it:[1;32mfree[0m (MoE) |     - Judicial Safeguard: Anti-bias separation of powers    [1;34m|[0m
+[1;34m|[0m                                    |                                                             [1;34m|[0m
+[1;34m|[0m  [ ] [1;35mModelSpecialist[0m               |  2. ACTIVE ENGINE & INFERENCE CONFIGURATION                 [1;34m|[0m
+[1;34m|[0m      llama-3.3-70b-instruct:[1;32mfree[0m   |     - Active Model: openrouter/deepseek/deepseek-r1:[1;32mfree[0m    [1;34m|[0m
+[1;34m|[0m                                    |     - Reasoning Mode: Chain-of-Thought (<think> filtered)   [1;34m|[0m
+[1;34m|[0m  [ ] [1;35mWebChatCopilot[0m                |     - Cascading Fallbacks: deepseek-chat [1;36m->[0m llama-3.3-70b   [1;34m|[0m
+[1;34m|[0m      deepseek-chat:[1;32mfree[0m            |     - Hyperparameters: Temp = 0.0 | MaxTokens = 4096 | 30s  [1;34m|[0m
+[1;34m|[0m                                    |     - Override Variable: LLM_MODEL_REMEDIATION              [1;34m|[0m
+[1;34m|[0m  [ ] CircuitBreakerFallback        |     - Architectural Rationale: Only [1;32mfree[0m model with deep    [1;34m|[0m
+[1;34m|[0m      [1;32m0-Token[0m Pure Python           |       causal CoT capability for blast radius assessment.    [1;34m|[0m
+[1;34m|[0m                                    |                                                             [1;34m|[0m
+[1;34m|[0m  [ ] ActionExecutor                |  3. DATA CONTRACTS & SYSTEM DEPENDENCIES                    [1;34m|[0m
+[1;34m|[0m      [1;32m0-Token[0m Subprocess Sandbox    |     - Input Contract: Pydantic Diagnosis                    [1;34m|[0m
+[1;34m|[0m                                    |     - Output Contract: Pydantic ActionIntent                [1;34m|[0m
+[1;34m|[0m  [ ] CacPullCollector             |     - Connected Services: Redis (:6379), OPA [1;32mPolicyEngine[0m   [1;34m|[0m
+[1;34m|[0m      [1;32m0-Token[0m Telemetry Ingestion   |     - Permitted Tools: None (Judicially isolated)           [1;34m|[0m
+[1;34m|[0m                                    |                                                             [1;34m|[0m
+[1;34m|[0m  [ ] SlackWebhookAgent             |  4. SECURITY, BLAST RADIUS & FINOPS OBSERVABILITY           [1;34m|[0m
+[1;34m|[0m      [1;32m0-Token[0m HMAC Gate             |     - Authorized Blast Radius: 0 to 5 ([1;32mPolicyEngine[0m veto)   [1;34m|[0m
+[1;34m|[0m                                    |     - WORM Ledger: Merkle cryptographically sealed (SHA256) [1;34m|[0m
+[1;34m|[0m  [ ] 8 AgentTools                  |     - PromQL Metric: agentic_ops_llm_requests_total{role=""} [1;34m|[0m
+[1;34m|[0m      [1;32m0-Token[0m Sensory Probes        |     - Failure Domain: Trips CircuitBreaker on 429/timeout   [1;34m|[0m
+[1;34m|[0m                                    |                                                             [1;34m|[0m
+[1;34m|[0m  [1;36m[ ][0m MCPServerGateway              |  5. INTERACTIVE LIVE ACTIONS                                [1;34m|[0m
+[1;34m|[0m      JSON-RPC 2.0 Bridge           |     [1;35m[ Test LLM Probe (/api/llm/probe) ][0m                     [1;34m|[0m
+[1;34m|[0m                                    |     [ Copy PromQL Metric Query ]                            [1;34m|[0m
+[1;34m+------------------------------------+-------------------------------------------------------------+[0m
 ```
 
 ---

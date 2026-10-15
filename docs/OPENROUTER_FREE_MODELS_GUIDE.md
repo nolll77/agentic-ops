@@ -16,32 +16,32 @@ OpenRouter acts as a **unified multi-model proxy and clearinghouse**:
 - **Zero Provider Configuration**: There is no need to enable individual models, request quotas from model creators, or configure endpoints on the OpenRouter dashboard. The pipe is completely open; specifying the model string dynamically selects the backend.
 - **Zero Billing Risk**: If no credit card is linked to the OpenRouter account, requests targeting paid endpoints fail with `HTTP 402 Payment Required`. Any model tagged with `:free` incurs strictly **0.00 EUR** in input and output token fees.
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS CONTROL PLANE (FastAPI / FSM / RemediationAgent)                                      |
-+------------------------------------------------+-------------------------------------------------+
-                                                 |
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS CONTROL PLANE (FastAPI / FSM / RemediationAgent)                                      [1;34m|[0m
+[1;34m+------------------------------------------------+-------------------------------------------------+[0m
+[1;34m|[0m[1;34m|[0m
                                                  v
-+--------------------------------------------------------------------------------------------------+
-| LLM PROVIDER REGISTRY (agentic_ops/adapters/llm_provider_registry.py)                            |
-| Resolves: LLM_PROVIDER=openrouter -> Profile, Sanitized Key (sk-or-***), Fallback Chain           |
-+------------------------------------------------+-------------------------------------------------+
-                                                 |
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m LLM PROVIDER REGISTRY (agentic_ops/adapters/llm_provider_registry.py)                            [1;34m|[0m
+[1;34m|[0m Resolves: LLM_PROVIDER=openrouter -> Profile, Sanitized Key (sk-or-***), Fallback Chain           [1;34m|[0m
+[1;34m+------------------------------------------------+-------------------------------------------------+[0m
+[1;34m|[0m[1;34m|[0m
                                                  v
-+--------------------------------------------------------------------------------------------------+
-| FALLBACK LLM ADAPTER (agentic_ops/adapters/llm_protocol.py)                                       |
-| Sequential try: Primary -> Fallback 1 -> Fallback 2 (HTTP 429 / Timeout Interception)             |
-+------------------------------------------------+-------------------------------------------------+
-                                                 |
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m FALLBACK LLM ADAPTER (agentic_ops/adapters/llm_protocol.py)                                       [1;34m|[0m
+[1;34m|[0m Sequential try: Primary -> Fallback 1 -> Fallback 2 (HTTP 429 / Timeout Interception)             [1;34m|[0m
+[1;34m+------------------------------------------------+-------------------------------------------------+[0m
+[1;34m|[0m[1;34m|[0m
                          OpenRouter HTTPS API Gateway (POST https://openrouter.ai/api/v1/chat/completions)
                                                  v
-+--------------------------------------------------------------------------------------------------+
-| OPENROUTER UNIFIED MODEL HUB (200+ Models Available via Single API Key)                          |
-|                                                                                                  |
-| [Google Gemma 4 Free]       [DeepSeek Reasoning]      [NVIDIA Nemotron Free]   [OpenRouter Router] |
-| google/gemma-4-31b-it:free  deepseek/deepseek-r1:free nvidia/nemotron-3-nano... openrouter/free    |
-| (256k Context Window)       (Chain-of-Thought)        (Content Safety & CoT)   (Dynamic Failover)  |
-+--------------------------------------------------------------------------------------------------+
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m OPENROUTER UNIFIED MODEL HUB (200+ Models Available via Single API Key)                          [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [Google Gemma 4 Free]       [DeepSeek Reasoning]      [NVIDIA Nemotron Free]   [OpenRouter Router] [1;34m|[0m
+[1;34m|[0m google/gemma-4-31b-it:[1;32mfree[0m  deepseek/deepseek-r1:[1;32mfree[0m nvidia/nemotron-3-nano... openrouter/[1;32mfree[0m    [1;34m|[0m
+[1;34m|[0m (256k Context Window)       (Chain-of-Thought)        (Content Safety & CoT)   (Dynamic Failover)  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ---
@@ -173,32 +173,32 @@ def chat(message: str, history: list[dict] | None = None) -> dict:
 - If `LLM_MODEL=openrouter/google/gemma-4-31b-it:free` is configured, **Gemma 31B powers both the agents and the Web Chat**.
 - Swapping the active provider or model immediately switches the entire platform simultaneously.
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| UNIFIED COGNITIVE BACKBONE TOPOLOGY                                                              |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| [Autonomous MLOps Agents]                        [Interactive Web Chat (/chat)]                 |
-| - RemediationAgent (FSM Diagnostic)              - Human SRE Operator Interface                 |
-| - SpecialistAgent (Root Cause Analysis)          - 20 MCP Cognitive Starter Prompts Modal       |
-|                                                                                                  |
-|                                \                /                                                |
-|                                 \              /                                                 |
-|                                  v            v                                                  |
-|                   +--------------------------------------------+                                 |
-|                   | LLMProviderRegistry.build_adapter_from_env |                                 |
-|                   +---------------------+----------------------+                                 |
-|                                         |                                                        |
-|                                         v                                                        |
-|                   +--------------------------------------------+                                 |
-|                   | FallbackLLMAdapter (Auto-Failover Chain)   |                                 |
-|                   +---------------------+----------------------+                                 |
-|                                         |                                                        |
-|                                         v                                                        |
-|                   +--------------------------------------------+                                 |
-|                   | OpenRouter Gateway (:free 24/7 Cloud Hub)  |                                 |
-|                   +--------------------------------------------+                                 |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m UNIFIED COGNITIVE BACKBONE TOPOLOGY                                                              [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [Autonomous MLOps Agents]                        [Interactive Web Chat (/chat)]                 [1;34m|[0m
+[1;34m|[0m - [1;35mRemediationAgent[0m (FSM Diagnostic)              - Human SRE Operator Interface                 [1;34m|[0m
+[1;34m|[0m - SpecialistAgent (Root Cause Analysis)          - 20 MCP Cognitive Starter Prompts Modal       [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m                                \                /                                                [1;34m|[0m
+[1;34m|[0m                                 \              /                                                 [1;34m|[0m
+[1;34m|[0m                                  v            v                                                  [1;34m|[0m
+[1;34m|[0m[1;34m                   +--------------------------------------------+                                 [0m[1;34m|[0m
+[1;34m|[0m                   | LLMProviderRegistry.build_adapter_from_env |                                 [1;34m|[0m
+[1;34m|[0m[1;34m                   +---------------------+----------------------+                                 [0m[1;34m|[0m
+[1;34m|[0m                                         |                                                        [1;34m|[0m
+[1;34m|[0m                                         v                                                        [1;34m|[0m
+[1;34m|[0m[1;34m                   +--------------------------------------------+                                 [0m[1;34m|[0m
+[1;34m|[0m                   | FallbackLLMAdapter (Auto-Failover Chain)   |                                 [1;34m|[0m
+[1;34m|[0m[1;34m                   +---------------------+----------------------+                                 [0m[1;34m|[0m
+[1;34m|[0m                                         |                                                        [1;34m|[0m
+[1;34m|[0m                                         v                                                        [1;34m|[0m
+[1;34m|[0m[1;34m                   +--------------------------------------------+                                 [0m[1;34m|[0m
+[1;34m|[0m                   | OpenRouter Gateway (:[1;32mfree[0m 24/7 Cloud Hub)  |                                 [1;34m|[0m
+[1;34m|[0m[1;34m                   +--------------------------------------------+                                 [0m[1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ### B. Is the Fallback Chain Also Active for the Web Chat?
@@ -264,27 +264,27 @@ Different SRE and MLOps tasks present conflicting cognitive requirements:
 
 To solve this, `Agentic-Ops` implements **Cognitive Specialization by Role** inside `LLMProviderRegistry`:
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS CONTROL PLANE — COGNITIVE MULTI-LLM TOPOLOGY                                         |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| [Remediation Coordinator] ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  |
-| (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             |
-|                                                                                                  |
-| [Infra Specialist] -----------> role="infra" ----------> LLM_MODEL_INFRA                        |
-| (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          |
-|                                                                                                  |
-| [Data Specialist] ------------> role="data" -----------> LLM_MODEL_DATA                         |
-| (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      |
-|                                                                                                  |
-| [Model Specialist] -----------> role="model" ----------> LLM_MODEL_MODEL                        |
-| (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  |
-|                                                                                                  |
-| [Web Chat SRE Assistant] -----> role="chat" -----------> LLM_MODEL_CHAT                         |
-| (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           |
-|                                                                                                  |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS CONTROL PLANE — COGNITIVE MULTI-LLM TOPOLOGY                                         [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[Remediation Coordinator][0m ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  [1;34m|[0m
+[1;34m|[0m (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[Infra Specialist][0m -----------> role="infra" ----------> LLM_MODEL_INFRA                        [1;34m|[0m
+[1;34m|[0m (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[Data Specialist][0m ------------> role="data" -----------> LLM_MODEL_DATA                         [1;34m|[0m
+[1;34m|[0m (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[Model Specialist][0m -----------> role="model" ----------> LLM_MODEL_MODEL                        [1;34m|[0m
+[1;34m|[0m (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[Web Chat SRE Assistant][0m -----> role="chat" -----------> LLM_MODEL_CHAT                         [1;34m|[0m
+[1;34m|[0m (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ### Precedence Hierarchy:

@@ -15,27 +15,27 @@ In `Agentic-Ops`, resilience is not an afterthought: **the MAS architecture is s
 2. Zero unauthorized or unverified mutations execute in production (`0/6` forbidden actions executed across all tests).
 3. The platform degrades gracefully to passive ticketing (`ActionType.CREATE_ISSUE`) or human-in-the-loop review (`DecisionEnum.REQUIRE_APPROVAL`) whenever an anomaly or budget breach occurs.
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS MAS ARCHITECTURE — 5 CASCADING FALLBACK LAYERS                                        |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| [1. COGNITIVE LAYER]      Primary Role LLM -> Fallback 1 -> Fallback 2 -> Provider Defaults     |
-|                           (FallbackLLMAdapter / HTTP 429 & Timeout Failover)                     |
-|                                                                                                  |
-| [2. FINOPS & SECOPS]      Hourly Quota Exceeded -> CIRCUIT_BREAKER_FALLBACK                      |
-|                           (Forces safe ActionType.CREATE_ISSUE / Zero LLM mutation)              |
-|                                                                                                  |
-| [3. SPECIALIST ROUTING]   MODEL_* -> ModelSpecialist | INFRA_* -> InfraSpecialist                |
-|                           Unmatched Risk ID -> Fallback to DataSpecialist                        |
-|                                                                                                  |
-| [4. GOVERNANCE LAYER]     PolicyEngine Default: default_effect="deny" (Fail-Closed)              |
-|                           Blast Radius > 0 -> Fallback from Auto-Allow to Slack HITL             |
-|                                                                                                  |
-| [5. NETWORK & TARGET]     Scaleway / Tailscale Remote Target Offline                             |
-|                           -> RemoteServiceStatus.REMOTE_TARGET_OFFLINE (Zero crash, Safe-Lock)   |
-|                                                                                                  |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS MAS ARCHITECTURE — 5 CASCADING FALLBACK LAYERS                                        [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[1. COGNITIVE LAYER][0m      Primary Role LLM -> Fallback 1 -> Fallback 2 -> Provider Defaults     [1;34m|[0m
+[1;34m|[0m                           (FallbackLLMAdapter / HTTP 429 & Timeout Failover)                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [2. FINOPS & SECOPS]      Hourly Quota Exceeded [1;36m->[0m CIRCUIT_BREAKER_FALLBACK                      [1;34m|[0m
+[1;34m|[0m                           (Forces safe ActionType.CREATE_ISSUE / Zero LLM mutation)              [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[3. SPECIALIST ROUTING][0m   MODEL_* -> ModelSpecialist | INFRA_* -> InfraSpecialist                [1;34m|[0m
+[1;34m|[0m                           Unmatched Risk ID [1;36m->[0m Fallback to [1;35mDataSpecialist[0m                        [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [4. GOVERNANCE LAYER]     [1;32mPolicyEngine[0m Default: default_effect="deny" (Fail-Closed)              [1;34m|[0m
+[1;34m|[0m                           Blast Radius > 0 [1;36m->[0m Fallback from Auto-Allow to Slack HITL             [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;36m[5. NETWORK & TARGET][0m     Scaleway / Tailscale Remote Target Offline                             [1;34m|[0m
+[1;34m|[0m                           [1;36m->[0m RemoteServiceStatus.REMOTE_TARGET_OFFLINE (Zero crash, Safe-Lock)   [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ---
@@ -50,34 +50,34 @@ In `Agentic-Ops`, when an autonomous agent switches from its primary LLM to a ba
 
 #### 1. Surgical Sequence Diagram
 
-```text
-+-------------------------------------------------------------------------------------------------------+
-| SURGICAL SEQUENCE FLOW: AGENT FAILOVER TO BACKUP LLM AT RUNTIME                                       |
-+-------------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+-------------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m SURGICAL SEQUENCE FLOW: AGENT FAILOVER TO BACKUP LLM AT RUNTIME                                       [1;34m|[0m
+[1;34m+-------------------------------------------------------------------------------------------------------+[0m
 
  [ Cognitive Agent ]          [ FallbackLLMAdapter ]         [ Primary Adapter ]        [ Fallback Adapter ]
   (e.g., ModelSpecialist)                                     (DeepSeek-R1)              (DeepSeek-Chat)
-          |                            |                              |                          |
-          | 1. complete(Diagnosis)     |                              |                          |
-          |--------------------------->|                              |                          |
-          |                            | 2. complete()                |                          |
-          |                            |----------------------------->|                          |
-          |                            |                              | HTTP 429 / Timeout / 5xx |
-          |                            |                              | (Fails after retries)    |
+[1;34m|[0m                            |                              |                          [1;34m|[0m
+[1;34m|[0m 1. complete(Diagnosis)     |                              |                          [1;34m|[0m
+[1;34m|[0m-------------------------[1;33m-[1;36m->[0m[0m|                              |                          [1;34m|[0m
+[1;34m|[0m                            | 2. complete()                |                          [1;34m|[0m
+[1;34m|[0m                            |---------------------------[1;33m-[1;36m->[0m[0m|                          [1;34m|[0m
+[1;34m|[0m                            |                              | HTTP 429 / Timeout / 5xx [1;34m|[0m
+[1;34m|[0m                            |                              | (Fails after retries)    [1;34m|[0m
           |                            |                              |-- - - - - - - - - - - - -+
-          |                            | 3. Intercept Exception       |                          |
-          |                            |<-----------------------------|                          |
-          |                            |    Prometheus error inc()                               |
-          |                            |                                                         |
-          |                            | 4. Immediate Fallback (max_retries=1)                   |
-          |                            |-------------------------------------------------------->|
+[1;34m|[0m                            | 3. Intercept Exception       |                          [1;34m|[0m
+[1;34m|[0m                            |<-----------------------------|                          [1;34m|[0m
+[1;34m|[0m                            |    Prometheus error inc()                               [1;34m|[0m
+[1;34m|[0m                            |                                                         [1;34m|[0m
+[1;34m|[0m                            | 4. Immediate Fallback (max_retries=1)                   [1;34m|[0m
+[1;34m|[0m                            |------------------------------------------------------[1;33m-[1;36m->[0m[0m[1;34m|[0m
           |                            |                                                         | 200 OK + JSON
           |                            | 5. Validate Pydantic Schema (Diagnosis)                | (via _strip_think_tags)
-          |                            |<--------------------------------------------------------|
-          |                            |    Prometheus success inc()                             |
-          | 6. Return typed Diagnosis  |                                                         |
-          |<---------------------------|                                                         |
-          | (Agent unaware of failure) |                                                         |
+[1;34m|[0m                            |<--------------------------------------------------------[1;34m|[0m
+[1;34m|[0m                            |    Prometheus success inc()                             [1;34m|[0m
+[1;34m|[0m 6. Return typed Diagnosis  |                                                         [1;34m|[0m
+[1;34m|[0m<---------------------------|                                                         [1;34m|[0m
+[1;34m|[0m (Agent unaware of failure) |                                                         [1;34m|[0m
           v                            v                                                         v
 ```
 
@@ -136,80 +136,80 @@ In `Agentic-Ops`, when an autonomous agent switches from its primary LLM to a ba
 
 In addition to dynamic runtime failover, operators can override an agent's default LLM declaratively without touching code. The resolution engine [`LLMProviderRegistry.resolve_role_config(role)`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_provider_registry.py#L178-L278) resolves configurations in strict order of precedence:
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| DECLARATIVE LLM CONFIGURATION RESOLUTION HIERARCHY                                               |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| [Level 1: Explicit Role Env Variable]                                                            |
-| LLM_MODEL_{ROLE}, LLM_PROVIDER_{ROLE}, LLM_FALLBACK_MODELS_{ROLE}                                |
-| (e.g., LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest)                                           |
-|                                     │                                                            |
-|                                     ▼ (if unset)                                                 |
-| [Level 2: Global Env Variable]                                                                   |
-| LLM_MODEL, LLM_PROVIDER, LLM_FALLBACK_MODELS                                                     |
-| (e.g., LLM_MODEL=openrouter/deepseek/deepseek-r1:free)                                           |
-|                                     │                                                            |
-|                                     ▼ (if unset)                                                 |
-| [Level 3: Native MAS Recommended Expert Role Default]                                            |
-| ROLE_RECOMMENDED_MODELS[role]["model"]                                                           |
-| (e.g., role="infra" -> openrouter/google/gemma-4-31b-it:free)                                    |
-|                                     │                                                            |
-|                                     ▼ (if unset)                                                 |
-| [Level 4: Provider Profile Default Model]                                                        |
-| PROVIDER_PROFILES[provider]["default_model"]                                                     |
-|                                                                                                  |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m DECLARATIVE LLM CONFIGURATION RESOLUTION HIERARCHY                                               [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [Level 1: Explicit Role Env Variable]                                                            [1;34m|[0m
+[1;34m|[0m LLM_MODEL_{ROLE}, LLM_PROVIDER_{ROLE}, LLM_FALLBACK_MODELS_{ROLE}                                [1;34m|[0m
+[1;34m|[0m (e.g., LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest)                                           [1;34m|[0m
+[1;34m|[0m                                     │                                                            [1;34m|[0m
+[1;34m|[0m                                     ▼ (if unset)                                                 [1;34m|[0m
+[1;34m|[0m [Level 2: Global Env Variable]                                                                   [1;34m|[0m
+[1;34m|[0m LLM_MODEL, LLM_PROVIDER, LLM_FALLBACK_MODELS                                                     [1;34m|[0m
+[1;34m|[0m (e.g., LLM_MODEL=openrouter/deepseek/deepseek-r1:free)                                           [1;34m|[0m
+[1;34m|[0m                                     │                                                            [1;34m|[0m
+[1;34m|[0m                                     ▼ (if unset)                                                 [1;34m|[0m
+[1;34m|[0m [Level 3: Native MAS Recommended Expert Role Default]                                            [1;34m|[0m
+[1;34m|[0m ROLE_RECOMMENDED_MODELS[role]["model"]                                                           [1;34m|[0m
+[1;34m|[0m (e.g., role="infra" [1;36m->[0m openrouter/google/gemma-4-31b-it:[1;32mfree[0m)                                    [1;34m|[0m
+[1;34m|[0m                                     │                                                            [1;34m|[0m
+[1;34m|[0m                                     ▼ (if unset)                                                 [1;34m|[0m
+[1;34m|[0m [Level 4: Provider Profile Default Model]                                                        [1;34m|[0m
+[1;34m|[0m PROVIDER_PROFILES[provider]["default_model"]                                                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ### B. Exact Runtime Fallback Chains per Agent
 
 When an agent's primary LLM encounters a failure (`HTTP 429`, timeout, provider outage), `FallbackLLMAdapter` transparently routes the query through the agent's pre-computed fallback chain:
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| DEDICATED RUNTIME FAILOVER CHAINS BY AGENT ROLE                                                  |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| 1. RemediationAgent (role="remediation") :                                                       |
-|    Primary: openrouter/deepseek/deepseek-r1:free                                                 |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
-|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
-|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
-|      ├── (Fails ?) ──> openrouter/mistralai/mistral-7b-instruct:free                             |
-|      └── (Fails ?) ──> openrouter/qwen/qwen-2.5-72b-instruct:free                                |
-|                                                                                                  |
-| 2. InfraSpecialist (role="infra") :                                                              |
-|    Primary: openrouter/google/gemma-4-31b-it:free (256k context)                                 |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
-|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
-|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
-|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
-|                                                                                                  |
-| 3. DataSpecialist (role="data") :                                                                |
-|    Primary: openrouter/google/gemma-4-26b-a4b-it:free                                            |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
-|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
-|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
-|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
-|                                                                                                  |
-| 4. ModelSpecialist (role="model") :                                                              |
-|    Primary: openrouter/meta-llama/llama-3.3-70b-instruct:free                                    |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
-|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
-|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
-|                                                                                                  |
-| 5. WebChatCopilot (role="chat") :                                                                |
-|    Primary: openrouter/deepseek/deepseek-chat:free                                               |
-|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
-|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
-|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
-|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
-|                                                                                                  |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m DEDICATED RUNTIME FAILOVER CHAINS BY AGENT ROLE                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 1. [1;35mRemediationAgent[0m (role="remediation") :                                                       [1;34m|[0m
+[1;34m|[0m    Primary: openrouter/deepseek/deepseek-r1:[1;32mfree[0m                                                 [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-chat:[1;32mfree[0m                                    [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/meta-llama/llama-3.3-70b-instruct:[1;32mfree[0m                         [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/google/gemini-2.0-flash-exp:[1;32mfree[0m                               [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/mistralai/mistral-7b-instruct:[1;32mfree[0m                             [1;34m|[0m
+[1;34m|[0m      └── (Fails ?) [1;33m──>[0m openrouter/qwen/qwen-2.5-72b-instruct:[1;32mfree[0m                                [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 2. [1;35mInfraSpecialist[0m (role="infra") :                                                              [1;34m|[0m
+[1;34m|[0m    Primary: openrouter/google/gemma-4-31b-it:[1;32mfree[0m (256k context)                                 [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-r1:[1;32mfree[0m                                      [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-chat:[1;32mfree[0m                                    [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/meta-llama/llama-3.3-70b-instruct:[1;32mfree[0m                         [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/google/gemini-2.0-flash-exp:[1;32mfree[0m                               [1;34m|[0m
+[1;34m|[0m      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 3. [1;35mDataSpecialist[0m (role="data") :                                                                [1;34m|[0m
+[1;34m|[0m    Primary: openrouter/google/gemma-4-26b-a4b-it:[1;32mfree[0m                                            [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-r1:[1;32mfree[0m                                      [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-chat:[1;32mfree[0m                                    [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/meta-llama/llama-3.3-70b-instruct:[1;32mfree[0m                         [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/google/gemini-2.0-flash-exp:[1;32mfree[0m                               [1;34m|[0m
+[1;34m|[0m      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 4. [1;35mModelSpecialist[0m (role="model") :                                                              [1;34m|[0m
+[1;34m|[0m    Primary: openrouter/meta-llama/llama-3.3-70b-instruct:[1;32mfree[0m                                    [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-r1:[1;32mfree[0m                                      [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-chat:[1;32mfree[0m                                    [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/google/gemini-2.0-flash-exp:[1;32mfree[0m                               [1;34m|[0m
+[1;34m|[0m      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 5. [1;35mWebChatCopilot[0m (role="chat") :                                                                [1;34m|[0m
+[1;34m|[0m    Primary: openrouter/deepseek/deepseek-chat:[1;32mfree[0m                                               [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/deepseek/deepseek-r1:[1;32mfree[0m                                      [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/meta-llama/llama-3.3-70b-instruct:[1;32mfree[0m                         [1;34m|[0m
+[1;34m|[0m      ├── (Fails ?) [1;33m──>[0m openrouter/google/gemini-2.0-flash-exp:[1;32mfree[0m                               [1;34m|[0m
+[1;34m|[0m      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ### C. Exact Mapping Keys
@@ -229,37 +229,37 @@ Relying on a single third-party API aggregator like OpenRouter as a hard depende
 
 In `Agentic-Ops`, **OpenRouter is purely a zero-cost bootstrapping hub, not a architectural lock-in**. The system is built around the dependency inversion principle (`LLMPort`) and LiteLLM abstraction, supported by 4 strictly isolated lines of defense:
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS DISASTER RECOVERY: WHAT HAPPENS IF OPENROUTER CUTS THE CORD?                         |
-+--------------------------------------------------------------------------------------------------+
-|                                                                                                  |
-| [NOMINAL STATE]                                                                                  |
-| OpenRouter Free Tier (:free)                                                                     |
-| DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              |
-|                                                                                                  |
-|                                     │                                                            |
-|                                     ▼ (Event: HTTP 429, 401, Quota Wipeout, Policy Revocation)   |
-|                                                                                                  |
-| [LINE 1: ZERO-CODE ENV SWITCH] ────► Switch provider in 30s without redeploying code:            |
-|                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  |
-|                                      LLM_PROVIDER=huggingface (Serverless Inference API — 0 EUR) |
-|                                                                                                  |
-| [LINE 2: 100% SOVEREIGN SANCTUARY] ─► Off-Cloud, Zero-Vendor Operation via Tailscale Mesh:        |
-|                                      LLM_PROVIDER=ollama                                         |
-|                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (Scaleway VPS)   |
-|                                      (Runs deepseek-r1:7b or llama3.2:3b at 0 EUR, 100% private)  |
-|                                                                                                  |
-| [LINE 3: GRANULAR ROLE SPLIT] ─────► Isolate providers per agent role:                           |
-|                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 |
-|                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   |
-|                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     |
-|                                                                                                  |
-| [LINE 4: ZERO-LLM SAFETY NET] ─────► Total Internet / AI Outage Fallback:                       |
-|                                      CIRCUIT_BREAKER_FALLBACK (0-Token Pure Python)              |
-|                                      Forces ActionType.CREATE_ISSUE | Locks cluster Fail-Closed  |
-|                                                                                                  |
-+--------------------------------------------------------------------------------------------------+
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS DISASTER RECOVERY: WHAT HAPPENS IF OPENROUTER CUTS THE CORD?                         [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;32m[NOMINAL STATE][0m                                                                                  [1;34m|[0m
+[1;34m|[0m OpenRouter [1;32mFree Tier[0m (:[1;32mfree[0m)                                                                     [1;34m|[0m
+[1;34m|[0m DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m                                     │                                                            [1;34m|[0m
+[1;34m|[0m                                     ▼ (Event: HTTP 429, 401, Quota Wipeout, Policy Revocation)   [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [LINE 1: ZERO-CODE ENV SWITCH] ──[1;33m──►[0m Switch provider in 30s without redeploying code:            [1;34m|[0m
+[1;34m|[0m                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  [1;34m|[0m
+[1;34m|[0m                                      LLM_PROVIDER=huggingface (Serverless Inference API — 0 EUR) [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [LINE 2: 100% SOVEREIGN SANCTUARY] ─► Off-Cloud, Zero-Vendor Operation via Tailscale Mesh:        [1;34m|[0m
+[1;34m|[0m                                      LLM_PROVIDER=ollama                                         [1;34m|[0m
+[1;34m|[0m                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (Scaleway VPS)   [1;34m|[0m
+[1;34m|[0m                                      (Runs deepseek-r1:7b or llama3.2:3b at [1;32m0 EUR[0m, 100% private)  [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [LINE 3: GRANULAR ROLE SPLIT] ───[1;33m──►[0m Isolate providers per agent role:                           [1;34m|[0m
+[1;34m|[0m                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 [1;34m|[0m
+[1;34m|[0m                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   [1;34m|[0m
+[1;34m|[0m                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m [1;35m[LINE 4: ZERO-LLM SAFETY NET][0m ─────► Total Internet / AI Outage Fallback:                       [1;34m|[0m
+[1;34m|[0m                                      CIRCUIT_BREAKER_FALLBACK ([1;32m0-Token[0m Pure Python)              [1;34m|[0m
+[1;34m|[0m                                      Forces ActionType.CREATE_ISSUE | Locks cluster Fail-Closed  [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 #### 1. Line 1: 30-Second Zero-Code Provider Migration (Cloud Alternatives)
@@ -345,10 +345,10 @@ adapter = LLMProviderRegistry.build_adapter_for_role("remediation")
 ```
 
 **Actual Verified Output:**
-```text
+```ansi
 Primary adapter : LiteLLMAdapter (openrouter/deepseek/deepseek-r1:free)
 Fallbacks count : 2
-  ├── Fallback 0: LiteLLMAdapter (gemini/gemini-1.5-flash-latest)
+  [1;34m├──[0m Fallback 0: LiteLLMAdapter (gemini/gemini-1.5-flash-latest)
   └── Fallback 1: OllamaAdapter (deepseek-r1:7b -> http://100.117.99.62:11434)
 ```
 

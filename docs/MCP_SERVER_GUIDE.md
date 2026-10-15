@@ -13,35 +13,35 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 `Agentic-Ops` solves this by exposing the Control Plane itself as a **Governed `MCP` Server**:
 
-```text
-+-----------------------------------------------------------------------------------+
-| EXTERNAL AI CLIENTS (Claude Desktop / Cursor / Windsurf / Google Antigravity)     |
-+-----------------------------------------+-----------------------------------------+
-                                          |
+```ansi
+[1;34m+-----------------------------------------------------------------------------------+[0m
+[1;34m|[0m EXTERNAL AI CLIENTS (Claude Desktop / Cursor / Windsurf / Google Antigravity)     [1;34m|[0m
+[1;34m+-----------------------------------------+-----------------------------------------+[0m
+[1;34m|[0m[1;34m|[0m
                      1. STDIO (Local CLI) | or 2. HTTP JSON-RPC 2.0 (POST /mcp)
                                           v
-+-----------------------------------------------------------------------------------+
-| AGENTIC-OPS MCP GOVERNANCE GATEWAY (agentic_ops/entrypoints/mcp_server.py)        |
-|                                                                                   |
-|  +---------------------------+  +-----------------------+  +-------------------+  |
-|  | 8 Governed MCP Tools      |  | 5 Knowledge Resources |  | 20 Starter Prompts|  |
-|  | - read_console_diagnostic |  | - 435 Failure Modes   |  | - Console Audits  |  |
-|  | - evaluate_governance_pol.|  | - 20 Scenarios Reg.   |  | - Policy Vetoes   |  |
-|  | - run_governed_incident   |  | - Autonomy Policy     |  | - WORM Forensics  |  |
-|  | - inspect_worm_ledger     |  | - Known Gaps Matrix   |  | - Taxonomy Search |  |
-|  | - search_failure_taxonomy |  | - Live Console Vitals |  | - SecOps & Jury   |  |
-|  | - get_scenario_blueprint  |  +-----------------------+  +-------------------+  |
-|  | - poll_target_mlops_snap. |                                                    |
-|  | - inspect_control_vitals  |                                                    |
-|  +-------------+-------------+                                                    |
-|                |                                                                  |
-|                v                                                                  |
-|  +-----------------------------------------------------------------------------+  |
-|  | DETERMINISTIC CORE (PolicyEngine + FSM + WORM EvidenceStore + Tailscale)    |  |
-|  | -> Verdicts: ALLOW (L1) | REQUIRE_APPROVAL (Slack HITL L2/L3) | DENY (Veto) |  |
-|  | -> Cryptographic Sealing: Canonical JSON + SHA-256 Chain + HMAC-SHA512      |  |
-|  +-----------------------------------------------------------------------------+  |
-+-----------------------------------------------------------------------------------+
+[1;34m+-----------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS MCP GOVERNANCE GATEWAY (agentic_ops/entrypoints/mcp_server.py)        [1;34m|[0m
+[1;34m|[0m                                                                                   [1;34m|[0m
+[1;34m|[0m  +---------------------------+  +-----------------------+  +-------------------+  [1;34m|[0m
+[1;34m|[0m  | 8 Governed MCP Tools      |  | 5 Knowledge Resources |  | 20 Starter Prompts|  [1;34m|[0m
+[1;34m|[0m  | - read_console_diagnostic |  | - 435 Failure Modes   |  | - Console Audits  |  [1;34m|[0m
+[1;34m|[0m  | - evaluate_governance_pol.|  | - 20 Scenarios Reg.   |  | - Policy Vetoes   |  [1;34m|[0m
+[1;34m|[0m  | - run_governed_incident   |  | - Autonomy Policy     |  | - WORM Forensics  |  [1;34m|[0m
+[1;34m|[0m  | - inspect_worm_ledger     |  | - Known Gaps Matrix   |  | - Taxonomy Search |  [1;34m|[0m
+[1;34m|[0m  | - search_failure_taxonomy |  | - Live Console Vitals |  | - SecOps & Jury   |  [1;34m|[0m
+[1;34m|[0m  | - get_scenario_blueprint  |  +-----------------------+  +-------------------+  [1;34m|[0m
+[1;34m|[0m  | - poll_target_mlops_snap. |                                                    [1;34m|[0m
+[1;34m|[0m  | - inspect_control_vitals  |                                                    [1;34m|[0m
+[1;34m|[0m[1;34m  +-------------+-------------+                                                    [0m[1;34m|[0m
+[1;34m|[0m                |                                                                  [1;34m|[0m
+[1;34m|[0m                v                                                                  [1;34m|[0m
+[1;34m|[0m[1;34m  +-----------------------------------------------------------------------------+  [0m[1;34m|[0m
+[1;34m|[0m  | DETERMINISTIC CORE ([1;32mPolicyEngine[0m + FSM + WORM EvidenceStore + Tailscale)    |  [1;34m|[0m
+[1;34m|[0m  | -> Verdicts: ALLOW (L1) | REQUIRE_APPROVAL (Slack HITL L2/L3) | DENY (Veto) |  [1;34m|[0m
+[1;34m|[0m  | [1;36m->[0m Cryptographic Sealing: Canonical JSON + SHA-256 Chain + HMAC-SHA512      |  [1;34m|[0m
+[1;34m|[0m[1;34m  +-----------------------------------------------------------------------------+  [0m[1;34m|[0m
+[1;34m+-----------------------------------------------------------------------------------+[0m
 ```
 
 ---
@@ -149,7 +149,7 @@ While OpenAI's web interface (`chatgpt.com`) does not use the Anthropic `MCP` pr
    - **Description**: `Autonomous and governed SRE control plane for MLOps platforms.`
 3. Scroll down to **Actions** and click **Create new action**.
 4. In the **Schema** section, click **Import from URL** and paste:
-   ```text
+   ```ansi
    https://agentic-ops-5ebv.onrender.com/openapi.json
    ```
 5. Click **Import**. ChatGPT will parse the endpoints:
@@ -200,16 +200,16 @@ For users who want zero local setup (no Docker, no MongoDB, no local Mac resourc
 
 #### Comparative Architecture Matrix: LibreChat (Local Docker) vs. Native Web Chat (Render Cloud)
 
-| Architectural Dimension | Option 1: Local LibreChat (Docker on Mac/PC) | Option 2: Standalone Cloud Web Chat (`/chat` on Render) |
-| :--- | :--- | :--- |
-| **Hosting Location** | Local workstation (`localhost:3080`) | Render Free Tier (`https://agentic-ops-5ebv.onrender.com/chat`) |
-| **Prerequisites** | Docker Desktop, `git clone`, `docker compose up` | Web browser only (zero installation) |
-| **RAM Footprint** | ~1.5 GB RAM (Node.js + MongoDB + Meilisearch) | < 2 MiB RAM (native HTML/JS rendered by existing FastAPI) |
-| **Cloud Availability** | Only when local machine is awake | 24/7 Cloud (Render auto-wake on HTTP request) |
-| **LLM Connection** | Direct client-to-OpenRouter or via local proxy | Server-side via `LLMProviderRegistry` + auto-fallback |
-| **Tool Calling Mode** | MCP client tool attachment (`librechat.yaml`) | Server-side governed execution + `ActionProposal` validation |
-| **User Management** | Multi-user accounts, auth tokens, chat export | Single-operator SRE console session |
-| **Cost** | 0 EUR (local compute) | 0 EUR (Render Free Tier + OpenRouter `:free` tier) |
+[1;34m|[0m Architectural Dimension | Option 1: Local LibreChat (Docker on Mac/PC) | Option 2: Standalone Cloud Web Chat (`/chat` on Render) [1;34m|[0m
+[1;34m|[0m :--- | :--- | :--- [1;34m|[0m
+[1;34m|[0m **Hosting Location** | Local workstation (`localhost:3080`) | Render [1;32mFree Tier[0m (`https://agentic-ops-5ebv.onrender.com/chat`) [1;34m|[0m
+[1;34m|[0m **Prerequisites** | Docker Desktop, `git clone`, `docker compose up` | Web browser only (zero installation) [1;34m|[0m
+[1;34m|[0m **RAM Footprint** | ~1.5 GB RAM (Node.js + MongoDB + Meilisearch) | < 2 MiB RAM (native HTML/JS rendered by existing FastAPI) [1;34m|[0m
+[1;34m|[0m **Cloud Availability** | Only when local machine is awake | 24/7 Cloud (Render auto-wake on HTTP request) [1;34m|[0m
+[1;34m|[0m **LLM Connection** | Direct client-to-OpenRouter or via local proxy | Server-side via `LLMProviderRegistry` + auto-fallback [1;34m|[0m
+[1;34m|[0m **Tool Calling Mode** | MCP client tool attachment (`librechat.yaml`) | Server-side governed execution + `ActionProposal` validation [1;34m|[0m
+[1;34m|[0m **User Management** | Multi-user accounts, auth tokens, chat export | Single-operator SRE console session [1;34m|[0m
+[1;34m|[0m **Cost** | [1;32m0 EUR[0m (local compute) | [1;32m0 EUR[0m (Render [1;32mFree Tier[0m + OpenRouter `:[1;32mfree[0m` tier) [1;34m|[0m
 
 ---
 

@@ -15,22 +15,22 @@ In **`Agentic-Ops`**, the Control Plane is designed as an **autonomous, decouple
 - **Target Platform (The Muscle)**: The Scaleway VPS (`scw-jovial-dubinsky`, `100.117.99.62`) hosting `Loki`, `Prometheus`, `MLflow`, `Prefect`, and `FastAPI`.
 - **Control Plane (The Brain)**: The Render cloud container (`agentic-ops-5ebv.onrender.com`, `100.85.198.81`) hosting the FSM orchestrator, policy engine, WORM trust ledger, LLM agents, and interactive Web Console.
 
-```text
-+--------------------------------------------------------------------------------------------------+
-| SCENARIO: COLLEAGUE CRASHES SCALEWAY VPS OR CUTS TAILSCALE MESH                                  |
-+--------------------------------------------------------------------------------------------------+
-                                                 |
+```ansi
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m SCENARIO: COLLEAGUE CRASHES SCALEWAY VPS OR CUTS TAILSCALE MESH                                  [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m[1;34m|[0m
                                 (WireGuard Mesh Down or Scaleway 0 Vitals)
                                                  v
-+--------------------------------------------------------------------------------------------------+
-| AGENTIC-OPS CONTROL PLANE (STAYS 100% ONLINE & RESILIENT)                                         |
-|                                                                                                  |
-| 1. CacPullCollector intercepts error -> Clean Pydantic status: REMOTE_TARGET_OFFLINE             |
-| 2. ZERO Uncaught Exceptions -> 0 crash, no 500 error on /api/cac/snapshot                         |
-| 3. PolicyEngine switches to Fail-Closed -> Prohibits destructive mutations on unreachable host   |
-| 4. All 62 Tests & 36 War-Room Scenarios run locally inside container via synthetic blueprints   |
-| 5. Interactive SRE Console (/console) and Web Chat (/chat) remain 100% available at 0 EUR       |
-+--------------------------------------------------------------------------------------------------+
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m AGENTIC-OPS CONTROL PLANE (STAYS 100% ONLINE & RESILIENT)                                         [1;34m|[0m
+[1;34m|[0m                                                                                                  [1;34m|[0m
+[1;34m|[0m 1. CacPullCollector intercepts error [1;36m->[0m Clean Pydantic status: REMOTE_TARGET_OFFLINE             [1;34m|[0m
+[1;34m|[0m 2. ZERO Uncaught Exceptions [1;36m->[0m 0 crash, no 500 error on /api/cac/snapshot                         [1;34m|[0m
+[1;34m|[0m 3. [1;32mPolicyEngine[0m switches to Fail-Closed [1;36m->[0m Prohibits destructive mutations on unreachable host   [1;34m|[0m
+[1;34m|[0m 4. All 62 Tests & 36 War-Room Scenarios run locally inside container via synthetic blueprints   [1;34m|[0m
+[1;34m|[0m 5. Interactive SRE Console (/console) and Web Chat (/chat) remain 100% available at [1;32m0 EUR[0m       [1;34m|[0m
+[1;34m+--------------------------------------------------------------------------------------------------+[0m
 ```
 
 ---

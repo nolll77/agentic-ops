@@ -32,45 +32,45 @@ L'execution d'`Agentic-Ops` au sein d'un conteneur Cloud isole (`Docker Agentic 
 
 ### Schema Architectural du Tunnel et du Routage `SOCKS5` / `DERP`
 
-```text
-+---------------------------------------------------------------------------------------------------+
-| CLOUD DOCKER SANDBOX (Isolat Linux x86_64 - IP Tailscale : 100.102.123.121)                       |
-|                                                                                                   |
-|  +----------------------------------+         +------------------------------------------------+  |
-|  | Agentic-Ops Control Plane        |         | Demon tailscaled (--tun=userspace-networking)  |  |
-|  |                                  |         |                                                |  |
-|  |  CacPullCollector (httpx)        |  TCP    |  Serveur Proxy SOCKS5 : 127.0.0.1:1055         |  |
-|  |  - _vps_client() ----------------+-------->+  Socket d'admin Unix  : /var/run/.../sock      |  |
-|  |  - _direct_transport ------------+----+    |  Pile WireGuard en memoire vive (RAM)          |  |
-|  +----------------------------------+    |    +-----------------------+------------------------+  |
-+------------------------------------------|----------------------------|---------------------------+
-                                           |                            |
+```ansi
+[1;34m+---------------------------------------------------------------------------------------------------+[0m
+[1;34m|[0m CLOUD DOCKER SANDBOX (Isolat Linux x86_64 - IP Tailscale : 100.102.123.121)                       [1;34m|[0m
+[1;34m|[0m                                                                                                   [1;34m|[0m
+[1;34m|[0m  +----------------------------------+         +------------------------------------------------+  [1;34m|[0m
+[1;34m|[0m  | Agentic-Ops Control Plane        |         | Demon tailscaled (--tun=userspace-networking)  |  [1;34m|[0m
+[1;34m|[0m  |                                  |         |                                                |  [1;34m|[0m
+[1;34m|[0m  |  CacPullCollector (httpx)        |  TCP    |  Serveur Proxy SOCKS5 : 127.0.0.1:1055         |  [1;34m|[0m
+[1;34m|[0m  |  - _vps_client() ----------------+------[1;33m-[1;36m->[0m[0m+  Socket d'admin Unix  : /var/run/.../sock      |  [1;34m|[0m
+[1;34m|[0m  |  - _direct_transport ------------+----+    |  Pile WireGuard en memoire vive (RAM)          |  [1;34m|[0m
+[1;34m|[0m  +----------------------------------+    |    +-----------------------+------------------------+  [1;34m|[0m
+[1;34m+------------------------------------------|----------------------------|---------------------------+[0m
+[1;34m|[0m                            [1;34m|[0m
          Flux HTTPS Direct (Port 443)      |                            | Flux TLS/TCP Chiffre (Port 443)
          (Sans Proxy Tailscale)            |                            | Encapsulation WireGuard sur HTTP
                                            |                            v
                                            |    +------------------------------------------------+
-                                           |    | RELAIS TAILSCALE DERP #10 (Seattle - 9.5 ms)   |
+[1;34m|[0m    | RELAIS TAILSCALE DERP #10 (Seattle - 9.5 ms)   [1;34m|[0m
                                            |    +-----------------------+------------------------+
-                                           |                            |
+[1;34m|[0m                            [1;34m|[0m
                                            |                            | Maillage Inter-Relais
                                            |                            v
                                            |    +------------------------------------------------+
-                                           |    | RELAIS TAILSCALE DERP (Paris - "par")          |
+[1;34m|[0m    | RELAIS TAILSCALE DERP (Paris - "par")          [1;34m|[0m
                                            |    +-----------------------+------------------------+
-                                           |                            |
+[1;34m|[0m                            [1;34m|[0m
                                            v                            v
-+------------------------------------------+----------------------------+---------------------------+
-| INFRASTRUCTURE DISTANTE CAC MLOPS (VPS Scaleway : scw-jovial-dubinsky - IP : 100.117.99.62)       |
-|                                                                                                   |
-|  +---------------------------+   +-------------------------------------------------------------+  |
-|  | Reverse Proxy Public      |   | Services Internes Tailnet (Lecture Seule - GET Uniquement)  |  |
-|  | mlops.jakat-inc.fr        |   |                                                             |  |
-|  |                           |   |  - Loki       (:3100) : /loki/api/v1/query_range            |  |
-|  | /reports/drift/           |   |  - Prometheus (:9090) : /api/v1/query                       |  |
-|  |   latest_summary.json     |   |  - MLflow     (:5001) : /api/2.0/mlflow/...                 |  |
-|  |                           |   |  - Prefect    (:4200) : /api/flow_runs                      |  |
-|  +---------------------------+   +-------------------------------------------------------------+  |
-+---------------------------------------------------------------------------------------------------+
+[1;34m+------------------------------------------+----------------------------+---------------------------+[0m
+[1;34m|[0m INFRASTRUCTURE DISTANTE CAC MLOPS (VPS Scaleway : scw-jovial-dubinsky - IP : 100.117.99.62)       [1;34m|[0m
+[1;34m|[0m                                                                                                   [1;34m|[0m
+[1;34m|[0m  +---------------------------+   +-------------------------------------------------------------+  [1;34m|[0m
+[1;34m|[0m  | Reverse Proxy Public      |   | Services Internes Tailnet (Lecture Seule - GET Uniquement)  |  [1;34m|[0m
+[1;34m|[0m  | mlops.jakat-inc.fr        |   |                                                             |  [1;34m|[0m
+[1;34m|[0m  |                           |   |  - Loki       (:3100) : /loki/api/v1/query_range            |  [1;34m|[0m
+[1;34m|[0m  | /reports/drift/           |   |  - Prometheus (:9090) : /api/v1/query                       |  [1;34m|[0m
+[1;34m|[0m  |   latest_summary.json     |   |  - MLflow     (:5001) : /api/2.0/mlflow/...                 |  [1;34m|[0m
+[1;34m|[0m  |                           |   |  - Prefect    (:4200) : /api/flow_runs                      |  [1;34m|[0m
+[1;34m|[0m  +---------------------------+   +-------------------------------------------------------------+  [1;34m|[0m
+[1;34m+---------------------------------------------------------------------------------------------------+[0m
 ```
 
 ---
