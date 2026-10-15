@@ -1,5 +1,7 @@
 # Agentic-Ops Control Plane
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/nolll77/agentic-ops)](https://m8ven.ai/mcp/nolll77/agentic-ops?s=readme)
+
 [![M8ven Score](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
