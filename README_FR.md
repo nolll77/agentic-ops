@@ -1182,6 +1182,57 @@ Un Système Multi-Agents autonome opérant en production doit gérer deux périm
 | **4. Repli Fail-Closed du Moteur de Règles** | Action non listée ou rayon d'impact > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Rejet par défaut (`DecisionEnum.DENY`) ou rétrogradation du mode autonome vers le circuit Slack HITL humain. |
 | **5. Repli Réseau & Target Distante** | Déconnexion VPS distant ou mesh Tailscale | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Capture de `ConnectError`, retour `status="offline"` (HTTP 200), verrouillage Fail-Closed de toute mutation. |
 
+#### Indépendance Fournisseur & Plan de Continuité : Que se passe-t-il si OpenRouter coupe les accès ou change de politique ?
+
+> **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies)** | **Module Source** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)**
+
+Fonder la survie d'un système multi-agents autonome sur un unique intermédiaire d'API (comme OpenRouter) constitue un *Single Point of Failure* (SPOF) critique et une faute d'ingénierie majeure (*Vendor Lock-in*).
+
+Dans `Agentic-Ops`, **OpenRouter n'est qu'un hub d'amorçage à 0 EUR, et non une dépendance bloquante**. L'architecture a été conçue dès sa première ligne selon le principe d'inversion de dépendance (`LLMPort`) et l'abstraction de protocole `LiteLLM`, protégée par 4 lignes de défense étanches :
+
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS DISASTER RECOVERY : QUE SE PASSE-T-IL SI OPENROUTER COUPE LE TUYAU ?                |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [ÉTAT NOMINAL]                                                                                   |
+| OpenRouter Free Tier (:free)                                                                     |
+| DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              |
+|                                                                                                  |
+|                                     │                                                            |
+|                                     ▼ (Événement : HTTP 429, 401, Révocation Free, Panne API)    |
+|                                                                                                  |
+| [LIGNE 1 : BASCULE ZERO-CODE] ─────► Changement d'env var en 30s sans redéployer de code :       |
+|                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  |
+|                                      LLM_PROVIDER=huggingface (Inference API Serverless — 0 EUR)  |
+|                                                                                                  |
+| [LIGNE 2 : SANCTUAIRE SOUVERAIN] ──► Autonomie 100% Hors-Cloud via Maillage VPN Tailscale :       |
+|                                      LLM_PROVIDER=ollama                                         |
+|                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (VPS Scaleway)   |
+|                                      (Fait tourner deepseek-r1:7b ou llama3.2:3b à 0 EUR, privé)  |
+|                                                                                                  |
+| [LIGNE 3 : ISOLATION PAR AGENT] ───► Découplage fin des fournisseurs par rôle :                  |
+|                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 |
+|                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   |
+|                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     |
+|                                                                                                  |
+| [LIGNE 4 : FILET DE SÉCURITÉ 0-LLM]► Panne Totale d'Internet ou des APIs IA :                    |
+|                                      CIRCUIT_BREAKER_FALLBACK (0-Token Python Pur)               |
+|                                      Force ActionType.CREATE_ISSUE | Verrouillage Fail-Closed    |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
+
+##### Matrice de Référence des Alternatives Post-OpenRouter
+
+| Fournisseur Cible | Coût Réel | Dépendance Externe | Fenêtre Contexte | Commande d'Activation en 30s |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ollama (sur VPS Tailscale)** | **0 EUR** | **Nulle (100% Souverain)** | 32k - 128k (selon RAM VPS) | `LLM_PROVIDER=ollama OLLAMA_BASE_URL=http://100.117.99.62:11434` |
+| **Google Gemini Flash** | **0 EUR** (Tier gratuit) | Google Cloud | **1 000 000 tokens** | `LLM_PROVIDER=gemini GOOGLE_API_KEY=AIza...` |
+| **Hugging Face Serverless**| **0 EUR** (Tier gratuit) | Hugging Face | 32k tokens | `LLM_PROVIDER=huggingface HUGGINGFACE_API_KEY=hf_...` |
+| **APIs Commerciales Directes** | À l'usage | OpenAI / Anthropic / Mistral | 128k - 200k tokens | `LLM_PROVIDER=openai OPENAI_API_KEY=sk-...` |
+| **CircuitBreakerFallback**  | **0 EUR** | **Zéro (Code Python Pur)** | **0 Token** | Activé automatiquement par l'Orchestrateur en cas de blackout |
+
 ### 7. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
 
 En application de la règle d'**Honnêteté Radicale** du projet, utiliser des modèles cloud à 0 EUR implique deux contraintes techniques strictes que nous avons traitées directement dans l'architecture :
@@ -1311,7 +1362,7 @@ python -m agentic_ops.entrypoints.mcp_server
 9. **[Hub Universel de Fournisseurs LLM et Gabarit de Configuration (`.env.example`)](.env.example)** :
    Guide exhaustif de raccordement du Control Plane à 8 fournisseurs de modèles d'IA : OpenRouter (tier gratuit 24h/24 incluant DeepSeek-R1 et Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, et Ollama (local ou routé via le réseau privé Tailscale à `0 EUR`). Chaîne de bascule automatique (`FallbackLLMAdapter`) et instrumentation des métriques Prometheus.
 10. **[Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** :
-    Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs et états de repli.
+    Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs, états de repli, ainsi que la **Stratégie d'Indépendance Fournisseur & Plan de Continuité** détaillant la défense en 4 lignes (bascule zero-code d'env var, sanctuaire souverain 100% hors-cloud via Ollama/Tailscale, isolation fine par agent, et filet de sécurité déterministe à 0-token) en cas de coupure des accès ou changement de politique d'OpenRouter.
 11. **[Architecture de Sélection des Agents & Routage par Défaut du MAS (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** :
     Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
 

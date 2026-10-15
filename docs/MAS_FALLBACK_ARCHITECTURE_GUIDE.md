@@ -111,7 +111,105 @@ When an agent's primary LLM encounters a failure (`HTTP 429`, timeout, provider 
 
 *Supported Role Values*: `{ROLE}` $\in$ `REMEDIATION`, `INFRA`, `DATA`, `MODEL`, `CHAT`.
 
+### D. Provider Independence & Disaster Recovery: What If OpenRouter Cuts Access or Changes Policies?
+
+Relying on a single third-party API aggregator like OpenRouter as a hard dependency is an enterprise anti-pattern. In production, providers can revoke free tiers, alter Terms of Service, experience upstream peering outages, or enforce aggressive rate limits.
+
+In `Agentic-Ops`, **OpenRouter is purely a zero-cost bootstrapping hub, not a architectural lock-in**. The system is built around the dependency inversion principle (`LLMPort`) and LiteLLM abstraction, supported by 4 strictly isolated lines of defense:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS DISASTER RECOVERY: WHAT HAPPENS IF OPENROUTER CUTS THE CORD?                         |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [NOMINAL STATE]                                                                                  |
+| OpenRouter Free Tier (:free)                                                                     |
+| DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              |
+|                                                                                                  |
+|                                     │                                                            |
+|                                     ▼ (Event: HTTP 429, 401, Quota Wipeout, Policy Revocation)   |
+|                                                                                                  |
+| [LINE 1: ZERO-CODE ENV SWITCH] ────► Switch provider in 30s without redeploying code:            |
+|                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  |
+|                                      LLM_PROVIDER=huggingface (Serverless Inference API — 0 EUR) |
+|                                                                                                  |
+| [LINE 2: 100% SOVEREIGN SANCTUARY] ─► Off-Cloud, Zero-Vendor Operation via Tailscale Mesh:        |
+|                                      LLM_PROVIDER=ollama                                         |
+|                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (Scaleway VPS)   |
+|                                      (Runs deepseek-r1:7b or llama3.2:3b at 0 EUR, 100% private)  |
+|                                                                                                  |
+| [LINE 3: GRANULAR ROLE SPLIT] ─────► Isolate providers per agent role:                           |
+|                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 |
+|                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   |
+|                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     |
+|                                                                                                  |
+| [LINE 4: ZERO-LLM SAFETY NET] ─────► Total Internet / AI Outage Fallback:                       |
+|                                      CIRCUIT_BREAKER_FALLBACK (0-Token Pure Python)              |
+|                                      Forces ActionType.CREATE_ISSUE | Locks cluster Fail-Closed  |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
+
+#### 1. Line 1: 30-Second Zero-Code Provider Migration (Cloud Alternatives)
+Because `LiteLLMAdapter` supports over 100 model backends under a unified protocol, switching providers requires zero code changes, zero container rebuilds, and zero database migrations:
+
+- **Google Gemini (Recommended Immediate 0 EUR Cloud Fallback)**:
+  - Free Tier: $60$ requests/minute, massive $1\,000\,000$-token context window.
+  - Configuration in Render or `.env`:
+    ```bash
+    LLM_PROVIDER=gemini
+    GOOGLE_API_KEY=AIzaSy...
+    ```
+- **Hugging Face Serverless Inference API (0 EUR)**:
+  - Free Tier: ~1000 requests/month across open-source weights.
+  - Configuration:
+    ```bash
+    LLM_PROVIDER=huggingface
+    HUGGINGFACE_API_KEY=hf_...
+    ```
+- **Direct Commercial APIs (Pay-as-you-go)**:
+  - Instant transition to `openai` (`gpt-4o-mini`), `anthropic` (`claude-3-5-haiku`), `mistral` (`mistral-large`), or `azure` simply by supplying the relevant API key.
+
+#### 2. Line 2: The Sovereign Sanctuary: Ollama + Tailscale Mesh (100% Off-Cloud / 0 EUR)
+To eliminate external SaaS dependencies completely, `Agentic-Ops` includes a native [`OllamaAdapter`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py#L233-L315) running over the private WireGuard mesh:
+
+- The Render container (`100.85.198.81`) routes outbound requests through its local SOCKS5 proxy `:1055` directly to the Scaleway VPS (`100.117.99.62` `scw-jovial-dubinsky`) where Ollama can be hosted.
+- **Zero API Keys**: Uses standard HTTP JSON payloads directly against Ollama's `/api/chat` endpoint.
+- **Automatic R1 `<think>` Tag Stripping**: Includes regex sanitization to clean CoT reasoning blocks before Pydantic schema validation.
+- **Zero Ongoing Cost**: Operates entirely on existing compute capacity at $0$ EUR additional cost.
+
+#### 3. Line 3: Granular Multi-Provider Splitting
+The architecture allows hybrid orchestration where each agent consumes a different backend provider based on its technical strengths:
+```bash
+# RemediationAgent runs locally on Ollama for private reasoning
+LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b
+
+# InfraSpecialist leverages Gemini's 1M context for raw Loki dumps
+LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest
+
+# DataSpecialist runs fast schema extraction on HuggingFace
+LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct-v0.2
+```
+
+#### 4. Line 4: The Deterministic 0-Token Safety Net (`CircuitBreakerFallback`)
+If all AI providers (OpenRouter, Gemini, Ollama, HuggingFace) simultaneously fail due to network disconnection or global API outages:
+- `FallbackLLMAdapter` exhausts its chain and yields control to `LLMCircuitBreaker`.
+- `Orchestrator` engages `CIRCUIT_BREAKER_FALLBACK` (0 tokens, 100% deterministic Python).
+- An incident ticket `CREATE_ISSUE` is created, the cluster enters `Fail-Closed` mode (`default_effect: "deny"`), and a cryptographic record is appended to the `WORM Trust Ledger`.
+- **Zero hallucinations, zero unauthorized mutations, zero system crashes.**
+
+#### 5. Post-OpenRouter Migration Reference Matrix
+
+| Fallback Target | Hourly Cost | Vendor Dependency | Context Window | 30-Second Activation Command |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ollama (Tailscale VPS)** | **0 EUR** | **Zero (100% Sovereign)** | 32k - 128k (hardware dependent) | `LLM_PROVIDER=ollama OLLAMA_BASE_URL=http://100.117.99.62:11434` |
+| **Google Gemini Flash** | **0 EUR** (Free tier) | Google Cloud | **1,000,000 tokens** | `LLM_PROVIDER=gemini GOOGLE_API_KEY=AIza...` |
+| **Hugging Face Serverless**| **0 EUR** (Free tier) | Hugging Face | 32k tokens | `LLM_PROVIDER=huggingface HUGGINGFACE_API_KEY=hf_...` |
+| **Direct Commercial APIs** | Pay-as-you-go | OpenAI / Anthropic / Mistral | 128k - 200k tokens | `LLM_PROVIDER=openai OPENAI_API_KEY=sk-...` |
+| **CircuitBreakerFallback**  | **0 EUR** | **Zero (Pure Python Engine)** | **0 Tokens** | Triggered automatically by Orchestrator on total outage |
+
 ---
+
 
 ## 3. Layer 2: FinOps & SecOps Circuit Breaker Fallback (`LLMCircuitBreaker`)
 
