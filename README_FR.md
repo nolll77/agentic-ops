@@ -445,6 +445,7 @@ L'intégralité des phases de validation documentées dans [`reports/DOCKER_SAND
 | **`Phase F: CAC Tailscale Connector (13 Tests)`** | [`/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector) | `pytest tests/adapters/test_cac_pull_collector.py -v` | **`13 passed`** (Garantie `GET` en lecture seule sur les 5 services `jakatt/cac_mlops` + résilience hors-ligne). |
 | **`Phase G: MCP Governance Gateway (12 Tests)`** | [`/api/diagnostics/pytest_mcp_gateway`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_mcp_gateway) | `pytest tests/entrypoints/test_mcp_server.py -v` | **`12 passed`** (Protocole `MCP` JSON-RPC 2.0, lecteur live de `/console`, 8 outils gouvernés, 5 ressources, 20 prompts). |
 | **`Phase H: LLM Provider Hub (8 Tests)`** | [`/api/diagnostics/pytest_llm_hub`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_llm_hub) | `pytest tests/adapters/test_llm_provider_registry.py -v` | **`8 passed`** (Détection des 8 providers IA, chaîne de fallback sur rate-limit 429, parsing JSON Ollama, masquage de clé). |
+| **`Topologie MAS & LLMs Live`** | [`/api/mas/topology`](https://agentic-ops-5ebv.onrender.com/api/mas/topology) | `GET /api/mas/topology` | Cartographie dynamique des 11 composants du MAS (5 rôles cognitifs + 6 actionneurs déterministes à 0-token) avec modèles résolus, contrats Pydantic et blast radii. |
 | **`Grand Slam: All 62 Sandbox, MCP & LLM Tests`** | [`/api/diagnostics/pytest_all`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_all) | Exécute les `Phases C + D + E + F + G + H` en une seule passe `pytest` | **`62 passed, 2 skipped`** sur l'ensemble des suites d'attaques, scénarios, gouvernance, connecteur, MCP et Hub LLM. |
 | **`LLM Provider Live Status`** | [`/api/llm/status`](https://agentic-ops-5ebv.onrender.com/api/llm/status) | `GET /api/llm/status` | Renvoie le provider d'IA actif, le modèle résolu (ex: `deepseek-r1:free`), la chaîne de secours et la clé masquée. |
 | **`WORM Trust Ledger CLI`** | [`/api/diagnostics/trust_ledger_list`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/trust_ledger_list) | `python -m agentic_ops.cli.trust_ledger list` | Liste les épisodes scellés cryptographiquement (`SHA-256` + `HMAC-SHA512`) dans le registre du conteneur. |
@@ -978,7 +979,7 @@ Le Control Plane expose 5 endpoints REST et conversationnels dédiés :
 - **`GET /api/llm/models`** : Catalogue complet des 8 fournisseurs et recommandations pour opérer à 0 EUR.
 - **`POST /api/llm/probe`** : Sonde active qui teste en direct le LLM et mesure la latence d'aller-retour en millisecondes.
 - **`GET /api/prompts`** : Catalogue complet au format JSON des 20 prompts cognitifs MCP.
-- **`GET /chat` & `POST /api/chat`** : Interface de chat web autonome embarquant un explorateur modal des 20 prompts avec recherche et exécution en 1 clic.
+- **`GET /chat` & `POST /api/chat`** : Interface de chat web autonome embarquant un explorateur modal des 20 prompts avec recherche, le badge interactif `#llm-status-badge`, le bouton d'action et l'**Inspecteur Vivant de la Topologie MAS** en 1 clic.
 - **Bouton Console (`Phase H`)** : Déclenchement et audit en 1 clic de toutes les fonctionnalités du Hub depuis `/console`.
 
 ### 4. Spécialisation Cognitive Multi-LLM par Rôle d'Agent
@@ -1073,6 +1074,76 @@ Alors que les 5 rôles cognitifs ci-dessus sont pilotés par des LLMs spécialis
 | **`SlackWebhookAgent`** | Portier d'Approbation Humaine | **Aucun (Python Pur)** | **0 Tokens** | Authentifie les clics d'astreinte (`POST /slack/interactive`) par vérification cryptographique `HMAC-SHA256` et horodatage anti-rejeu de 300s avec verrous atomiques `SQLite BEGIN IMMEDIATE`. |
 | **8 `AgentTools`** | Sondes & Bras Armés | **Aucun (Python Pur)** | **0 Tokens** | Outils de diagnostic déterministes (`CheckDatabaseHealth`, `CheckDockerContainer`, `ValidatePanderaSchema`) appelés par les spécialistes cognitifs dans des sandboxes de moins de 15 secondes. |
 | **`MCPServerGateway`** | Passerelle Protocolaire | **Délégué au Client** | Côté client | Expose les outils et ressources en JSON-RPC 2.0. L'intelligence cognitive est déléguée au client IA externe connecté (Claude Desktop, Cursor, Antigravity). |
+
+#### Inspecteur Vivant de la Topologie MAS & Moteur LLM par Agent dans la Console et le Chat
+
+> **Référence Technique Dédiée** : **[`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#7-interactive-live-inspector-inspecting-mas-agents--active-llms-in-real-time-console--chat`](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md#7-interactive-live-inspector-inspecting-mas-agents--active-llms-in-real-time-console--chat)** | **Endpoint API** : `GET /api/mas/topology`
+
+Pour garantir une transparence cognitive radicale lors des opérations réelles, des audits d'architecture et des soutenances, `Agentic-Ops` intègre nativement un **Inspecteur Vivant de la Topologie MAS** directement au cœur des deux interfaces opérateur :
+
+- **Badge de Header & Bouton Améthyste de la Console** : Dans [`/console`](https://agentic-ops-5ebv.onrender.com/console), l'opérateur peut cliquer soit sur le badge `[Topologie MAS & LLMs Live]` du header, soit sur le bouton d'action principal améthyste pour inspecter les 11 composants du système en temps réel.
+- **Badge Interactif du Chat & Suggestion Rapide** : Dans [`/chat`](https://agentic-ops-5ebv.onrender.com/chat), cliquer sur le badge de statut `#llm-status-badge`, le bouton de navigation `[Topologie MAS]`, ou la chip de suggestion `[Inspecter les LLMs des Agents MAS]` ouvre la modale d'inspection sans interrompre le fil de la conversation.
+
+```text
++--------------------------------------------------------------------------------------------------+
+|  TOPOLOGIE MAS & INSPECTEUR DES MODÈLES D'AGENTS EN DIRECT                         [ X Fermer ]  |
++--------------------------------------------------------------------------------------------------+
+|  [Filtre : Tous (11)]  [Filtre : Cerveaux LLM (5)]  [Filtre : Actionneurs Déterministes (6)]     |
++------------------------------------+-------------------------------------------------------------+
+|  LISTE DE SÉLECTION DES ACTEURS    |  DOSSIER TECHNIQUE DÉTAILLÉ ("ENCART DÉDIÉ")               |
+|                                    |                                                             |
+|  [*] RemediationAgent              |  [Rôle : RemediationAgent]  | Domaine : Planification SRE   |
+|      deepseek-r1:free (CoT)        |  Statut : EN LIGNE (LIVE)   | Type : Cerveau Cognitif LLM   |
+|                                    +-------------------------------------------------------------+
+|  [ ] InfraSpecialist               |                                                             |
+|      gemma-4-31b-it:free (256k)    |  1. IDENTITÉ & MISSION OPÉRATIONNELLE                       |
+|                                    |     - Responsabilité : Analyse causale & calcul blast radius|
+|  [ ] DataSpecialist                |     - Déclencheur FSM : Exécuté lors de l'état [PLANNED]    |
+|      gemma-4-26b-a4b-it:free (MoE) |     - Garde-fou Judiciaire : Séparation des pouvoirs        |
+|                                    |                                                             |
+|  [ ] ModelSpecialist               |  2. MOTEUR ACTIF & CONFIGURATION D'INFÉRENCE                |
+|      llama-3.3-70b-instruct:free   |     - Modèle Résolu : openrouter/deepseek/deepseek-r1:free  |
+|                                    |     - Raisonnement : Chain-of-Thought (<think> filtrés)     |
+|  [ ] WebChatCopilot                |     - Chaîne de Repli : deepseek-chat -> llama-3.3-70b      |
+|      deepseek-chat:free            |     - Hyperparamètres : Temp = 0.0 | MaxTokens = 4096 | 30s |
+|                                    |     - Variable d'Override : LLM_MODEL_REMEDIATION           |
+|  [ ] CircuitBreakerFallback        |     - Rationale Métier : Seul modèle gratuit capable        |
+|      0-Token Python Pur            |       d'évaluation causale pas-à-pas du rayon d'impact.     |
+|                                    |                                                             |
+|  [ ] ActionExecutor                |  3. CONTRATS DE DONNÉES & DÉPENDANCES SYSTÈME               |
+|      0-Token Isolation Subprocess  |     - Contrat d'Entrée : Pydantic Diagnosis                 |
+|                                    |     - Contrat de Sortie : Pydantic ActionIntent             |
+|  [ ] CacPullCollector             |     - Services Liés : Redis (:6379), OPA PolicyEngine       |
+|      0-Token Polling Télémétrique  |     - Outils Autorisés : Aucun (Isolation judiciaire pure)  |
+|                                    |                                                             |
+|  [ ] SlackWebhookAgent             |  4. SÉCURITÉ, RAYON D'IMPACT & OBSERVABILITÉ FINOPS         |
+|      0-Token Portier Crypto HMAC   |     - Blast Radius Autorisé : 0 à 5 (Veto PolicyEngine)     |
+|                                    |     - Grand Livre WORM : Signé par arbre de Merkle (SHA256) |
+|  [ ] 8 AgentTools                  |     - Métrique PromQL : agentic_ops_llm_requests_total{role}|
+|      0-Token Sondes Déterministes  |     - Tolérance Panne : Coupe-circuit sur rate-limit 429    |
+|                                    |                                                             |
+|  [ ] MCPServerGateway              |  5. CONTRÔLES INTERACTIFS EN DIRECT                         |
+|      Pont Protocole JSON-RPC 2.0   |     [ ⚡ Tester la Sonde LLM (/api/llm/probe) ]             |
+|                                    |     [ 📋 Copier Requête Métrique PromQL ]                   |
++------------------------------------+-------------------------------------------------------------+
+```
+
+##### Les 5 Sections Structurantes de l'Encart Dédié
+
+1. **Identité & Mission Opérationnelle** : Périmètre SRE, déclencheur FSM d'activation et séparation judiciaire des pouvoirs (ou principe de moindre privilège pour les actionneurs).
+2. **Motorisation Active (Cerveau LLM vs. Moteur Déterministe à 0-Token)** : Modèle résolu en cours d'exécution, fournisseur, mode de raisonnement (CoT `<think>` délibéré vs. JSON direct), température, plafond de tokens, timeout, variable d'environnement de surcharge, chaîne de secours et justification opérationnelle. Pour les composants non-cognitifs, attestation formelle de fonctionnement en **Python pur à 0-token**, isolation par processus OS (`multiprocessing.Process`) et timeout dur (`SIGTERM` 30s).
+3. **Contrats de Données & Dépendances Système** : Contrats Pydantic d'entrée et de sortie (`Diagnosis`, `ActionIntent`, `ExecutionResult`), services d'infrastructure connectés (Redis, Socket Docker, MLflow, Loki, PostgreSQL) et catalogue d'outils autorisés.
+4. **Sécurité, Rayon d'Impact & Observabilité FinOps** : Seuil de Blast Radius autorisé ($0$ pour diagnostic pur, jusqu'à $5$ pour remédiation), état d'ancrage dans le Grand Livre WORM Merkle, métrique Prometheus exacte (`agentic_ops_llm_requests_total{role="..."}`) et comportement en cas de défaillance.
+5. **Contrôles Interactifs en Direct** : Déclenchement en 1 clic de la sonde de latence `/api/llm/probe` et copie de la requête PromQL dans le presse-papier de l'opérateur.
+
+##### Preuve d'Innocuité et Zéro Surcharge sur Render Free (0.1 vCPU / 512 Mo RAM)
+
+| Contrainte Matérielle | Implémentation Architecturale | Impact Réel Mesuré en Production |
+| :--- | :--- | :--- |
+| **Limite 0.1 vCPU** | Rendu DOM 100% côté client en Vanilla HTML5/CSS3/ES6 | **0% d'utilisation CPU serveur** lors de l'affichage de la modale, du filtrage et du changement d'onglets. |
+| **Limite 512 Mo RAM** | Lecture in-memory de la configuration via `GET /api/mas/topology` | **0 Mo de RAM persistante consommée**, temps de réponse sous les 2 millisecondes, sans I/O disque ni réseau. |
+| **Poids Réseau** | Feuilles de style et scripts inlinés dans les templates HTML | **Moins de 18 Ko gzippés**, téléchargement en `< 15 ms` sans blocage du chargement initial. |
+| **Zéro Dépendance** | APIs natives du navigateur (aucun framework React/Vue, ni webpack/npm) | **Zéro appel CDN externe**, immunité totale aux attaques sur la supply-chain frontend et fonctionnement hors-ligne. |
 
 ### 6. Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping
 

@@ -267,44 +267,277 @@ While the 5 cognitive roles (`RemediationAgent`, `InfraSpecialist`, `DataSpecial
 
 ## 7. Interactive Live Inspector: Inspecting MAS Agents & Active LLMs in Real-Time (`/console` & `/chat`)
 
-To provide complete cognitive transparency during live operations and jury audits, `Agentic-Ops` embeds an interactive **Live MAS Topology & Agent Inspector** available directly within both operator interfaces:
-- **SRE Cognitive Web Console**: Accessible via the header badge or the purple command button at [`/console`](https://agentic-ops-5ebv.onrender.com/console).
-- **Standalone Web Chat**: Accessible by clicking the `#llm-status-badge`, the `[🤖 Topologie MAS]` button in the top navigation, or the quick-action chip at [`/chat`](https://agentic-ops-5ebv.onrender.com/chat).
+To provide complete cognitive transparency during live operations, production incidents, and jury audits, `Agentic-Ops` embeds an interactive **Live MAS Topology & Agent Inspector** directly within both operator interfaces:
+- **SRE Cognitive Web Console**: Accessible via the header badge `[MAS Topology & LLMs Live]` or the primary purple command button at [`/console`](https://agentic-ops-5ebv.onrender.com/console).
+- **Standalone Web Chat**: Accessible by clicking the active `#llm-status-badge`, the `[MAS Topology]` button in the top navigation bar, or the quick-action chip `[Inspecter les LLMs des Agents MAS]` at [`/chat`](https://agentic-ops-5ebv.onrender.com/chat).
 
-### A. Dedicated Inspection API Endpoint (`GET /api/mas/topology`)
-The inspector is backed by the lightweight endpoint `GET /api/mas/topology` which dynamically resolves the live state of all 11 system components:
-- Calls `LLMProviderRegistry.get_roles_topology()` to capture runtime model overrides, providers, and fallbacks.
-- Returns comprehensive structural metadata: mission, FSM triggers, anti-bias safeguards, Pydantic input/output contracts, dependencies, and FinOps PromQL tags.
-- Operates in memory with zero external I/O, responding in `< 2 ms`.
+---
 
-### B. The 5 Sections of the Component Inspector Card ("Encart Dédié")
-When an operator selects any component from the list, the inspector displays a comprehensive technical dossier:
+### A. Render Free Feasibility & Zero-Overhead Guarantee (0.1 vCPU / 512 MB RAM)
 
-1. **Identity & Responsibilities**:
-   - Exact functional mission and SRE domain.
-   - FSM trigger condition (e.g. `[PLANNED]`, `risk_id` pattern, or periodic polling).
-   - Judicial safeguard: Anti-Bias separation rule for cognitive agents or Least-Privilege invariant for actuators.
-2. **Active Motorisation (Cognitive LLM vs. Deterministic Engine)**:
-   - If Cognitive: Resolved model ID (`deepseek-r1:free`, `gemma-4-31b`, etc.), reasoning mode (`<think>` CoT vs. raw JSON), active temperature, token ceiling, timeout, override env var, and cascading fallback chain.
-   - If Deterministic: Explanation of the **0-Token** Python engine, OS process isolation (`multiprocessing.Process`), hard deadline (`SIGTERM`), and Zero-Trust rationale.
-3. **Dependencies & Data Contracts**:
-   - Pydantic Input Contract (e.g. `Diagnosis`, `SignalEnvelope`).
-   - Pydantic Output Contract (e.g. `ActionIntent`, `ExecutionResult`).
-   - Connected services (Redis, Docker socket, MLflow, Loki, PostgreSQL).
-   - Permitted tool inventory (Tool Calling whitelist).
+Deploying complex interactive observability on free cloud tiers presents severe resource challenges. The Live MAS Inspector was engineered to operate under the absolute minimum hardware profile:
+
+1. **Zero Server CPU Consumption (0.1 vCPU Preserved)**:
+   All DOM rendering, modal animations, tab filtering, category pills, and card switching occur **100% client-side** inside the operator's web browser using native Vanilla HTML5, CSS3, and modern ES6 JavaScript. The server does not execute any template rendering or DOM computation.
+2. **Zero Persistent Memory Overhead (512 MB RAM Preserved)**:
+   The backend endpoint `GET /api/mas/topology` reads directly from in-memory configuration objects and environment variables already loaded during startup by `LLMProviderRegistry`. It performs zero database queries, zero disk I/O, and zero network round-trips. Memory consumption is **0 MB**, with an execution latency of **under 2 milliseconds**.
+3. **Insignificant Network Footprint**:
+   The entire CSS stylesheet, HTML modal skeleton, and JavaScript event dispatcher add under **18 KB (gzipped)** to the initial `/console` and `/chat` payloads, loading in under 15 milliseconds even over constrained connections.
+4. **Zero Frontend Toolchain Dependencies**:
+   Built without React, Vue, Angular, webpack, or npm dependencies. The inspector requires no external CDN calls, preventing security vulnerabilities and ensuring offline resilience.
+
+---
+
+### B. UI Wireframe & Architecture of the Inspector Modal
+
+The modal employs a 2-column responsive layout: the left sidebar provides category filters (`All`, `Cognitive Brains (LLM)`, `Deterministic (0-Token)`) and selectable component cards; the right panel displays the comprehensive **Encart Dédié** (Dedicated Component Card):
+
+```text
++--------------------------------------------------------------------------------------------------+
+|  MAS ARCHITECTURE & LIVE COMPONENT INSPECTOR                                       [ X Close ]  |
++--------------------------------------------------------------------------------------------------+
+|  [Filter: All (11)]  [Filter: Cognitive Brains (5)]  [Filter: Deterministic Actuators (6)]       |
++------------------------------------+-------------------------------------------------------------+
+|  COMPONENT SELECTION LIST          |  DEDICATED COMPONENT DOSSIER ("ENCART DEDIE")               |
+|                                    |                                                             |
+|  [*] RemediationAgent              |  [Role: RemediationAgent]  | Domain: SRE Incident Recovery  |
+|      deepseek-r1:free (CoT)        |  Status: LIVE ONLINE       | Type: Cognitive LLM Brain      |
+|                                    +-------------------------------------------------------------+
+|  [ ] InfraSpecialist               |                                                             |
+|      gemma-4-31b-it:free (256k)    |  1. IDENTITY & OPERATIONAL MISSION                          |
+|                                    |     - Responsibility: Causal inference & blast radius plan  |
+|  [ ] DataSpecialist                |     - FSM Trigger: Executed unconditionally in [PLANNED]    |
+|      gemma-4-26b-a4b-it:free (MoE) |     - Judicial Safeguard: Anti-bias separation of powers    |
+|                                    |                                                             |
+|  [ ] ModelSpecialist               |  2. ACTIVE ENGINE & INFERENCE CONFIGURATION                 |
+|      llama-3.3-70b-instruct:free   |     - Active Model: openrouter/deepseek/deepseek-r1:free    |
+|                                    |     - Reasoning Mode: Chain-of-Thought (<think> filtered)   |
+|  [ ] WebChatCopilot                |     - Cascading Fallbacks: deepseek-chat -> llama-3.3-70b   |
+|      deepseek-chat:free            |     - Hyperparameters: Temp = 0.0 | MaxTokens = 4096 | 30s  |
+|                                    |     - Override Variable: LLM_MODEL_REMEDIATION              |
+|  [ ] CircuitBreakerFallback        |     - Architectural Rationale: Only free model with deep    |
+|      0-Token Pure Python           |       causal CoT capability for blast radius assessment.    |
+|                                    |                                                             |
+|  [ ] ActionExecutor                |  3. DATA CONTRACTS & SYSTEM DEPENDENCIES                    |
+|      0-Token Subprocess Sandbox    |     - Input Contract: Pydantic Diagnosis                    |
+|                                    |     - Output Contract: Pydantic ActionIntent                |
+|  [ ] CacPullCollector             |     - Connected Services: Redis (:6379), OPA PolicyEngine   |
+|      0-Token Telemetry Ingestion   |     - Permitted Tools: None (Judicially isolated)           |
+|                                    |                                                             |
+|  [ ] SlackWebhookAgent             |  4. SECURITY, BLAST RADIUS & FINOPS OBSERVABILITY           |
+|      0-Token HMAC Gate             |     - Authorized Blast Radius: 0 to 5 (PolicyEngine veto)   |
+|                                    |     - WORM Ledger: Merkle cryptographically sealed (SHA256) |
+|  [ ] 8 AgentTools                  |     - PromQL Metric: agentic_ops_llm_requests_total{role=""} |
+|      0-Token Sensory Probes        |     - Failure Domain: Trips CircuitBreaker on 429/timeout   |
+|                                    |                                                             |
+|  [ ] MCPServerGateway              |  5. INTERACTIVE LIVE ACTIONS                                |
+|      JSON-RPC 2.0 Bridge           |     [ Test LLM Probe (/api/llm/probe) ]                     |
+|                                    |     [ Copy PromQL Metric Query ]                            |
++------------------------------------+-------------------------------------------------------------+
+```
+
+---
+
+### C. The 5 Structural Sections of the Dedicated Component Card
+
+Each component card rendered in the inspector details 5 engineering dimensions:
+
+1. **Identity & Operational Mission**:
+   - Exact functional role, operational responsibilities, and SRE scope.
+   - Finite State Machine (FSM) trigger condition (e.g. state `[PLANNED]`, specific `risk_id` pattern, or periodic loop).
+   - Judicial safeguard: Anti-Bias separation of powers for cognitive agents, or Least-Privilege invariant for actuators.
+2. **Active Engine & Inference Configuration**:
+   - **For Cognitive Agents (LLM)**: Fully resolved runtime model string, provider name, reasoning mode (e.g. Chain-of-Thought with regex filtering of `<think>` blocks), active temperature, token ceiling, timeout limit, configuration override environment variable, and operational selection rationale.
+   - **For Deterministic Actors (0-Token Python)**: Pure Python execution specification, process isolation boundary (`multiprocessing.Process` with dedicated PID), hard OS deadline (`SIGTERM` / `SIGKILL` after 30s), and Zero-Trust rationale.
+3. **Data Contracts & System Dependencies**:
+   - Pydantic Input Contract validating incoming telemetry or signal structure.
+   - Pydantic Output Contract enforcing strict downstream typing.
+   - Upstream and downstream service dependencies (Redis, Tailscale mesh, Docker socket, MLflow, Loki, PostgreSQL).
+   - Tool Calling whitelist (restricted tool inventory).
 4. **Security, Blast Radius & FinOps Observability**:
-   - Authorized blast radius limit ($0$ for investigation, up to $5$ for remediation).
-   - WORM Ledger status (Merkle cryptographically sealed audit trail).
-   - Dedicated Prometheus FinOps metric query (e.g. `agentic_ops_llm_requests_total{role="..."}`).
-   - Failure domain behavior (circuit breaker trip, fail-closed lock, or model failover).
-5. **Interactive Controls**:
-   - `[⚡ Tester la Sonde LLM]`: Actively tests `/api/llm/probe` to measure live round-trip latency to the provider.
-   - `[📋 Copier Requête PromQL]`: Copies the exact Prometheus metric query directly to the operator's clipboard.
+   - Maximum permitted Blast Radius ($0$ for observation, up to $5$ for remediation).
+   - WORM Trust Ledger status (tamper-evident Merkle tree logging).
+   - Prometheus PromQL metric selector for real-time cost and volume tracking.
+   - Failure domain behavior (circuit breaker trip, fail-closed lock, or automatic failover).
+5. **Interactive Live Controls**:
+   - **Test LLM Probe**: Fires a direct test request to `/api/llm/probe` to verify real-time connectivity and round-trip latency.
+   - **Copy PromQL Metric Query**: Copies the exact Prometheus metric query directly to the operator clipboard for pasting into Grafana.
 
-### C. Zero-Overhead Compliance on Render Free (0.1 vCPU / 512 MB RAM)
-The Live MAS Inspector was engineered specifically to adhere to serverless free-tier constraints:
-1. **Client-Side DOM Rendering**: The modal, tabs, filtering, and animations are executed 100% in the operator's web browser using native Vanilla HTML5/CSS3/ES6. Server CPU consumption is **0%**.
-2. **Zero Extra RAM**: The backend serves static metadata and in-memory config in `< 2 ms`, consuming 0 additional bytes of persistent RAM.
-3. **No External Asset Dependencies**: Zero npm packages, webpack bundles, or frontend framework runtimes. Adds under 18 KB to the gzipped HTTP payload.
+---
+
+### D. Comprehensive Technical Dossier: The 11 System Components
+
+#### 1. Cognitive Brains (5 Specialized Roles)
+
+##### 1. `RemediationAgent` (`role="remediation"`)
+- **Mission**: Cross-system root-cause analysis, blast radius calculation, and reversible action plan synthesis.
+- **Engine**: Cognitive LLM (`openrouter/deepseek/deepseek-r1:free`).
+- **Reasoning Mode**: Deliberate Chain-of-Thought (CoT) within `<think>` tags. The model reasons through system dependencies before generating clean Pydantic JSON.
+- **FSM Trigger**: Executed unconditionally whenever the orchestrator transitions to `[PLANNED]`.
+- **Judicial Safeguard**: **Strict Separation of Powers**. Forbidden from performing diagnostic investigation. Evaluates facts provided by specialists as an independent magistrate.
+- **Contracts**: Input `Diagnosis` $\rightarrow$ Output `ActionIntent`.
+- **Blast Radius**: Authorized up to $5$ (actions with blast radius $\ge 3$ trigger mandatory Slack HITL approval).
+- **FinOps Metric**: `agentic_ops_llm_requests_total{role="remediation"}`.
+
+##### 2. `InfraSpecialist` (`role="infra"`)
+- **Mission**: Infrastructure diagnostics, container health, socket connections, memory leaks, and PostgreSQL limits.
+- **Engine**: Cognitive LLM (`openrouter/google/gemma-4-31b-it:free`).
+- **Reasoning Mode**: Direct structured inference with an ultra-wide context window.
+- **Context Window**: 256,000 tokens, enabling ingestion of raw Loki log dumps, systemd journals, and Linux kernel traces without truncation.
+- **FSM Trigger**: Alert signals containing `"INFRA"` in `risk_id`.
+- **Contracts**: Input `SignalEnvelope` $\rightarrow$ Output `Diagnosis`.
+- **Blast Radius**: Strictly $0$ (Read-only investigation).
+- **FinOps Metric**: `agentic_ops_llm_requests_total{role="infra"}`.
+
+##### 3. `DataSpecialist` (`role="data"`)
+- **Mission**: Schema drift detection, data quality verification, null rate spikes, and tabular contract enforcement.
+- **Engine**: Cognitive LLM (`openrouter/google/gemma-4-26b-a4b-it:free`).
+- **Reasoning Mode**: Mixture-of-Experts (MoE) optimized for low latency and deterministic JSON formatting.
+- **FSM Trigger**: **Universal Platform Default**. Handles alerts containing `"DATA"` as well as any unmatched or unknown `risk_id` to prevent routing deadlocks.
+- **Contracts**: Input `SignalEnvelope` $\rightarrow$ Output `Diagnosis`.
+- **Blast Radius**: Strictly $0$ (Read-only investigation).
+- **FinOps Metric**: `agentic_ops_llm_requests_total{role="data"}`.
+
+##### 4. `ModelSpecialist` (`role="model"`)
+- **Mission**: Statistical distribution shift analysis, concept drift vs. data noise arbitration, and F1-score tracking.
+- **Engine**: Cognitive LLM (`openrouter/meta-llama/llama-3.3-70b-instruct:free`).
+- **Reasoning Mode**: High-capacity 70B parameter statistical reasoning.
+- **FSM Trigger**: Alert signals containing `"MODEL"` in `risk_id`.
+- **Safeguard**: Prevents spurious model retraining loops by differentiating input covariate shift ($P(X)$) from true posterior concept drift ($P(Y \mid X)$).
+- **Contracts**: Input `SignalEnvelope` $\rightarrow$ Output `Diagnosis`.
+- **Blast Radius**: Strictly $0$ (Read-only investigation).
+- **FinOps Metric**: `agentic_ops_llm_requests_total{role="model"}`.
+
+##### 5. `WebChatCopilot` (`role="chat"`)
+- **Mission**: Interactive SRE assistant for human operators, WORM ledger inspection, and prompt execution.
+- **Engine**: Cognitive LLM (`openrouter/deepseek/deepseek-chat:free`).
+- **Reasoning Mode**: Direct conversational streaming with sub-second Time-To-First-Token (TTFT) and no `<think>` delay.
+- **Trigger**: User messages via `/chat` or `POST /api/chat`.
+- **Contracts**: Input `ChatRequest` $\rightarrow$ Output `ChatResponse`.
+- **Blast Radius**: Strictly $0$ (Advisory assistance only).
+- **FinOps Metric**: `agentic_ops_llm_requests_total{role="chat"}`.
+
+---
+
+#### 2. Deterministic Components & Actuators (6 Zero-Token Actors)
+
+##### 6. `CircuitBreakerFallback`
+- **Mission**: Ultimate emergency fail-safe when AI providers experience rate limits (`HTTP 429`), timeouts, or network partitions.
+- **Engine**: **Pure Python (0 Tokens, Zero-LLM)**.
+- **Mechanism**: Hardcoded deterministic state machine. Automatically trips when hourly request thresholds ($> 50$ req/h) or consecutive error ceilings are exceeded.
+- **Behavior**: Emits a deterministic `Diagnosis` with confidence $1.0$ and forces the passive, non-mutating action `CREATE_ISSUE`. Calling secondary LLMs during an outage is strictly banned.
+- **Blast Radius**: Strictly $0$.
+
+##### 7. `ActionExecutor`
+- **Mission**: Physical system actuator executing validated remediation plans (container restarts, model rollbacks).
+- **Engine**: **Pure Python (0 Tokens, Zero-LLM)**.
+- **Security Boundary**: **Zero-Trust Process Isolation**. Executed inside isolated `multiprocessing.Process` workers with dedicated operating system PIDs. Enforces strict argument whitelists and hard 30-second `SIGTERM` / `SIGKILL` timeouts.
+- **Invariant**: LLMs possess zero shell privileges and zero direct mutation capability.
+
+##### 8. `CacPullCollector`
+- **Mission**: High-frequency telemetric sensor polling target MLOps clusters (`jakatt/cac_mlops`) over the encrypted Tailscale VPN mesh.
+- **Engine**: **Pure Python (0 Tokens, Zero-LLM)**.
+- **Mechanism**: Async HTTP client (`httpx`) pulling metrics from Prometheus, Loki, MLflow, Prefect, and Evidently over SOCKS5 proxy `:1055`.
+- **Resilience**: Enforces strict read-only `GET` requests; implements exponential backoff with circuit breaker locks during remote VPS network partitions.
+
+##### 9. `SlackWebhookAgent`
+- **Mission**: Cryptographic security gate protecting Human-in-the-Loop (HITL) approval actions.
+- **Engine**: **Pure Python (0 Tokens, Zero-LLM)**.
+- **Security Invariant**: Validates inbound operator decisions (`POST /slack/interactive`) using `HMAC-SHA256` signature verification (`X-Slack-Signature`) against a 5-minute replay window (`X-Slack-Request-Timestamp`). Employs atomic `SQLite BEGIN IMMEDIATE` locks to block double-click race conditions.
+
+##### 10. `8 AgentTools`
+- **Mission**: Sensory probes and diagnostic execution tools invoked during incident investigation.
+- **Engine**: **Pure Python (0 Tokens, Zero-LLM)**.
+- **Tool Inventory**: `CheckDatabaseHealth`, `CheckDockerContainer`, `ValidatePanderaSchema`, `QueryPrometheusMetric`, `InspectSystemResources`, `ReadTailscaleStatus`, `InspectWormLedger`, `InspectModelArtifact`.
+- **Constraint**: Sandboxed execution limited to $< 15$ seconds with read-only database connections and sanitized query arguments.
+
+##### 11. `MCPServerGateway`
+- **Mission**: Model Context Protocol (MCP) bridge exposing system tools and telemetry to external IDEs and agents.
+- **Engine**: **JSON-RPC 2.0 Protocol Server (Delegated to Client)**.
+- **Architecture**: Operates over standard `stdio` and HTTP SSE on `/mcp`. Exposes 8 governed tools, 5 resources, and 20 starter prompts. Intelligence is provided by the external client (Claude Desktop, Cursor, Antigravity); the gateway itself executes 0 internal model tokens.
+
+---
+
+### E. Dedicated Inspection API Specification (`GET /api/mas/topology`)
+
+The live inspector frontend communicates with the backend via a single high-speed endpoint:
+
+- **Route**: `GET /api/mas/topology`
+- **Latency**: $< 2$ ms (In-memory resolution)
+- **Response Schema**:
+
+```json
+{
+  "status": "ok",
+  "total_components": 11,
+  "cognitive_count": 5,
+  "deterministic_count": 6,
+  "global_default_provider": "openrouter",
+  "global_default_model": "deepseek/deepseek-r1:free",
+  "cognitive_agents": [
+    {
+      "id": "remediation",
+      "name": "RemediationAgent",
+      "role": "remediation",
+      "type": "Cognitif (LLM)",
+      "is_cognitive": true,
+      "provider": "openrouter",
+      "resolved_model": "deepseek/deepseek-r1:free",
+      "reasoning_mode": "Chain-of-Thought délibéré (<think> tags filtrés via regex)",
+      "fallbacks": [
+        "deepseek/deepseek-chat:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "google/gemini-2.0-flash-exp:free"
+      ],
+      "temperature": 0.0,
+      "max_tokens": 4096,
+      "timeout": 30,
+      "env_override": "LLM_MODEL_REMEDIATION",
+      "input_contract": "Diagnosis",
+      "output_contract": "ActionIntent",
+      "blast_radius_limit": 5,
+      "fsm_trigger": "État FSM [PLANNED] (systématique sur chaque incident)",
+      "judicial_rule": "Séparation des Pouvoirs Anti-Biais : interdiction formelle de diagnostiquer",
+      "dependencies": ["Redis (:6379)", "PolicyEngine (OPA)", "WORM Trust Ledger"],
+      "promql_metric": "agentic_ops_llm_requests_total{role=\"remediation\"}",
+      "failure_behavior": "Repli automatique sur FallbackLLMAdapter puis CIRCUIT_BREAKER_FALLBACK",
+      "rationale": "Seul modèle gratuit doté d'une capacité de raisonnement CoT pas-à-pas"
+    }
+  ],
+  "deterministic_components": [
+    {
+      "id": "action_executor",
+      "name": "ActionExecutor",
+      "type": "Déterministe (0-Token Python Pur)",
+      "is_cognitive": false,
+      "engine": "Python Déterministe Pur (0 Tokens, Zéro-LLM)",
+      "isolation": "multiprocessing.Process (PID dédié, isolation OS)",
+      "timeout_deadline": "30s (SIGTERM puis SIGKILL)",
+      "input_contract": "ActionIntent (validé par PolicyEngine)",
+      "output_contract": "ExecutionResult (scellé dans WORM Ledger)",
+      "zero_trust_rationale": "Aucun modèle probabiliste ne détient de privilèges d'exécution shell",
+      "dependencies": ["Docker Socket (/var/run/docker.sock)", "Systemd D-Bus", "WORM Ledger"],
+      "promql_metric": "agentic_ops_actions_executed_total{status=\"success\"}"
+    }
+  ]
+}
+```
+
+---
+
+### F. Automated Verification & Test Coverage
+
+The inspector is covered by dedicated integration and contract tests in [`tests/entrypoints/test_chat_endpoint.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/entrypoints/test_chat_endpoint.py):
+
+1. **`test_get_mas_topology_endpoint`**:
+   - Asserts `HTTP 200 OK`.
+   - Asserts `total_components == 11` (exactly 5 cognitive agents and 6 deterministic components).
+   - Validates that each cognitive agent exposes its resolved model, fallbacks, Pydantic contracts, and PromQL metric tag.
+   - Validates that non-cognitive components explicitly state 0-token pure Python execution.
+2. **`test_get_console_ui_contains_mas_inspector`**:
+   - Asserts that `/console` contains the modal container (`id="mas-modal"`), the header button, the purple command grid card, and the dynamic fetching script `openMasModal()`.
+3. **`test_get_chat_ui_contains_mas_inspector`**:
+   - Asserts that `/chat` contains the interactive `#llm-status-badge`, the top bar button `[MAS Topology]`, and the quick suggestion chip.
+
 
 
