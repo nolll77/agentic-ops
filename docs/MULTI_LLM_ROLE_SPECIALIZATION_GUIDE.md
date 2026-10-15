@@ -62,32 +62,49 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 
 ## 4. Configuration Precedence & Zero-Breaking Contract
 
-The platform resolves configuration through a strict 3-tier hierarchy:
+The platform resolves configuration through a strict 3-tier hierarchy that guarantees **Native Out-of-the-Box Specialization with Zero Mandatory Configuration**:
 
 ```text
-Tier 1: Role-Specific Environment Variables
+Tier 1: Explicit Role Environment Variable (Granular Override)
   e.g. LLM_MODEL_INFRA, LLM_FALLBACK_MODELS_INFRA, LLM_PROVIDER_INFRA
                          │
                          ▼ (if not defined)
-Tier 2: Global Environment Variables
+Tier 2: Global Environment Variable (Universal Override)
   e.g. LLM_MODEL, LLM_FALLBACK_MODELS, LLM_PROVIDER
                          │
                          ▼ (if not defined)
-Tier 3: Provider Profile Default
-  e.g. PROVIDER_PROFILES["openrouter"]["default_model"]
+Tier 3: Native Role-Specialized Default Model (MAS Out-of-the-Box)
+  e.g. ROLE_RECOMMENDED_MODELS[role]["model"] on OpenRouter
+  - remediation: openrouter/deepseek/deepseek-r1:free
+  - infra:       openrouter/google/gemma-4-31b-it:free
+  - data:        openrouter/google/gemma-4-26b-a4b-it:free
+  - model:       openrouter/meta-llama/llama-3.3-70b-instruct:free
+  - chat:        openrouter/deepseek/deepseek-chat:free
+                         │
+                         ▼ (if provider is not OpenRouter and no role default)
+Tier 4: Provider Default Model
+  e.g. PROVIDER_PROFILES[provider]["default_model"]
 ```
 
 ### Practical Configuration Scenarios:
 
-#### Scenario A: Global Uniform Brain (Classic Mode)
-Only `LLM_MODEL` is declared. All 5 agent roles inherit the global model automatically:
+#### Scenario A: Native Distributed Mesh (Default Out-of-the-Box — 0 EUR)
+Zero environment variables declared. Each agent automatically receives its specialized expert model:
+- `RemediationAgent` runs on `deepseek-r1:free`
+- `InfraSpecialist` runs on `gemma-4-31b-it:free` (256k context)
+- `DataSpecialist` runs on `gemma-4-26b-a4b-it:free`
+- `ModelSpecialist` runs on `llama-3.3-70b-instruct:free`
+- `WebChatCopilot` runs on `deepseek-chat:free`
+
+#### Scenario B: Universal Single-Model Override (Force All to One LLM)
+Declaring `LLM_MODEL` forces all 5 agent roles to run on a single model (e.g., local Ollama or private OpenAI):
 ```bash
 LLM_PROVIDER=openrouter
-LLM_MODEL=openrouter/deepseek/deepseek-r1:free
+LLM_MODEL=openrouter/deepseek/deepseek-chat:free
 ```
 
-#### Scenario B: Hybrid Cognitive Mesh (Recommended)
-Specific demanding roles are redirected to specialized models:
+#### Scenario C: Hybrid Cognitive Mesh (Granular Override)
+Specific demanding roles are redirected to alternative specialized models:
 ```bash
 # Baseline global model
 LLM_PROVIDER=openrouter
@@ -103,7 +120,7 @@ LLM_MODEL_DATA=openrouter/google/gemma-4-26b-a4b-it:free
 LLM_MODEL_CHAT=openrouter/deepseek/deepseek-chat:free
 ```
 
-#### Scenario C: Multi-Provider Sovereignty
+#### Scenario D: Multi-Provider Sovereignty
 Different roles can target different providers (e.g., local Ollama for model evaluation, OpenRouter for cloud):
 ```bash
 LLM_PROVIDER=openrouter

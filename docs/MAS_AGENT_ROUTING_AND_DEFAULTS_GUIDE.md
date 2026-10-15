@@ -137,13 +137,13 @@ The MAS architecture defines 5 distinct agent roles across 3 operational layers:
 
 ## 5. Fallback Hierarchy & Precedence Rules
 
-When initializing any agent role, `LLMProviderRegistry.resolve_role_config(role)` applies a strict fallback hierarchy:
+When initializing any agent role, `LLMProviderRegistry.resolve_role_config(role)` applies a strict 4-tier precedence hierarchy that ensures **Native Distributed Intelligence Out-of-the-Box**:
 
-$$\text{Role Override} \;(\text{LLM\_MODEL\_\{ROLE\}}) \;\longrightarrow\; \text{Global Model} \;(\text{LLM\_MODEL}) \;\longrightarrow\; \text{Provider Default Model}$$
+$$\text{Role Override} \;(\text{LLM\_MODEL\_\{ROLE\}}) \;\longrightarrow\; \text{Global Override} \;(\text{LLM\_MODEL}) \;\longrightarrow\; \text{Native Role Default} \;(\text{ROLE\_RECOMMENDED\_MODELS}) \;\longrightarrow\; \text{Provider Default}$$
 
 $$\text{Role Fallbacks} \;(\text{LLM\_FALLBACK\_MODELS\_\{ROLE\}}) \;\longrightarrow\; \text{Global Fallbacks} \;(\text{LLM\_FALLBACK\_MODELS}) \;\longrightarrow\; \text{Provider Free Models}$$
 
 This guarantees that:
-1. Omitting role-specific environment variables never causes a failure.
-2. Every agent automatically inherits zero-cost fallback resilience.
-3. Upstream orchestration code remains completely agnostic to provider and model selection.
+1. **Zero Configuration Burden**: Leaving all environment variables blank automatically provisions each agent with its expert model (`remediation` $\rightarrow$ `deepseek-r1`, `infra` $\rightarrow$ `gemma-4-31b`, `data` $\rightarrow$ `gemma-4-26b`, `model` $\rightarrow$ `llama-3.3-70b`, `chat` $\rightarrow$ `deepseek-chat`).
+2. **Deterministic Fallbacks**: Every agent automatically inherits a 5-stage zero-cost fallback chain to absorb rate limits (`HTTP 429`) and timeouts without workflow disruption.
+3. **Upstream Decoupling**: Orchestration, state machine transitions, and policy evaluations remain 100% decoupled from LLM provider selection and model configuration.
