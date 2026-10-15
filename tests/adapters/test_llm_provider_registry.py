@@ -199,7 +199,8 @@ The target is baac_rf.
 
     def test_role_config_resolution_with_custom_env(self, monkeypatch):
         """Validates that role-specific environment variables take precedence over global."""
-        monkeypatch.setenv("LLM_MODEL", "openrouter/deepseek/deepseek-r1:free")
+        # When global LLM_MODEL is set, unspecialized roles fall back to it
+        monkeypatch.setenv("LLM_MODEL", "openrouter/custom-global-model:free")
         monkeypatch.setenv("LLM_MODEL_INFRA", "openrouter/google/gemma-4-31b-it:free")
         monkeypatch.setenv("LLM_MODEL_DATA", "openrouter/google/gemma-4-26b-a4b-it:free")
         monkeypatch.setenv("LLM_MODEL_MODEL", "openrouter/meta-llama/llama-3.3-70b-instruct:free")
@@ -217,10 +218,29 @@ The target is baac_rf.
         assert chat_cfg.model == "openrouter/deepseek/deepseek-chat:free"
         assert chat_cfg.extra_kwargs.get("is_specialized") is True
 
-        # Unspecified role falls back to global LLM_MODEL
+        # When global LLM_MODEL is explicitly forced, non-overridden role takes the global model
         remediation_cfg = LLMProviderRegistry.resolve_role_config("remediation")
-        assert remediation_cfg.model == "openrouter/deepseek/deepseek-r1:free"
+        assert remediation_cfg.model == "openrouter/custom-global-model:free"
         assert remediation_cfg.extra_kwargs.get("is_specialized") is False
+
+    def test_native_mas_role_specialization_by_default(self, monkeypatch):
+        """Validates that without any env vars, MAS natively assigns specialized models to all roles."""
+        monkeypatch.delenv("LLM_MODEL", raising=False)
+        monkeypatch.delenv("LLM_MODEL_INFRA", raising=False)
+        monkeypatch.delenv("LLM_MODEL_DATA", raising=False)
+        monkeypatch.delenv("LLM_MODEL_MODEL", raising=False)
+        monkeypatch.delenv("LLM_MODEL_CHAT", raising=False)
+        monkeypatch.delenv("LLM_MODEL_REMEDIATION", raising=False)
+
+        topology = LLMProviderRegistry.get_roles_topology()
+        assert topology["remediation"]["model"] == "openrouter/deepseek/deepseek-r1:free"
+        assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
+        assert topology["data"]["model"] == "openrouter/google/gemma-4-26b-a4b-it:free"
+        assert topology["model"]["model"] == "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+        assert topology["chat"]["model"] == "openrouter/deepseek/deepseek-chat:free"
+
+        # All roles are natively specialized
+        assert all(topology[r]["is_specialized"] is True for r in topology)
 
     def test_role_fallbacks_precedence(self, monkeypatch):
         """Verifies role-specific fallbacks override global fallbacks."""
@@ -235,7 +255,7 @@ The target is baac_rf.
 
     def test_get_roles_topology_returns_all_supported_roles(self, monkeypatch):
         """Verifies get_roles_topology exposes all 5 roles and their recommendations."""
-        monkeypatch.setenv("LLM_MODEL_INFRA", "openrouter/google/gemma-4-31b-it:free")
+        monkeypatch.delenv("LLM_MODEL", raising=False)
         topology = LLMProviderRegistry.get_roles_topology()
 
         expected_roles = {"remediation", "infra", "data", "model", "chat"}
@@ -244,7 +264,7 @@ The target is baac_rf.
         assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
         assert topology["infra"]["is_specialized"] is True
         assert "recommendation" in topology["infra"]
-        assert topology["remediation"]["is_specialized"] is False
+        assert topology["remediation"]["model"] == "openrouter/deepseek/deepseek-r1:free"
 
     @patch("agentic_ops.adapters.llm_protocol.LiteLLMAdapter.__init__", return_value=None)
     def test_build_adapter_for_role_applies_role_label(self, mock_litellm_init, monkeypatch):

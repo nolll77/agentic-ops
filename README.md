@@ -987,7 +987,7 @@ The Control Plane exposes 5 dedicated REST inspection and conversational endpoin
 
 Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an architectural compromise. To eliminate cognitive trade-offs, `Agentic-Ops` introduces **Cognitive Specialization by Role** inside `LLMProviderRegistry` and `Orchestrator`:
 
-| Agent Role (`role`) | Target Specialization | Recommended 0 EUR Model | Env Variable Override |
+| Agent Role (`role`) | Target Specialization | Native Out-of-the-Box 0 EUR Model | Optional Env Variable Override |
 | :--- | :--- | :--- | :--- |
 | **`remediation`** | Action Planning & Blast Radius (CoT) | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
 | **`infra`** | Loki Dumps & Kernel Trace Logs (256k) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
@@ -995,7 +995,7 @@ Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an arc
 | **`model`** | MLflow F1-Score & Distribution Shift | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
 | **`chat`** | Interactive Web Chat Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
 
-- **Strict Fallback Precedence**: Any omitted role variable immediately inherits the global `LLM_MODEL` and `LLM_FALLBACK_MODELS`, ensuring 100% zero-breaking backward compatibility.
+- **Native Distributed Intelligence Out-of-the-Box**: Without setting a single environment variable, each agent is natively routed to its expert LLM above. If `LLM_MODEL` is explicitly defined, it serves as a universal override; if `LLM_MODEL_{ROLE}` is defined, it overrides that specific agent.
 - **Granular FinOps Metrics**: Prometheus isolates token consumption and latency per role: `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Live Topology**: Active roles and their models are dynamically inspectable via `GET /api/llm/status` under the `roles_topology` key.
 

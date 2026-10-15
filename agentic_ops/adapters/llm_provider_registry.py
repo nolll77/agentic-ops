@@ -207,7 +207,12 @@ class LLMProviderRegistry:
         # Résolution du modèle
         role_model = os.environ.get(f"LLM_MODEL_{role_upper}")
         global_model = os.environ.get("LLM_MODEL")
-        model = role_model or global_model or profile["default_model"]
+        
+        # Par défaut natif MAS : si aucun override n'est spécifié, chaque rôle hérite
+        # de son modèle expert recommandé dans ROLE_RECOMMENDED_MODELS
+        role_default = ROLE_RECOMMENDED_MODELS.get(role_clean, {}).get("model") if provider == "openrouter" else None
+        model = role_model or global_model or role_default or profile["default_model"]
+        is_specialized = bool(role_model or (role_default and not global_model))
 
         # Résolution des fallbacks
         raw_fallbacks = os.environ.get(f"LLM_FALLBACK_MODELS_{role_upper}")
@@ -269,7 +274,7 @@ class LLMProviderRegistry:
             ollama_base_url=os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434"),
             azure_api_base=os.environ.get("AZURE_API_BASE", ""),
             azure_api_version=os.environ.get("AZURE_API_VERSION", "2024-02-01"),
-            extra_kwargs={"role": role_clean, "is_specialized": bool(role_model)},
+            extra_kwargs={"role": role_clean, "is_specialized": is_specialized},
         )
 
     @staticmethod
@@ -372,12 +377,11 @@ class LLMProviderRegistry:
         topology = {}
         for role in SUPPORTED_ROLES:
             cfg = LLMProviderRegistry.resolve_role_config(role)
-            is_specialized = bool(os.environ.get(f"LLM_MODEL_{role.upper()}"))
             topology[role] = {
                 "provider": cfg.provider,
                 "model": cfg.model,
                 "fallback_models": cfg.fallback_models,
-                "is_specialized": is_specialized,
+                "is_specialized": cfg.extra_kwargs.get("is_specialized", False),
                 "temperature": cfg.temperature,
                 "max_tokens": cfg.max_tokens,
                 "timeout_seconds": cfg.timeout_seconds,

@@ -987,7 +987,7 @@ Le Control Plane expose 5 endpoints REST et conversationnels dédiés :
 
 Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps constitue un compromis architectural sous-optimal. Pour éliminer tout arbitrage cognitif, `Agentic-Ops` intègre la **Spécialisation Cognitive par Rôle** au cœur de `LLMProviderRegistry` et d'`Orchestrator` :
 
-| Rôle d'Agent (`role`) | Spécialisation Cible | Modèle Recommandé (0 EUR) | Variable d'Environnement Dédiée |
+| Rôle d'Agent (`role`) | Spécialisation Cible | Modèle Natif par Défaut (0 EUR) | Variable Optionnelle d'Override |
 | :--- | :--- | :--- | :--- |
 | **`remediation`** | Planification & Rayon d'Impact Blast Radius (CoT) | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
 | **`infra`** | Dumps Loki & Traces Système Noyau (256k tokens) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
@@ -995,7 +995,7 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 | **`model`** | Évaluation Dérive F1 MLflow & Distributions | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
 | **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
 
-- **Préséance de Repli Stricte** : Toute variable de rôle non spécifiée hérite automatiquement de `LLM_MODEL` et `LLM_FALLBACK_MODELS`, garantissant une rétrocompatibilité absolue à 100% sans rupture.
+- **Intelligence Distribuée Native Sans Configuration** : Sans définir la moindre variable d'environnement, chaque agent hérite nativement et automatiquement de son modèle expert ci-dessus. Si `LLM_MODEL` est renseigné, il agit comme un override universel pour tous les agents ; si `LLM_MODEL_{ROLE}` est défini, il surcharge spécifiquement cet agent.
 - **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 
