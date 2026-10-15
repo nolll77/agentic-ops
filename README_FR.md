@@ -999,7 +999,21 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 - **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 
-### 5. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
+### 5. Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping
+
+> **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Guide de Spécialisation Cognitive** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
+
+Un Système Multi-Agents autonome opérant en production ne peut supposer une exécution nominale permanente. Afin de garantir zéro exception non interceptée, zéro mutation non autorisée et une haute résilience face aux pannes d'API ou aux partitions réseau, `Agentic-Ops` implémente **5 Niveaux de Repli (Fallbacks) en Cascade** :
+
+| Niveau de Repli | Condition Déclenchante | Clé de Mapping Code / Config | Comportement / État de Repli Obtenu |
+| :--- | :--- | :--- | :--- |
+| **1. Repli Cerveau Cognitif (LLM)** | Erreur de quota `HTTP 429` ou Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Bascule automatique instantanée sur modèle secondaire (ex: `gemma-4`, `nemotron`, `llama`) sans interruption de l'analyse. |
+| **2. Repli FinOps & Sécurité (Circuit Breaker)** | Dépassement budget horaire (`> 50 requêtes/h`) | `global_circuit_breaker.is_tripped()` | Coupure des appels LLM, injection de `agent="CIRCUIT_BREAKER_FALLBACK"`, forçage de l'action passive `CREATE_ISSUE`. |
+| **3. Repli Routage Spécialiste** | Préfixe `risk_id` inconnu ou personnalisé | `Orchestrator._get_specialist(risk_id)` | Aiguillage vers `ModelSpecialist` (`MODEL_*`), `InfraSpecialist` (`INFRA_*`), ou repli par défaut vers `DataSpecialist`. |
+| **4. Repli Fail-Closed du Moteur de Règles** | Action non listée ou rayon d'impact > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Rejet par défaut (`DecisionEnum.DENY`) ou rétrogradation du mode autonome vers le circuit Slack HITL humain. |
+| **5. Repli Réseau & Target Distante** | Déconnexion VPS distant ou mesh Tailscale | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Capture de `ConnectError`, retour `status="offline"` (HTTP 200), verrouillage Fail-Closed de toute mutation. |
+
+### 6. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
 
 En application de la règle d'**Honnêteté Radicale** du projet, utiliser des modèles cloud à 0 EUR implique deux contraintes techniques strictes que nous avons traitées directement dans l'architecture :
 
@@ -1014,7 +1028,7 @@ En application de la règle d'**Honnêteté Radicale** du projet, utiliser des m
      - Les adaptateurs `LiteLLMAdapter` (via `instructor.from_litellm`) et `OllamaAdapter` intègrent la fonction `_strip_think_tags()` qui purge les blocs `<think>...</think>` et les balises markdown avant la validation Pydantic.
      - Pour un triage d'alertes à très faible latence, il est recommandé d'utiliser `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, qui génère du JSON direct sans bloc de réflexion.
 
-### 5. Double Interface Client : Web Chat Cloud Sans Dépendance vs. Station LibreChat Locale
+### 7. Double Interface Client : Web Chat Cloud Sans Dépendance vs. Station LibreChat Locale
 
 Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Ops` via deux interfaces distinctes, selon leurs besoins de déploiement :
 
@@ -1127,6 +1141,8 @@ python -m agentic_ops.entrypoints.mcp_server
    Transcription verbatim intégrale de la critique externe initiale, suivie d'une matrice de remédiation technique chirurgicale en 9 points (`P0.1` à `P1.3`) démontrant comment chaque vulnérabilité relevée (HMAC Slack HITL, isolation en sous-processus, registre Merkle cryptographique, rate limiting atomique Redis, calcul de rayon d'impact hors-bande et Prompt Hygiene) a été systématiquement résolue, auditée et validée au travers des 54 tests automatisés.
 9. **[Hub Universel de Fournisseurs LLM et Gabarit de Configuration (`.env.example`)](.env.example)** :
    Guide exhaustif de raccordement du Control Plane à 8 fournisseurs de modèles d'IA : OpenRouter (tier gratuit 24h/24 incluant DeepSeek-R1 et Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, et Ollama (local ou routé via le réseau privé Tailscale à `0 EUR`). Chaîne de bascule automatique (`FallbackLLMAdapter`) et instrumentation des métriques Prometheus.
+10. **[Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** :
+    Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs et états de repli.
 
 
 

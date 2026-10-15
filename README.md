@@ -999,7 +999,21 @@ Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an arc
 - **Granular FinOps Metrics**: Prometheus isolates token consumption and latency per role: `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Live Topology**: Active roles and their models are dynamically inspectable via `GET /api/llm/status` under the `roles_topology` key.
 
-### 5. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
+### 5. Multi-Agent System (MAS) Fallback Architecture & Mapping Keys
+
+> **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Cognitive Specialization Guide**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
+
+An autonomous Multi-Agent System operating in production cannot assume nominal execution. To guarantee zero unhandled exceptions, zero unapproved mutations, and high resilience under provider outages or network drops, `Agentic-Ops` implements **5 cascading Fallback Layers**:
+
+| Fallback Layer | Trigger Condition | Code Mapping Key | Fallback Outcome / Behavior |
+| :--- | :--- | :--- | :--- |
+| **1. Cognitive Brain Fallback** | `HTTP 429` Rate Limit or Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Auto-failover to secondary model (e.g. `gemma-4`, `nemotron`, `llama`) with 0 interrupt. |
+| **2. FinOps & SecOps Fallback** | Hourly budget exceeded (`> 50 calls/h`) | `global_circuit_breaker.is_tripped()` | Halts LLM calls, injects `agent="CIRCUIT_BREAKER_FALLBACK"`, forces non-mutating `CREATE_ISSUE`. |
+| **3. Specialist Routing Fallback** | Unmatched or custom `risk_id` prefix | `Orchestrator._get_specialist(risk_id)` | Routes to `ModelSpecialist` (`MODEL_*`), `InfraSpecialist` (`INFRA_*`), or default fallback to `DataSpecialist`. |
+| **4. Policy Engine Fail-Closed** | Unlisted action or blast radius > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Denies by default (`DecisionEnum.DENY`) or falls back from autonomous execution to Slack HITL. |
+| **5. Network & Target Fallback** | Remote VPS or Tailscale partition | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Catches `ConnectError`, returns `status="offline"` (HTTP 200), activates Fail-Closed mutation lock. |
+
+### 6. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
 
 Applying the project's **Radical Honesty** rule, utilizing zero-cost public endpoints entails two concrete technical constraints that have been engineered into `Agentic-Ops`:
 
@@ -1014,7 +1028,7 @@ Applying the project's **Radical Honesty** rule, utilizing zero-cost public endp
      - Both `LiteLLMAdapter` (via `instructor.from_litellm`) and `OllamaAdapter` embed the regex filter `_strip_think_tags()` to excise `<think>...</think>` envelopes and Markdown fences before passing the JSON payload to `response_model.model_validate()`.
      - For ultra-fast sub-second alert triaging, developers can select `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, which outputs raw JSON directly without thinking blocks.
 
-### 5. Dual Client Interface: Zero-Dependency Cloud Web Chat vs. Local LibreChat Workstation
+### 7. Dual Client Interface: Zero-Dependency Cloud Web Chat vs. Local LibreChat Workstation
 
 Operators can interact conversationally with `Agentic-Ops` through two independent frontends, depending on their deployment model:
 
@@ -1127,6 +1141,8 @@ python -m agentic_ops.entrypoints.mcp_server
    Full verbatim transcription of the early external architectural critique, followed by an exhaustive 9-point technical remediation matrix (`P0.1` to `P1.3`) demonstrating how every single flagged vulnerability (Slack HITL HMAC, sub-process isolation, Merkle cryptographic ledger, atomic Redis rate limiting, out-of-band blast radius calculation, and Prompt Hygiene) was systematically engineered, audited, and verified across 54 automated tests.
 9. **[Universal LLM Provider Hub & Configuration Template (`.env.example`)](.env.example)**:
    Comprehensive guide to connecting the Control Plane to 8 AI model providers: OpenRouter (24/7 free tier including DeepSeek-R1 and Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, and Ollama (local or Tailscale mesh-routed at `0 EUR`). Includes automatic failover chains (`FallbackLLMAdapter`) and Prometheus metrics instrumentation.
+10. **[Multi-Agent System (MAS) Fallback Architecture & Mapping Keys (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)**:
+    Exhaustive architectural breakdown of the 5 cascading resilience and safety fallback layers in `Agentic-Ops`: Cognitive Multi-LLM failover, FinOps Circuit Breaker, Specialist routing fallback, Policy Engine fail-closed enforcement, and Remote VPS/Tailscale partition locks. Includes complete code mapping keys, trigger conditions, and fallback states.
 
 
 
