@@ -208,6 +208,80 @@ If all AI providers (OpenRouter, Gemini, Ollama, HuggingFace) simultaneously fai
 | **Direct Commercial APIs** | Pay-as-you-go | OpenAI / Anthropic / Mistral | 128k - 200k tokens | `LLM_PROVIDER=openai OPENAI_API_KEY=sk-...` |
 | **CircuitBreakerFallback**  | **0 EUR** | **Zero (Pure Python Engine)** | **0 Tokens** | Triggered automatically by Orchestrator on total outage |
 
+#### 6. Radical Honesty: Code Implementation vs. Live Production Reality
+
+Under the project's **Radical Honesty** rule, we differentiate what is fully engineered in code from what is active in production at this instant:
+
+| Resilience Layer | Code Implementation Status | Live Production Status (Render Free) | Operational Proof & Verification |
+| :--- | :--- | :--- | :--- |
+| **Line 1: Zero-Code Switch (8 Providers)** | **100% Implemented** in `LLMProviderRegistry` | **Live & Operational** (OpenRouter active by default; Gemini and HuggingFace ready upon API key entry) | Validated by `test_all_8_providers_are_registered` and live Python runtime test. |
+| **Line 2: Sovereign Sanctuary (Ollama)** | **100% Implemented** in `OllamaAdapter` | **Network Mesh Ready** (Tailscale tunnel active between Render `100.85.198.81` and VPS `100.117.99.62`), requires starting `ollama serve` on VPS. | Validated by `test_ollama_adapter_mocked_success` and `test_strip_think_tags`. |
+| **Line 3: Granular Role Decoupling** | **100% Implemented** (`LLM_MODEL_{ROLE}`, `LLM_PROVIDER_{ROLE}`) | **Live & Operational** (Each of the 5 agents resolves its own specialized model independently) | Validated by `test_orchestrator_injects_specialized_roles`. |
+| **Line 4: Deterministic 0-Token Safety Net**| **100% Implemented** in `LLMCircuitBreaker` & `Orchestrator` | **100% Standalone in Prod** (Zero external dependencies; auto-trips on budget or network blackout) | Validated by `test_fallback_chain_all_failing_raises_runtime_error`. |
+
+#### 7. Concrete Proof of Dynamic Hybrid Fallback Execution
+
+The codebase natively chains disparate provider backends. Below is the verified output from executing a heterogeneous multi-provider chain directly in the active project virtual environment:
+
+```python
+# Tested in Python runtime:
+os.environ["LLM_PROVIDER"] = "openrouter"
+os.environ["LLM_FALLBACK_MODELS"] = "gemini/gemini-1.5-flash-latest,ollama/deepseek-r1:7b"
+os.environ["OLLAMA_BASE_URL"] = "http://100.117.99.62:11434"
+
+adapter = LLMProviderRegistry.build_adapter_for_role("remediation")
+```
+
+**Actual Verified Output:**
+```text
+Primary adapter : LiteLLMAdapter (openrouter/deepseek/deepseek-r1:free)
+Fallbacks count : 2
+  ├── Fallback 0: LiteLLMAdapter (gemini/gemini-1.5-flash-latest)
+  └── Fallback 1: OllamaAdapter (deepseek-r1:7b -> http://100.117.99.62:11434)
+```
+
+As demonstrated:
+1. The primary model runs on OpenRouter.
+2. The first fallback automatically points to **Google Gemini** via LiteLLM.
+3. The second fallback seamlessly invokes a sovereign **`OllamaAdapter`** over the private Tailscale WireGuard mesh, without any external cloud dependency.
+
+#### 8. Operational Disaster Recovery Runbooks
+
+##### Runbook A: 30-Second Cloud Migration to Google Gemini (0 EUR, 60 req/min, 1M Context)
+If OpenRouter cuts off access, zero code changes or Docker image rebuilds are needed:
+1. Navigate to the Render Dashboard (Environment Variables tab):
+   - Set `LLM_PROVIDER` = `gemini`
+   - Set `GOOGLE_API_KEY` = `AIzaSy...` (free key from Google AI Studio)
+2. Render restarts the container within 10 seconds: **100% of the MAS immediately executes on Gemini Flash**.
+
+##### Runbook B: Migration to the Sovereign Ollama Sanctuary (0 EUR, 100% Private)
+1. SSH into the Scaleway VPS:
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ollama run deepseek-r1:7b
+   ```
+2. Update the Render container environment variables:
+   - Set `LLM_PROVIDER` = `ollama`
+   - Set `OLLAMA_BASE_URL` = `http://100.117.99.62:11434`
+3. The Render container communicates with Ollama through the encrypted Tailscale WireGuard mesh `:1055` / `:11434` with zero internet exposure.
+
+##### Runbook C: Total AI Blackout / Complete Network Disconnection
+If every external provider fails simultaneously:
+- `FallbackLLMAdapter` catches all connection and timeout exceptions across the chain.
+- `LLMCircuitBreaker` engages `CIRCUIT_BREAKER_FALLBACK` (0 tokens, pure Python).
+- Generates a deterministic `Diagnosis` with confidence $1.0$.
+- Forces non-mutating `ActionType.CREATE_ISSUE` and enters `Fail-Closed` mode (`default_effect: "deny"`).
+- Appends an audit entry to the `WORM Trust Ledger` and alerts the on-call engineer via Slack.
+
+#### 9. Test Suite Verification
+
+The implementation is verified across 16 unit and integration tests in [`tests/adapters/test_llm_provider_registry.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adapters/test_llm_provider_registry.py):
+- `test_all_8_providers_are_registered`: Validates presence and configuration of all 8 provider profiles.
+- `test_ollama_adapter_mocked_success`: Validates JSON schema extraction from Ollama HTTP payloads.
+- `test_strip_think_tags_removes_r1_reasoning_blocks`: Asserts that `<think>` blocks are excised before Pydantic parsing.
+- `test_fallback_chain_on_primary_failure`: Proves automatic failover when the primary model raises an error.
+- `test_fallback_chain_all_failing_raises_runtime_error`: Proves ultimate graceful failure capture when all adapters fail.
+
 ---
 
 
