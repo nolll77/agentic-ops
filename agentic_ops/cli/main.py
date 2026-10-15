@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import socket
@@ -264,6 +265,306 @@ def get_llm_status():
         "azure_api_base": cfg.azure_api_base if cfg.provider == "azure" else None,
         "free_tier_supported": cfg.provider in ("openrouter", "gemini", "huggingface", "ollama"),
         "roles_topology": LLMProviderRegistry.get_roles_topology(),
+    }
+
+
+@app.get("/api/mas/topology")
+def get_mas_topology():
+    """
+    Returns the comprehensive, live Multi-Agent System (MAS) topology catalog,
+    including the 5 Cognitive Specialist LLMs (dynamically resolved) and the 
+    6 Zero-Token Deterministic Actuators & Safety Nets.
+    """
+    from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
+
+    roles_top = LLMProviderRegistry.get_roles_topology()
+
+    cognitive_agents = [
+        {
+            "id": "remediation",
+            "name": "RemediationAgent",
+            "layer": "Coordination & Action Planning",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "remediation",
+            "status": "ONLINE",
+            "mission": "Évalue le rayon d'impact systémique (Blast Radius 0-5), analyse l'arbre de causalité et formule l'intention de remédiation (ActionIntent).",
+            "fsm_trigger": "Exécuté systématiquement lors de l'état FSM [PLANNED].",
+            "anti_bias_rule": "Principe Anti-Biais strict : les spécialistes se limitent aux faits, seul le RemediationAgent évalue la proportionnalité de l'action.",
+            "active_model": roles_top.get("remediation", {}).get("model", "openrouter/deepseek/deepseek-r1:free"),
+            "provider": roles_top.get("remediation", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("remediation", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_REMEDIATION",
+            "temperature": roles_top.get("remediation", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("remediation", {}).get("max_tokens", 4096),
+            "timeout_seconds": roles_top.get("remediation", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Chain-of-Thought délibéré (<think> tags filtrés via regex)",
+            "selection_rationale": "Raisonnement délibéré pas-à-pas pour évaluer le rayon d'impact (Blast Radius 0-5), l'arbre des dépendances et la réversibilité avant toute mutation en production.",
+            "input_contract": "Diagnosis (issue, root_cause, confidence, evidence)",
+            "output_contract": "ActionIntent (action, target, rationale, declared_blast_radius)",
+            "dependencies": ["Redis (:6379) semantic lock & quotas", "PolicyEngine (OPA gate)", "WORM Trust Ledger"],
+            "allowed_tools": ["Aucun (Isolation judiciaire : pas de Tool Calling direct)"],
+            "blast_radius_limit": "0 à 5 (au-delà de 2 -> Veto PolicyEngine obligatoire)",
+            "worm_ledger": True,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="remediation"}',
+            "failure_fallback": "Bascule transparente sur FallbackLLMAdapter (5 modèles gratuits), puis repli CIRCUIT_BREAKER_FALLBACK si quota épuisé.",
+        },
+        {
+            "id": "infra",
+            "name": "InfraSpecialist",
+            "layer": "Diagnostic Infrastructure & SRE",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "infra",
+            "status": "ONLINE",
+            "mission": "Investigue les anomalies d'infrastructure, conteneurs Docker, saturation mémoire OOM et limites PostgreSQL.",
+            "fsm_trigger": 'Activé quand "INFRA" est présent dans le risk_id (ex: INFRA_OOM_KILLED).',
+            "anti_bias_rule": "Se limite au constat factuel de diagnostic (Diagnosis). Ne propose aucune action de remédiation.",
+            "active_model": roles_top.get("infra", {}).get("model", "openrouter/google/gemma-4-31b-it:free"),
+            "provider": roles_top.get("infra", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("infra", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_INFRA",
+            "temperature": roles_top.get("infra", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("infra", {}).get("max_tokens", 4096),
+            "timeout_seconds": roles_top.get("infra", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Ingestion de contexte brut (fenêtre massive 256k tokens)",
+            "selection_rationale": "Fenêtre de contexte massive de 256 000 tokens permettant d'ingérer des dumps complets de logs Loki, journaux systemd et traces noyau sans aucune troncature.",
+            "input_contract": "SignalEnvelope (risk_id, signal_id, value, threshold, source)",
+            "output_contract": "Diagnosis (issue, root_cause, confidence, evidence)",
+            "dependencies": ["Grafana Loki (:3100)", "Docker socket (/var/run/docker.sock)", "PostgreSQL (:5432)"],
+            "allowed_tools": ["CheckDockerContainer", "CheckDatabaseHealth", "QueryLokiLogs"],
+            "blast_radius_limit": "0 (Lecture seule d'investigation)",
+            "worm_ledger": False,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="infra"}',
+            "failure_fallback": "Bascule sur FallbackLLMAdapter (5 modèles) ou repli sur DataSpecialist.",
+        },
+        {
+            "id": "data",
+            "name": "DataSpecialist",
+            "layer": "Diagnostic Qualité Données & Repli Universel",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "data",
+            "status": "ONLINE (MAS DEFAULT)",
+            "mission": "Vérifie l'intégrité des données tabulaires, les mutations de schémas Pandera et les dérives Evidently.",
+            "fsm_trigger": "Repli MAS par défaut : capture toute alerte sans préfixe 'MODEL' ou 'INFRA'.",
+            "anti_bias_rule": "Se limite au constat factuel de diagnostic (Diagnosis). Ne propose aucune action de remédiation.",
+            "active_model": roles_top.get("data", {}).get("model", "openrouter/google/gemma-4-26b-a4b-it:free"),
+            "provider": roles_top.get("data", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("data", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_DATA",
+            "temperature": roles_top.get("data", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("data", {}).get("max_tokens", 4096),
+            "timeout_seconds": roles_top.get("data", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Mixture-of-Experts à faible latence et extraction Pydantic stricte",
+            "selection_rationale": "Plus de 80% des pannes MLOps proviennent des données. L'architecture MoE garantit un typage JSON Pydantic strict et un coût nul à la sous-seconde.",
+            "input_contract": "SignalEnvelope (risk_id, signal_id, value, threshold, source)",
+            "output_contract": "Diagnosis (issue, root_cause, confidence, evidence)",
+            "dependencies": ["Rapports de dérive Evidently", "Schémas de validation Pandera", "PostgreSQL DWH"],
+            "allowed_tools": ["ValidatePanderaSchema", "CheckDriftMetrics", "QueryDatabase"],
+            "blast_radius_limit": "0 (Lecture seule d'investigation)",
+            "worm_ledger": False,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="data"}',
+            "failure_fallback": "Bascule sur FallbackLLMAdapter (5 modèles gratuits).",
+        },
+        {
+            "id": "model",
+            "name": "ModelSpecialist",
+            "layer": "Diagnostic Performance ML & Dérive de Concept",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "model",
+            "status": "ONLINE",
+            "mission": "Analyse les dégradations de F1-Score, baisses de performance et dérives de concept sur les classes rares.",
+            "fsm_trigger": 'Activé quand "MODEL" est présent dans le risk_id (ex: MODEL_PERF_DEGRADATION).',
+            "anti_bias_rule": "Se limite au constat factuel de diagnostic (Diagnosis). Ne propose aucune action de remédiation.",
+            "active_model": roles_top.get("model", {}).get("model", "openrouter/meta-llama/llama-3.3-70b-instruct:free"),
+            "provider": roles_top.get("model", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("model", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_MODEL",
+            "temperature": roles_top.get("model", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("model", {}).get("max_tokens", 4096),
+            "timeout_seconds": roles_top.get("model", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Modèle statistique lourd 70B paramètres",
+            "selection_rationale": "Puissance statistique de 70 milliards de paramètres pour différencier une dérive de concept réelle P(Y|X) d'un bruit ponctuel d'entrées P(X) sur les classes rares.",
+            "input_contract": "SignalEnvelope (risk_id, signal_id, value, threshold, source)",
+            "output_contract": "Diagnosis (issue, root_cause, confidence, evidence)",
+            "dependencies": ["MLflow Model Registry (:5001)", "Prometheus metrics", "Matrice de confusion BAAC"],
+            "allowed_tools": ["CheckMLflowModel", "InspectConfusionMatrix", "QueryPrometheusMetrics"],
+            "blast_radius_limit": "0 (Lecture seule d'investigation)",
+            "worm_ledger": False,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="model"}',
+            "failure_fallback": "Bascule sur FallbackLLMAdapter (5 modèles gratuits).",
+        },
+        {
+            "id": "chat",
+            "name": "WebChatCopilot",
+            "layer": "Interface Conversationnelle Opérateur",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "chat",
+            "status": "ONLINE",
+            "mission": "Assistance conversationnelle de l'opérateur SRE, interrogation du Grand Livre WORM et exécution des prompts MCP.",
+            "fsm_trigger": "Déclenché par l'opérateur via l'interface Web Chat (/chat) ou l'API POST /api/chat.",
+            "anti_bias_rule": "Interface d'information et d'assistance. Ne peut pas déclencher de mutations sans validation PolicyEngine.",
+            "active_model": roles_top.get("chat", {}).get("model", "openrouter/deepseek/deepseek-chat:free"),
+            "provider": roles_top.get("chat", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("chat", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_CHAT",
+            "temperature": roles_top.get("chat", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("chat", {}).get("max_tokens", 4096),
+            "timeout_seconds": roles_top.get("chat", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Streaming conversationnel à latence sub-seconde (sans balises think)",
+            "selection_rationale": "Fluidité conversationnelle maximale et temps de réponse immédiat (TTFT ultra-rapide) pour le dialogue avec l'opérateur SRE.",
+            "input_contract": "ChatPayload (message, history)",
+            "output_contract": "ChatResponse (response, provider, model, latency_ms)",
+            "dependencies": ["FastAPI Web UI (/chat)", "WORM Trust Ledger", "Catalogue 20 Prompts MCP"],
+            "allowed_tools": ["Exécution des 20 Prompts Cognitifs MCP en lecture seule"],
+            "blast_radius_limit": "0 (Lecture seule conversationnelle)",
+            "worm_ledger": False,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="chat"}',
+            "failure_fallback": "Bascule sur FallbackLLMAdapter (5 modèles gratuits alternatifs).",
+        },
+    ]
+
+    deterministic_components = [
+        {
+            "id": "circuit_breaker",
+            "name": "CircuitBreakerFallback",
+            "layer": "Sécurité & Résilience Ultime",
+            "type": "deterministic",
+            "type_label": "Garde-Fou Déterministe (0 Tokens)",
+            "role": "circuit_breaker",
+            "status": "ARMED",
+            "mission": "Filet de sécurité ultime protégeant le cluster lors des pannes de fournisseurs LLM, tempêtes de requêtes ou rate limits 429.",
+            "trigger_condition": "Déclenché quand le taux dépasse 50 req/h ou en cas d'erreurs 429/503 répétées.",
+            "zero_llm_rationale": "Appeler un LLM secondaire quand les APIs LLM saturent violerait le principe même du coupe-circuit. Le repli déterministe garantit la stabilité.",
+            "engine": "Python Pur Hardcodé (0 Tokens consommés)",
+            "isolation": "Classe Python in-memory synchrone",
+            "timeout": "Immédiat (0 ms)",
+            "input_contract": "Exception LLM ou compteur de requêtes dépassé",
+            "output_contract": "Diagnosis(issue='CIRCUIT_BREAKER_ACTIVE') + ActionIntent(action=CREATE_ISSUE)",
+            "dependencies": ["CircuitBreaker class", "Orchestrator FSM"],
+            "blast_radius_limit": "0 (Action passive sans mutation)",
+            "promql_metric": "agentic_ops_circuit_breaker_status",
+            "security_guard": "Force l'action CREATE_ISSUE pour réveiller l'humain et bloque toute remédiation autonome.",
+        },
+        {
+            "id": "executor",
+            "name": "ActionExecutor",
+            "layer": "Actionneur d'Exécution Système",
+            "type": "deterministic",
+            "type_label": "Actionneur Déterministe (0 Tokens)",
+            "role": "executor",
+            "status": "ACTIVE (SANDBOXED)",
+            "mission": "Applique les mutations physiques sur l'infrastructure (docker restart, rollback de modèle, relance de pipelines Prefect).",
+            "trigger_condition": "Uniquement sur ActionIntent validé avec statut ALLOW par le PolicyEngine ou après quorum Slack HITL.",
+            "zero_llm_rationale": "Zero-Trust absolu : aucun modèle probabiliste ne doit détenir d'accès direct au shell ou aux mutations d'infrastructure.",
+            "engine": "Worker Subprocess Python Pur (0 Tokens)",
+            "isolation": "multiprocessing.Process avec PID isolé du daemon principal",
+            "timeout": "30 secondes dures (SIGTERM puis SIGKILL à 35s)",
+            "input_contract": "ActionIntent validé par PolicyEngine",
+            "output_contract": "ExecutionResult (status, exit_code, stdout, stderr, duration_ms)",
+            "dependencies": ["Docker daemon (/var/run/docker.sock)", "MLflow Client", "Prefect API"],
+            "blast_radius_limit": "Coupé à 2 sans approbation Slack ; max 5 sous quorum 2-man rule",
+            "promql_metric": "agentic_ops_actions_executed_total",
+            "security_guard": "Vérification stricte de whitelist des arguments, PID sandboxing et isolation complète.",
+        },
+        {
+            "id": "cac_collector",
+            "name": "CacPullCollector",
+            "layer": "Ingestion Télémétrique Réseau",
+            "type": "deterministic",
+            "type_label": "Capteur Réseau Déterministe (0 Tokens)",
+            "role": "cac_collector",
+            "status": "ONLINE (SOCKS5 MESH)",
+            "mission": "Sonde de télémétrie continue qui interroge périodiquement les 5 endpoints de jakatt/cac_mlops via Tailscale WireGuard.",
+            "trigger_condition": "Collecte périodique ou déclenchement à la demande sur GET /api/cac/snapshot.",
+            "zero_llm_rationale": "Le scraping réseau, le parsing JSON et le calcul de métriques sont du pur Data Engineering. Un LLM n'apporterait que coût et latence.",
+            "engine": "Client Asynchrone HTTP Python Pur (0 Tokens)",
+            "isolation": "Transport httpx asynchrone routé via SOCKS5 (127.0.0.1:1055)",
+            "timeout": "20 secondes par service (défaut 3.5s sur Render)",
+            "input_contract": "Requêtes HTTP GET sur Loki, Prometheus, MLflow, Prefect, Evidently",
+            "output_contract": "CacCollectedSnapshot (schéma Pydantic immuable)",
+            "dependencies": ["Tailscale WireGuard Mesh (:1055)", "jakatt/cac_mlops (100.117.99.62)"],
+            "blast_radius_limit": "0 (Strictement 100% lecture seule GET)",
+            "promql_metric": "cac_mlops_pull_duration_seconds",
+            "security_guard": "Toutes les méthodes de mutation POST/DELETE sont physiquement bloquées dans l'adapter.",
+        },
+        {
+            "id": "slack_webhook",
+            "name": "SlackWebhookAgent",
+            "layer": "Portier Cryptographique HITL",
+            "type": "deterministic",
+            "type_label": "Portier Cryptographique (0 Tokens)",
+            "role": "slack_webhook",
+            "status": "ACTIVE (HMAC ENFORCED)",
+            "mission": "Réceptionne et valide cryptographiquement les clics d'approbation humaine Slack Block Kit (Approve / Reject).",
+            "trigger_condition": "POST /slack/interactive émis par les serveurs officiels Slack.",
+            "zero_llm_rationale": "Une vérification de signature cryptographique (HMAC-SHA256) et d'anti-rejeu ne doit comporter aucune incertitude probabiliste.",
+            "engine": "Garde-fou Cryptographique Python Pur (0 Tokens)",
+            "isolation": "Verrouillage transactionnel SQLite BEGIN IMMEDIATE dans approvals.db",
+            "timeout": "Fenêtre de tolérance anti-rejeu de 300 secondes",
+            "input_contract": "Payload JSON Slack chiffré + En-têtes X-Slack-Signature & X-Slack-Request-Timestamp",
+            "output_contract": "ApprovalDecision (status='approved' | 'rejected', approver_id, timestamp)",
+            "dependencies": ["SLACK_SIGNING_SECRET", "SQLite WAL /tmp/state/approvals.db"],
+            "blast_radius_limit": "0 (Portier de validation)",
+            "promql_metric": "agentic_ops_slack_interactions_total",
+            "security_guard": "Rejet immédiat HTTP 401 si signature invalide ou timestamp dépassé.",
+        },
+        {
+            "id": "agent_tools",
+            "name": "8 Governed AgentTools",
+            "layer": "Sondes & Outils d'Investigation",
+            "type": "deterministic",
+            "type_label": "Sondes Déterministes (0 Tokens)",
+            "role": "agent_tools",
+            "status": "GOVERNED",
+            "mission": "Outils spécialisés (Docker, SQL, Pandera, MLflow) appelés par les spécialistes pour inspecter l'environnement.",
+            "trigger_condition": "Appelés via Tool Calling par les agents cognitifs durant la phase INVESTIGATING.",
+            "zero_llm_rationale": "Les outils sont les organes sensoriels de diagnostic ; ils exécutent du code Python borné et retournent des faits bruts.",
+            "engine": "Sondes Python Pures Sandboxées (0 Tokens)",
+            "isolation": "Sandboxing strict avec timeout OS",
+            "timeout": "15 secondes maximum par sonde",
+            "input_contract": "Paramètres typés Pydantic (ex: container_name, table_name, model_name)",
+            "output_contract": "Dictionnaire de faits bruts d'exécution",
+            "dependencies": ["psycopg2", "docker SDK", "pandera", "mlflow client"],
+            "blast_radius_limit": "0 (Outils de diagnostic sans mutation)",
+            "promql_metric": "agentic_ops_tools_invocations_total",
+            "security_guard": "Exécution confinée avec interdiction des commandes système non prévues.",
+        },
+        {
+            "id": "mcp_gateway",
+            "name": "MCPServerGateway",
+            "layer": "Passerelle Protocolaire Ouverte",
+            "type": "deterministic",
+            "type_label": "Passerelle JSON-RPC (Délégué)",
+            "role": "mcp_gateway",
+            "status": "RUNNING (/mcp)",
+            "mission": "Expose les 8 outils gouvernés, 5 ressources et 20 prompts cognitifs aux IDEs et clients IA externes.",
+            "trigger_condition": "Connexions entrantes sur /mcp (stdio ou Server-Sent Events / SSE).",
+            "zero_llm_rationale": "La passerelle MCP est un pont d'interopérabilité passif. Son cerveau cognitif est celui de l'IDE client connecté (Claude, Cursor, etc.).",
+            "engine": "Serveur Protocolaire JSON-RPC 2.0 (Délégué au Client)",
+            "isolation": "Validation de schéma JSON-RPC et contrôle d'accès sur les permissions d'outils",
+            "timeout": "Géré par le transport HTTP/stdio du client",
+            "input_contract": "Requêtes JSON-RPC 2.0 (tools/call, resources/read, prompts/get)",
+            "output_contract": "Réponses conformes au protocole Model Context Protocol (MCP)",
+            "dependencies": ["FastAPI SSE", "FastMCP / mcp SDK", "agentic_ops tools"],
+            "blast_radius_limit": "Géré par les politiques de sécurité du PolicyEngine",
+            "promql_metric": "agentic_ops_mcp_requests_total",
+            "security_guard": "Validation stricte des paramètres JSON-RPC et contrôle d'autorisation.",
+        },
+    ]
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "architecture": "Multi-Agent System (MAS) with Separation of Cognitive and Executive Concerns",
+        "total_components": len(cognitive_agents) + len(deterministic_components),
+        "cognitive_count": len(cognitive_agents),
+        "deterministic_count": len(deterministic_components),
+        "cognitive_agents": cognitive_agents,
+        "deterministic_components": deterministic_components,
     }
 
 
@@ -835,6 +1136,621 @@ def run_diagnostic_command(command: DiagnosticCommand):
         return f"Error executing {command.value}: {exc}\n" + guide_block
 
 
+MAS_INSPECTOR_CSS = r"""
+    /* MAS Inspector Modal & Split View */
+    .mas-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.88);
+      backdrop-filter: blur(8px);
+      z-index: 1050;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: masFadeIn 0.15s ease-out;
+    }
+    .mas-modal-overlay.open {
+      display: flex;
+    }
+    @keyframes masFadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .mas-modal-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 1120px;
+      height: 90vh;
+      max-height: 860px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
+      overflow: hidden;
+    }
+    .mas-modal-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      background: #0b1329;
+      flex-shrink: 0;
+    }
+    .mas-modal-title h2 {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #c084fc;
+      margin: 0 0 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mas-modal-title p {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0;
+    }
+    .mas-close-btn {
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .mas-close-btn:hover {
+      background: #1e293b;
+      color: #fff;
+      border-color: #e2e8f0;
+    }
+    .mas-pills-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px 20px;
+      background: #090e1c;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .mas-pill-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 6px 13px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mas-pill-btn.active, .mas-pill-btn:hover {
+      background: #3b0764;
+      border-color: #a855f7;
+      color: #f3e8ff;
+      font-weight: 600;
+    }
+    .mas-split-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .mas-list-pane {
+      width: 360px;
+      border-right: 1px solid #1e293b;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #070b14;
+      flex-shrink: 0;
+    }
+    .mas-list-pane::-webkit-scrollbar { width: 5px; }
+    .mas-list-pane::-webkit-scrollbar-thumb { background: #1e293b; }
+    .mas-item-card {
+      padding: 11px 13px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mas-item-card:hover {
+      background: #1e293b;
+      border-color: #475569;
+    }
+    .mas-item-card.selected {
+      background: #1e1b4b;
+      border-color: #a855f7;
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+    }
+    .mas-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .mas-item-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .mas-item-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .mas-badge-cog { background: #3b0764; color: #d8b4fe; border: 1px solid #7e22ce; }
+    .mas-badge-det { background: #064e3b; color: #6ee7b7; border: 1px solid #059669; }
+    .mas-item-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      line-height: 1.35;
+    }
+    .mas-item-model {
+      font-size: 11px;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mas-details-pane {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px 26px;
+      background: #0b1120;
+    }
+    .mas-details-pane::-webkit-scrollbar { width: 6px; }
+    .mas-details-pane::-webkit-scrollbar-thumb { background: #1e293b; }
+    .mas-detail-hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 16px;
+    }
+    .mas-detail-hero h3 {
+      font-size: 18px;
+      color: #f8fafc;
+      margin: 0 0 4px 0;
+    }
+    .mas-detail-layer {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .mas-section-title {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      color: #c084fc;
+      margin: 18px 0 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mas-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .mas-prop-box {
+      background: #070d19;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+    .mas-prop-label {
+      font-size: 10.5px;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .mas-prop-val {
+      font-size: 12px;
+      color: #e2e8f0;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      word-break: break-all;
+    }
+    .mas-prop-val.highlight {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+    .mas-prop-val.highlight-purple {
+      color: #c084fc;
+      font-weight: 600;
+    }
+    .mas-prop-val.highlight-green {
+      color: #34d399;
+      font-weight: 600;
+    }
+    .mas-quote-box {
+      background: #070d19;
+      border-left: 3px solid #7c3aed;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin: 8px 0 12px 0;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+    .mas-dep-pill {
+      display: inline-block;
+      background: #020617;
+      border: 1px solid #1e293b;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #94a3b8;
+      margin: 2px 4px 2px 0;
+    }
+    .mas-action-btn {
+      background: #3b0764;
+      border: 1px solid #7e22ce;
+      color: #f3e8ff;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mas-action-btn:hover {
+      background: #581c87;
+      border-color: #a855f7;
+      color: #fff;
+    }
+    .mas-action-btn.secondary {
+      background: #1e293b;
+      border-color: #334155;
+      color: #cbd5e1;
+    }
+    .mas-action-btn.secondary:hover {
+      background: #334155;
+      border-color: #64748b;
+      color: #fff;
+    }
+"""
+
+MAS_INSPECTOR_HTML = r"""
+  <!-- MAS TOPOLOGY & AGENT INSPECTOR MODAL -->
+  <div class="mas-modal-overlay" id="mas-modal" onclick="onMasOverlayClick(event)">
+    <div class="mas-modal-box">
+      <div class="mas-modal-header">
+        <div class="mas-modal-title">
+          <h2>🤖 Multi-Agent System (MAS) — Live Topology & Inspector</h2>
+          <p>Cartographie vivante des 5 Agents Cognitifs (LLM) et des 6 Actionneurs Déterministes (0-Token) de gouvernance SRE.</p>
+        </div>
+        <button class="mas-close-btn" onclick="closeMasModal()" title="Fermer (Échap)">✕</button>
+      </div>
+
+      <div class="mas-pills-bar">
+        <button class="mas-pill-btn active" id="mas-filter-all" onclick="filterMas('all', this)">Tous les Acteurs (11)</button>
+        <button class="mas-pill-btn" id="mas-filter-cog" onclick="filterMas('cognitive', this)">🧠 Cerveaux Cognitifs (5 LLMs)</button>
+        <button class="mas-pill-btn" id="mas-filter-det" onclick="filterMas('deterministic', this)">🛡️ Actionneurs & Garde-Fous (6 Déterministes)</button>
+        <span style="flex:1"></span>
+        <button class="mas-pill-btn" onclick="refreshMasData()" title="Recharger la topologie">🔄 Actualiser</button>
+      </div>
+
+      <div class="mas-split-body">
+        <div class="mas-list-pane" id="mas-list-pane">
+          <div style="padding:20px;color:#94a3b8;font-size:12px;">Chargement de la topologie MAS...</div>
+        </div>
+
+        <div class="mas-details-pane" id="mas-details-pane">
+          <div style="padding:40px;color:#94a3b8;text-align:center;">Sélectionnez un composant à gauche pour inspecter sa configuration en direct.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+"""
+
+MAS_INSPECTOR_JS = r"""
+let masData = null;
+let selectedMasId = 'remediation';
+let currentMasFilter = 'all';
+
+async function fetchMasData() {
+  try {
+    const res = await fetch('/api/mas/topology');
+    masData = await res.json();
+    renderMasUI();
+  } catch (err) {
+    console.error('Failed to load MAS topology:', err);
+  }
+}
+
+function openMasModal() {
+  const modal = document.getElementById('mas-modal');
+  if (modal) {
+    modal.classList.add('open');
+    if (!masData) {
+      fetchMasData();
+    } else {
+      renderMasUI();
+    }
+  }
+}
+
+function closeMasModal() {
+  const modal = document.getElementById('mas-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function onMasOverlayClick(e) {
+  if (e.target.id === 'mas-modal') {
+    closeMasModal();
+  }
+}
+
+function filterMas(filter, btn) {
+  currentMasFilter = filter;
+  document.querySelectorAll('.mas-pill-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderMasUI();
+}
+
+function refreshMasData() {
+  fetchMasData();
+}
+
+function selectMasComponent(id) {
+  selectedMasId = id;
+  renderMasUI();
+}
+
+function renderMasUI() {
+  if (!masData) return;
+  const listPane = document.getElementById('mas-list-pane');
+  const detailsPane = document.getElementById('mas-details-pane');
+  if (!listPane || !detailsPane) return;
+
+  const allComponents = [
+    ...masData.cognitive_agents.map(a => ({ ...a, category: 'cognitive' })),
+    ...masData.deterministic_components.map(d => ({ ...d, category: 'deterministic' }))
+  ];
+
+  const filtered = allComponents.filter(c => {
+    if (currentMasFilter === 'all') return true;
+    return c.category === currentMasFilter;
+  });
+
+  let activeItem = allComponents.find(c => c.id === selectedMasId);
+  if (!activeItem || (currentMasFilter !== 'all' && activeItem.category !== currentMasFilter)) {
+    activeItem = filtered[0] || allComponents[0];
+    selectedMasId = activeItem.id;
+  }
+
+  listPane.innerHTML = filtered.map(item => {
+    const isSel = item.id === selectedMasId;
+    const isCog = item.type === 'cognitive';
+    const badgeClass = isCog ? 'mas-badge-cog' : 'mas-badge-det';
+    const engineLabel = isCog ? (item.active_model.split('/').pop()) : 'Python Pur (0 Tokens)';
+    return `
+      <div class="mas-item-card ${isSel ? 'selected' : ''}" onclick="selectMasComponent('${item.id}')">
+        <div class="mas-item-top">
+          <span class="mas-item-name">${item.name}</span>
+          <span class="mas-item-badge ${badgeClass}">${item.type_label}</span>
+        </div>
+        <div class="mas-item-desc">${item.mission.slice(0, 95)}...</div>
+        <div class="mas-item-model">⚙️ ${engineLabel}</div>
+      </div>
+    `;
+  }).join('');
+
+  if (!activeItem) return;
+  const isCog = activeItem.type === 'cognitive';
+
+  let motorisationBlock = '';
+  if (isCog) {
+    const fallbacksList = (activeItem.fallback_models && activeItem.fallback_models.length > 0)
+      ? activeItem.fallback_models.map(m => `<code>${m}</code>`).join(' &rarr; ')
+      : '<span style="color:#64748b;">Aucun fallback additionnel déclaré (défaut OpenRouter free)</span>';
+
+    motorisationBlock = `
+      <div class="mas-section-title">🧠 2. Motorisation LLM & Paramètres Cognitifs</div>
+      <div class="mas-grid-2">
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Modèle Résolu Actif</div>
+          <div class="mas-prop-val highlight-purple">${activeItem.active_model}</div>
+        </div>
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Fournisseur d'Inférence</div>
+          <div class="mas-prop-val highlight">${activeItem.provider} (24/7 Cloud)</div>
+        </div>
+      </div>
+      <div class="mas-grid-2">
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Mode de Raisonnement</div>
+          <div class="mas-prop-val">${activeItem.reasoning_mode}</div>
+        </div>
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Variable d'Override Dédiée</div>
+          <div class="mas-prop-val"><code>${activeItem.override_env}</code></div>
+        </div>
+      </div>
+      <div class="mas-grid-2">
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Hyperparamètres</div>
+          <div class="mas-prop-val">Temp = ${activeItem.temperature} | MaxTokens = ${activeItem.max_tokens} | Timeout = ${activeItem.timeout_seconds}s</div>
+        </div>
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Statut Spécialisation</div>
+          <div class="mas-prop-val highlight-green">Actif par Défaut (Zero-Config)</div>
+        </div>
+      </div>
+      <div class="mas-prop-box" style="margin-bottom:10px;">
+        <div class="mas-prop-label">Chaîne de Repli Automatique (FallbackLLMAdapter sur HTTP 429)</div>
+        <div class="mas-prop-val" style="margin-top:4px;">${fallbacksList}</div>
+      </div>
+      <div class="mas-quote-box">
+        <strong>Justification Opérationnelle du Choix :</strong><br>
+        ${activeItem.selection_rationale}
+      </div>
+    `;
+  } else {
+    motorisationBlock = `
+      <div class="mas-section-title">🛡️ 2. Moteur Déterministe & Rationale Zero-Trust (0-Token)</div>
+      <div class="mas-grid-2">
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Moteur d'Exécution</div>
+          <div class="mas-prop-val highlight-green">${activeItem.engine}</div>
+        </div>
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Consommation de Tokens</div>
+          <div class="mas-prop-val highlight">0 Token (Inviolable / Non-probabiliste)</div>
+        </div>
+      </div>
+      <div class="mas-grid-2">
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Isolation OS & Sandboxing</div>
+          <div class="mas-prop-val">${activeItem.isolation}</div>
+        </div>
+        <div class="mas-prop-box">
+          <div class="mas-prop-label">Délai d'Exécution / Timeout</div>
+          <div class="mas-prop-val">${activeItem.timeout}</div>
+        </div>
+      </div>
+      <div class="mas-quote-box">
+        <strong>Rationale d'Ingénierie Zero-Trust :</strong><br>
+        ${activeItem.zero_llm_rationale}
+      </div>
+    `;
+  }
+
+  const allowedToolsHtml = activeItem.allowed_tools
+    ? activeItem.allowed_tools.map(t => `<code>${t}</code>`).join(', ')
+    : '<span style="color:#64748b;">N/A (Composant d\'infrastructure)</span>';
+
+  const depsHtml = activeItem.dependencies
+    ? activeItem.dependencies.map(d => `<span class="mas-dep-pill">${d}</span>`).join(' ')
+    : 'None';
+
+  detailsPane.innerHTML = `
+    <div class="mas-detail-hero">
+      <div>
+        <h3>${activeItem.name} <span style="font-size:12px;color:#94a3b8;font-weight:normal;">(${activeItem.role})</span></h3>
+        <div class="mas-detail-layer">Couche : <strong>${activeItem.layer}</strong></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="mas-item-badge ${isCog ? 'mas-badge-cog' : 'mas-badge-det'}" style="font-size:11px;padding:4px 8px;">${activeItem.type_label}</span>
+        <span class="mas-item-badge" style="background:#022c22;color:#34d399;border:1px solid #059669;font-size:11px;padding:4px 8px;">${activeItem.status}</span>
+      </div>
+    </div>
+
+    <div class="mas-section-title">📋 1. Identité & Responsabilités</div>
+    <div class="mas-prop-box" style="margin-bottom:10px;">
+      <div class="mas-prop-label">Mission Principale</div>
+      <div class="mas-prop-val" style="line-height:1.45;">${activeItem.mission}</div>
+    </div>
+    <div class="mas-grid-2">
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Condition de Déclenchement / FSM</div>
+        <div class="mas-prop-val">${activeItem.fsm_trigger || activeItem.trigger_condition}</div>
+      </div>
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Règle de Sécurité / Anti-Biais</div>
+        <div class="mas-prop-val">${activeItem.anti_bias_rule || activeItem.security_guard}</div>
+      </div>
+    </div>
+
+    ${motorisationBlock}
+
+    <div class="mas-section-title">🔗 3. Dépendances & Contrats de Données</div>
+    <div class="mas-grid-2">
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Contrat d'Entrée Pydantic</div>
+        <div class="mas-prop-val"><code>${activeItem.input_contract}</code></div>
+      </div>
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Contrat de Sortie Pydantic</div>
+        <div class="mas-prop-val"><code>${activeItem.output_contract}</code></div>
+      </div>
+    </div>
+    <div class="mas-prop-box" style="margin-bottom:10px;">
+      <div class="mas-prop-label">Services Connectés & Dépendances Externes</div>
+      <div style="margin-top:5px;">${depsHtml}</div>
+    </div>
+    <div class="mas-prop-box" style="margin-bottom:10px;">
+      <div class="mas-prop-label">Outils & Sondes Autorisés (Tool Calling)</div>
+      <div class="mas-prop-val" style="margin-top:4px;">${allowedToolsHtml}</div>
+    </div>
+
+    <div class="mas-section-title">🛡️ 4. Sécurité, Blast Radius & Observabilité FinOps</div>
+    <div class="mas-grid-2">
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Plafond Blast Radius Autorisé</div>
+        <div class="mas-prop-val highlight">${activeItem.blast_radius_limit}</div>
+      </div>
+      <div class="mas-prop-box">
+        <div class="mas-prop-label">Scellement WORM Ledger</div>
+        <div class="mas-prop-val">${activeItem.worm_ledger ? '✅ Signé cryptographiquement (Merkle SHA-256)' : '🛡️ Non-mutant (Lecture ou contrôle passif)'}</div>
+      </div>
+    </div>
+    <div class="mas-prop-box" style="margin-bottom:12px;">
+      <div class="mas-prop-label">Métrique Prometheus FinOps Dédiée</div>
+      <div class="mas-prop-val" style="color:#fbbf24;"><code>${activeItem.promql_metric}</code></div>
+    </div>
+    <div class="mas-prop-box" style="margin-bottom:14px;">
+      <div class="mas-prop-label">Garantie de Repli / Résilience</div>
+      <div class="mas-prop-val">${activeItem.failure_fallback || activeItem.security_guard}</div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #1e293b;">
+      ${isCog ? `<button class="mas-action-btn" onclick="probeAgentModel('${activeItem.id}')">⚡ Tester la Sonde LLM (/api/llm/probe)</button>` : ''}
+      <button class="mas-action-btn secondary" onclick="navigator.clipboard.writeText('${activeItem.promql_metric}'); alert('Métrique PromQL copiée dans le presse-papier !');">📋 Copier Requête PromQL</button>
+      <button class="mas-action-btn secondary" onclick="closeMasModal()">Fermer</button>
+    </div>
+  `;
+}
+
+async function probeAgentModel(agentId) {
+  try {
+    const res = await fetch('/api/llm/probe?timeout=10.0', { method: 'POST' });
+    const data = await res.json();
+    alert('Résultat de la sonde LLM :\nStatus: ' + data.status + '\nProvider: ' + data.provider + '\nModèle: ' + data.model + '\nLatence: ' + data.latency_ms + ' ms');
+  } catch (err) {
+    alert('Erreur lors du test de la sonde : ' + err);
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeMasModal();
+  }
+});
+"""
+
+def _inject_mas_inspector(html: str) -> str:
+    """
+    Injects the unified MAS Architecture & Live Inspector Modal, CSS, and JS
+    into any HTML template (Console or Chat) before </style> and </body>.
+    """
+    if "</style>" in html and "</body>" in html:
+        html = html.replace("</style>", f"{MAS_INSPECTOR_CSS}\n</style>", 1)
+        html = html.replace("</body>", f"{MAS_INSPECTOR_HTML}\n<script>\n{MAS_INSPECTOR_JS}\n</script>\n</body>", 1)
+    return html
+
+
 @app.get("/console", response_class=HTMLResponse)
 def web_console():
     """
@@ -843,7 +1759,7 @@ def web_console():
     Tailscale mesh status/netcheck, WORM Trust Ledger inspection, and CAC MLOps Pull snapshots
     with color-coded pedagogical explanations.
     """
-    return """<!DOCTYPE html>
+    raw_html = """<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -1019,6 +1935,7 @@ def web_console():
         <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas | <a href="/chat" target="_blank" style="color:#34d399;font-weight:bold;">💬 Open Live AI Chat (/chat)</a> | <a href="/docs" target="_blank">Swagger UI (/docs)</a> | <a href="/mcp/manifest" target="_blank">MCP Manifest (/mcp/manifest)</a></div>
       </div>
       <div class="badges">
+        <span class="badge" style="cursor:pointer;background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-weight:bold;" onclick="openMasModal()" title="Inspecter l'architecture MAS et les LLMs">🤖 Topologie MAS & LLMs Live</span>
         <span class="badge">Redis :6379 Active</span>
         <span class="badge">Tailscale SOCKS5 :1055 Active</span>
         <span class="badge">MCP Gateway /mcp Active</span>
@@ -1027,6 +1944,10 @@ def web_console():
     </header>
 
     <div class="grid">
+      <button class="purple" onclick="openMasModal()" style="border-left:4px solid #c084fc;background:#17102e;">
+        <strong style="color:#e9d5ff;">🤖 Topologie MAS & Inspecteur des LLMs</strong>
+        <span>Visualiser en direct le LLM de chaque agent et les 6 actionneurs (0-token)</span>
+      </button>
       <button class="amber" onclick="runCmd('sandbox_phase_a_vitals')">
         <strong>Phase A: Vitals & Hardware Telemetry</strong>
         <span>/healthz, /ready, CPU EPYC, /proc/meminfo, cgroup v2</span>
@@ -1234,6 +2155,7 @@ Cliquez sur n'importe quel bouton ci-dessus :
   </script>
 </body>
 </html>"""
+    return _inject_mas_inspector(raw_html)
 
 
 CHAT_HTML = r"""<!DOCTYPE html>
@@ -1857,10 +2779,14 @@ CHAT_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
     <div class="header-right">
-      <div class="badge-llm" id="llm-status-badge">
+      <div class="badge-llm" id="llm-status-badge" onclick="openMasModal()" style="cursor:pointer;" title="Cliquez pour inspecter la topologie MAS et les LLMs actifs">
         <span class="badge-dot"></span>
         <span>Loading LLM Provider...</span>
       </div>
+      <button class="btn-catalog-toggle" onclick="openMasModal()" style="background:#3b0764;border-color:#7c3aed;color:#e9d5ff;" title="Inspecter l'architecture MAS et les LLMs actifs">
+        <span>🤖</span>
+        <span>Topologie MAS</span>
+      </button>
       <button class="btn-catalog-toggle" onclick="toggleCatalog(true)" title="Explorer les 20 Prompts Cognitifs MCP">
         <span>📚</span>
         <span>20 Prompts MCP</span>
@@ -1880,12 +2806,13 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <div class="msg-bubble">
           Bonjour ! Je suis l'assistant cognitif SRE et MLOps d'<strong>Agentic-Ops Control Plane</strong>.<br><br>
           Je suis connecté en direct au moteur d'orchestration et au Hub de LLM (OpenRouter par défaut avec fallback automatique). Vous pouvez m'interroger sur l'état de l'infrastructure, l'analyse d'alertes Loki/Prometheus, la dérive Evidently, les politiques de quorum Slack HITL ou les tests de robustesse.<br><br>
-          <em>Cliquez sur le bouton <strong>📚 20 Prompts MCP</strong> pour explorer le catalogue de scénarios d'audit prêts à l'emploi.</em>
+          <em>Cliquez sur le bouton <strong>🤖 Topologie MAS</strong> pour inspecter en direct le LLM de chaque agent, ou sur <strong>📚 20 Prompts MCP</strong> pour explorer les audits prêts à l'emploi.</em>
         </div>
       </div>
     </div>
 
     <div class="chips-bar">
+      <button class="chip-btn" onclick="openMasModal()" style="background:#2e1065;border-color:#7e22ce;color:#e9d5ff;font-weight:600;">🤖 Topologie MAS & LLMs Live</button>
       <button class="chip-btn chip-catalog" onclick="toggleCatalog(true)">📚 Catalogue des 20 Prompts MCP...</button>
       <button class="chip-btn" onclick="sendPrompt('Quel est le rôle du circuit breaker en cas de saturation de requêtes ?')">⚡ Circuit Breaker</button>
       <button class="chip-btn" onclick="sendPrompt('Explique comment fonctionne le quorum Slack HITL à 2 approbateurs (2-man rule).')">👥 Quorum HITL Slack</button>
@@ -2251,7 +3178,7 @@ def web_chat():
     Zero-dependency standalone Web Chat UI for Agentic-Ops.
     Hosted directly on FastAPI/Render at /chat.
     """
-    return HTMLResponse(content=CHAT_HTML)
+    return HTMLResponse(content=_inject_mas_inspector(CHAT_HTML))
 
 
 app.include_router(slack_router)

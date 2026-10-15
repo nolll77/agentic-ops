@@ -130,3 +130,58 @@ def test_get_llm_status_includes_roles_topology():
         assert "is_specialized" in roles[role_name]
         assert "recommendation" in roles[role_name]
 
+
+def test_get_mas_topology_endpoint():
+    """GET /api/mas/topology must return the 11 components (5 cognitive + 6 deterministic)."""
+    resp = client.get("/api/mas/topology")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["total_components"] == 11
+    assert data["cognitive_count"] == 5
+    assert data["deterministic_count"] == 6
+
+    # Verify cognitive agents
+    cog_ids = {a["id"] for a in data["cognitive_agents"]}
+    assert cog_ids == {"remediation", "infra", "data", "model", "chat"}
+    for agent in data["cognitive_agents"]:
+        assert agent["type"] == "cognitive"
+        assert "active_model" in agent
+        assert "selection_rationale" in agent
+        assert "input_contract" in agent
+        assert "output_contract" in agent
+        assert "promql_metric" in agent
+
+    # Verify deterministic components
+    det_ids = {d["id"] for d in data["deterministic_components"]}
+    assert det_ids == {"circuit_breaker", "executor", "cac_collector", "slack_webhook", "agent_tools", "mcp_gateway"}
+    for comp in data["deterministic_components"]:
+        assert comp["type"] == "deterministic"
+        if comp["id"] != "mcp_gateway":
+            assert "0 Tokens" in comp["engine"]
+        else:
+            assert "Délégué" in comp["engine"]
+        assert "isolation" in comp
+
+
+def test_get_console_ui_contains_mas_inspector():
+    """GET /console must serve the MAS Inspector modal, button, and client-side triggers."""
+    resp = client.get("/console")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="mas-modal"' in html
+    assert 'openMasModal()' in html
+    assert "Topologie MAS & LLMs Live" in html
+    assert "/api/mas/topology" in html
+
+
+def test_get_chat_ui_contains_mas_inspector():
+    """GET /chat must serve the MAS Inspector modal, header button, and chip trigger."""
+    resp = client.get("/chat")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="mas-modal"' in html
+    assert 'openMasModal()' in html
+    assert "Topologie MAS" in html
+    assert "/api/mas/topology" in html
+
