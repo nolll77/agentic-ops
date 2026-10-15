@@ -1057,11 +1057,34 @@ Pour éliminer le goulot d'étranglement de l'agent unique et bannir les conflit
 
 > **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Guide de Spécialisation Cognitive** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
 
-Un Système Multi-Agents autonome opérant en production ne peut supposer une exécution nominale permanente. Afin de garantir zéro exception non interceptée, zéro mutation non autorisée et une haute résilience face aux pannes d'API ou aux partitions réseau, `Agentic-Ops` implémente **5 Niveaux de Repli (Fallbacks) en Cascade** :
+Un Système Multi-Agents autonome opérant en production doit gérer deux périmètres de défaillance bien distincts :
+1. **Que se passe-t-il si le LLM par défaut d'un agent bugue ?** (Rate limit `HTTP 429`, timeout, indisponibilité API) $\rightarrow$ Pris en charge de façon transparente par `FallbackLLMAdapter` sans interruption du diagnostic.
+2. **Que se passe-t-il si un agent ou le système MAS bugue ?** (Taxonomie d'alerte inconnue, emballement budgétaire LLM, action hors catalogue, rupture réseau VPS) $\rightarrow$ Verrouillé par des transitions d'état déterministes Fail-Safe et Fail-Closed.
+
+```text
++--------------------------------------------------------------------------------------------------+
+| DOUBLE ÉTAGE DE RÉSILIENCE : REPLI MODÈLE LLM VS. GARDE-FOU SYSTÈME AGENT                       |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [ÉTAGE 1 : DÉFAILLANCE DU MODÈLE LLM (API / Quota / Timeout)]                                    |
+| - RemediationAgent   : deepseek-r1:free     ──(Erreur ?)──> deepseek-chat ──> llama-3.3-70b ...  |
+| - InfraSpecialist    : gemma-4-31b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - DataSpecialist     : gemma-4-26b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - ModelSpecialist    : llama-3.3-70b:free   ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - WebChatCopilot     : deepseek-chat:free   ──(Erreur ?)──> deepseek-r1   ──> llama-3.3-70b ...  |
+|                                                                                                  |
+| [ÉTAGE 2 : DÉFAILLANCE DE L'AGENT OU DE L'ORCHESTRATEUR (Logique / Réseau / Sécurité)]          |
+| - Alerte Inconnue    : Repli automatique sur DataSpecialist (analyse de corruption des données)  |
+| - Emballement Appels : Déclenchement Circuit Breaker (>50 req/h) -> CIRCUIT_BREAKER_FALLBACK     |
+| - Action Hallucinée  : PolicyEngine default_effect: "deny" -> Rejet Fail-Closed / Slack HITL     |
+| - Rupture Réseau VPS : ConnectError intercepté -> status="offline" -> Verrouillage des mutations|
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
 
 | Niveau de Repli | Condition Déclenchante | Clé de Mapping Code / Config | Comportement / État de Repli Obtenu |
 | :--- | :--- | :--- | :--- |
-| **1. Repli Cerveau Cognitif (LLM)** | Erreur de quota `HTTP 429` ou Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Bascule automatique instantanée sur modèle secondaire (ex: `gemma-4`, `nemotron`, `llama`) sans interruption de l'analyse. |
+| **1. Repli Cerveau Cognitif (LLM)** | Erreur de quota `HTTP 429` ou Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Bascule automatique instantanée sur 5 modèles secondaires gratuits (ex: `gemma-4`, `llama-70b`, `nemotron`) sans interruption. |
 | **2. Repli FinOps & Sécurité (Circuit Breaker)** | Dépassement budget horaire (`> 50 requêtes/h`) | `global_circuit_breaker.is_tripped()` | Coupure des appels LLM, injection de `agent="CIRCUIT_BREAKER_FALLBACK"`, forçage de l'action passive `CREATE_ISSUE`. |
 | **3. Repli Routage Spécialiste** | Préfixe `risk_id` inconnu ou personnalisé | `Orchestrator._get_specialist(risk_id)` | Aiguillage vers `ModelSpecialist` (`MODEL_*`), `InfraSpecialist` (`INFRA_*`), ou repli par défaut vers `DataSpecialist`. |
 | **4. Repli Fail-Closed du Moteur de Règles** | Action non listée ou rayon d'impact > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Rejet par défaut (`DecisionEnum.DENY`) ou rétrogradation du mode autonome vers le circuit Slack HITL humain. |

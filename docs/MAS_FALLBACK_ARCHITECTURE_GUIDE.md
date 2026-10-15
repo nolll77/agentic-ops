@@ -50,12 +50,62 @@ The cognitive reasoning engine is protected against rate-limiting (`HTTP 429 Too
 3. If no role-specific fallback chain is specified, it inherits the global `LLM_FALLBACK_MODELS`.
 4. If no global fallback is configured and OpenRouter is used, it falls back to the catalog of free models (`profile["free_models"]`).
 
-### B. Exact Mapping Keys
+### B. Exact Runtime Fallback Chains per Agent
+
+When an agent's primary LLM encounters a failure (`HTTP 429`, timeout, provider outage), `FallbackLLMAdapter` transparently routes the query through the agent's pre-computed fallback chain:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| DEDICATED RUNTIME FAILOVER CHAINS BY AGENT ROLE                                                  |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| 1. RemediationAgent (role="remediation") :                                                       |
+|    Primary: openrouter/deepseek/deepseek-r1:free                                                 |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
+|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
+|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
+|      ├── (Fails ?) ──> openrouter/mistralai/mistral-7b-instruct:free                             |
+|      └── (Fails ?) ──> openrouter/qwen/qwen-2.5-72b-instruct:free                                |
+|                                                                                                  |
+| 2. InfraSpecialist (role="infra") :                                                              |
+|    Primary: openrouter/google/gemma-4-31b-it:free (256k context)                                 |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
+|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
+|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
+|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
+|                                                                                                  |
+| 3. DataSpecialist (role="data") :                                                                |
+|    Primary: openrouter/google/gemma-4-26b-a4b-it:free                                            |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
+|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
+|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
+|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
+|                                                                                                  |
+| 4. ModelSpecialist (role="model") :                                                              |
+|    Primary: openrouter/meta-llama/llama-3.3-70b-instruct:free                                    |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-chat:free                                    |
+|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
+|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
+|                                                                                                  |
+| 5. WebChatCopilot (role="chat") :                                                                |
+|    Primary: openrouter/deepseek/deepseek-chat:free                                               |
+|      ├── (Fails ?) ──> openrouter/deepseek/deepseek-r1:free                                      |
+|      ├── (Fails ?) ──> openrouter/meta-llama/llama-3.3-70b-instruct:free                         |
+|      ├── (Fails ?) ──> openrouter/google/gemini-2.0-flash-exp:free                               |
+|      └── ... (puis mistral-7b, qwen-2.5-72b)                                                     |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
+
+### C. Exact Mapping Keys
 | Fallback Level | Configuration Key (Env Variable) | Fallback Target / Code Precedence |
 | :--- | :--- | :--- |
-| **Role Primary Model** | `LLM_MODEL_{ROLE}` | Falls back to global `LLM_MODEL` |
+| **Role Primary Model** | `LLM_MODEL_{ROLE}` | Falls back to global `LLM_MODEL` $\rightarrow$ `ROLE_RECOMMENDED_MODELS[role]` |
 | **Global Primary Model** | `LLM_MODEL` | Falls back to `PROVIDER_PROFILES[provider]["default_model"]` |
-| **Role Fallback Chain** | `LLM_FALLBACK_MODELS_{ROLE}` | Falls back to global `LLM_FALLBACK_MODELS` |
+| **Role Fallback Chain** | `LLM_FALLBACK_MODELS_{ROLE}` | Falls back to global `LLM_FALLBACK_MODELS` $\rightarrow$ `profile["free_models"]` |
 | **Global Fallback Chain** | `LLM_FALLBACK_MODELS` | Falls back to `PROVIDER_PROFILES[provider]["free_models"]` |
 | **Role Provider Selector**| `LLM_PROVIDER_{ROLE}` | Falls back to `LLM_PROVIDER` $\rightarrow$ `"openrouter"` |
 

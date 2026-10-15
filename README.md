@@ -1057,11 +1057,34 @@ To avoid the single-agent bottleneck and prevent judicial conflicts of interest 
 
 > **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Cognitive Specialization Guide**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
 
-An autonomous Multi-Agent System operating in production cannot assume nominal execution. To guarantee zero unhandled exceptions, zero unapproved mutations, and high resilience under provider outages or network drops, `Agentic-Ops` implements **5 cascading Fallback Layers**:
+An autonomous Multi-Agent System operating in production must handle two distinct failure domains:
+1. **What happens if an agent's default LLM bugs?** (`HTTP 429` rate limit, timeout, provider outage) $\rightarrow$ Handled transparently by `FallbackLLMAdapter` without interrupting the diagnosis.
+2. **What happens if an agent or the orchestrator bugs?** (Unclassified risk taxonomy, LLM budget spike, action hallucination, remote VPS drop) $\rightarrow$ Handled by deterministic Fail-Safe and Fail-Closed state transitions.
+
+```text
++--------------------------------------------------------------------------------------------------+
+| DUAL-TIER RESILIENCE: LLM MODEL FAILOVER VS. AGENT ORCHESTRATION FAILSAFE                        |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [TIER 1: LLM MODEL BUG (API / Quota / Timeout)]                                                  |
+| - RemediationAgent   : deepseek-r1:free     ──(Fails ?)──> deepseek-chat ──> llama-3.3-70b ...   |
+| - InfraSpecialist    : gemma-4-31b-it:free  ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
+| - DataSpecialist     : gemma-4-26b-it:free  ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
+| - ModelSpecialist    : llama-3.3-70b:free   ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
+| - WebChatCopilot     : deepseek-chat:free   ──(Fails ?)──> deepseek-r1   ──> llama-3.3-70b ...   |
+|                                                                                                  |
+| [TIER 2: AGENT SYSTEM BUG (Logic / Storm / Network)]                                             |
+| - Unmatched Risk ID  : Automatic fallback to DataSpecialist (safely triages data corruption)    |
+| - Token Storm / Loop : Circuit Breaker trips (>50 req/h) -> CIRCUIT_BREAKER_FALLBACK (Issue only)|
+| - Hallucinated Action: PolicyEngine default_effect: "deny" -> Fail-Closed / Slack HITL Approval |
+| - VPS / Tailscale Drop: ConnectError caught -> status="offline" -> Fail-Closed mutation lock     |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
 
 | Fallback Layer | Trigger Condition | Code Mapping Key | Fallback Outcome / Behavior |
 | :--- | :--- | :--- | :--- |
-| **1. Cognitive Brain Fallback** | `HTTP 429` Rate Limit or Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Auto-failover to secondary model (e.g. `gemma-4`, `nemotron`, `llama`) with 0 interrupt. |
+| **1. Cognitive Brain Fallback** | `HTTP 429` Rate Limit or Timeout | `FallbackLLMAdapter` / `LLM_FALLBACK_MODELS_{ROLE}` | Auto-failover across 5 free secondary models (e.g. `gemma-4`, `llama-70b`, `nemotron`) with 0 interrupt. |
 | **2. FinOps & SecOps Fallback** | Hourly budget exceeded (`> 50 calls/h`) | `global_circuit_breaker.is_tripped()` | Halts LLM calls, injects `agent="CIRCUIT_BREAKER_FALLBACK"`, forces non-mutating `CREATE_ISSUE`. |
 | **3. Specialist Routing Fallback** | Unmatched or custom `risk_id` prefix | `Orchestrator._get_specialist(risk_id)` | Routes to `ModelSpecialist` (`MODEL_*`), `InfraSpecialist` (`INFRA_*`), or default fallback to `DataSpecialist`. |
 | **4. Policy Engine Fail-Closed** | Unlisted action or blast radius > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Denies by default (`DecisionEnum.DENY`) or falls back from autonomous execution to Slack HITL. |
