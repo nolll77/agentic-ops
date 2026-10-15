@@ -1182,6 +1182,49 @@ Un Système Multi-Agents autonome opérant en production doit gérer deux périm
 | **4. Repli Fail-Closed du Moteur de Règles** | Action non listée ou rayon d'impact > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Rejet par défaut (`DecisionEnum.DENY`) ou rétrogradation du mode autonome vers le circuit Slack HITL humain. |
 | **5. Repli Réseau & Target Distante** | Déconnexion VPS distant ou mesh Tailscale | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Capture de `ConnectError`, retour `status="offline"` (HTTP 200), verrouillage Fail-Closed de toute mutation. |
 
+#### Mécanique Chirurgicale d'Exécution : Comment un Agent Bascule vers son LLM de Secours en Plein Vol
+
+> **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#a-surgical-switch-mechanics--runtime-lifecycle-sequence--latency-optimization`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#a-surgical-switch-mechanics--runtime-lifecycle-sequence--latency-optimization)** | **Module Source** : **[`agentic_ops/adapters/llm_protocol.py`](agentic_ops/adapters/llm_protocol.py)**
+
+Lorsqu'un agent autonome subit une défaillance de son LLM primaire (erreur de quota `HTTP 429`, timeout réseau, panne 5xx du fournisseur), la bascule vers le modèle de secours est entièrement autonome, non-bloquante et transparente pour la logique métier de l'agent :
+
+```text
++-------------------------------------------------------------------------------------------------------+
+| SÉQUENCE CHIRURGICALE DE BASCULE D'UN AGENT VERS SON LLM DE SECOURS                                   |
++-------------------------------------------------------------------------------------------------------+
+
+ [ Agent Cognitif ]           [ FallbackLLMAdapter ]         [ Primary Adapter ]        [ Fallback Adapter ]
+  (ex: ModelSpecialist)                                       (DeepSeek-R1)              (DeepSeek-Chat)
+          |                            |                              |                          |
+          | 1. complete(Diagnosis)     |                              |                          |
+          |--------------------------->|                              |                          |
+          |                            | 2. complete()                |                          |
+          |                            |----------------------------->|                          |
+          |                            |                              | HTTP 429 / Timeout / 5xx |
+          |                            |                              | (Échec après retries)    |
+          |                            |                              |-- - - - - - - - - - - - -+
+          |                            | 3. Interception Exception    |                          |
+          |                            |<-----------------------------|                          |
+          |                            |    Prometheus error inc()                               |
+          |                            |                                                         |
+          |                            | 4. Bascule immédiate (max_retries=1)                    |
+          |                            |-------------------------------------------------------->|
+          |                            |                                                         | 200 OK + JSON
+          |                            | 5. Validation Contrat Pydantic (Diagnosis)             | (avec _strip_think_tags)
+          |                            |<--------------------------------------------------------|
+          |                            |    Prometheus success inc()                             |
+          | 6. Retour Diagnosis typé   |                                                         |
+          |<---------------------------|                                                         |
+          | (L'agent ignore la panne)  |                                                         |
+          v                            v                                                         v
+```
+
+1. **Inversion Hexagonale (`LLMPort`)** : Les agents (`ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`) n'importent jamais de SDK propriétaire directement ; ils interagissent exclusivement avec l'interface abstraite `LLMPort`.
+2. **Prévention de l'Explosion de Latence (`max_retries=1`)** : Alors que l'adaptateur primaire exécute un cycle de retry exponentiel, les adaptateurs de secours sont configurés avec `max_retries=1`. Cela garantit une bascule en moins de `50 ms` sans additionner des délais d'attente qui figeraient l'orchestrateur.
+3. **Assainissement du Structured Output** : Les modèles de raisonnement pur émettant des balises de réflexion (`<think>...</think>`) sont automatiquement purgés par `_strip_think_tags()` avant la validation du schéma Pydantic.
+4. **Télémétrie Prometheus Indépendante** : Les échecs et les succès sont comptabilisés sur des labels distincts (`agentic_ops_llm_requests_total{status="error|success"}` et `agentic_ops_llm_latency_seconds`), assurant une observabilité SRE en temps réel.
+5. **Coupe-Circuit Déterministe** : Si l'intégralité de la chaîne de secours échoue, le `LLMCircuitBreaker` verrouille le cluster en mode `Fail-Closed` (`default_effect: "deny"`), émet un `ActionType.CREATE_ISSUE` via le repli Python pur `CIRCUIT_BREAKER_FALLBACK` (0 token), et signe l'incident dans le `WORM Trust Ledger`.
+
 #### Indépendance Fournisseur & Plan de Continuité : Que se passe-t-il si OpenRouter coupe les accès ou change de politique ?
 
 > **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies)** | **Module Source** : **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)**

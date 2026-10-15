@@ -1182,6 +1182,49 @@ An autonomous Multi-Agent System operating in production must handle two distinc
 | **4. Policy Engine Fail-Closed** | Unlisted action or blast radius > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Denies by default (`DecisionEnum.DENY`) or falls back from autonomous execution to Slack HITL. |
 | **5. Network & Target Fallback** | Remote VPS or Tailscale partition | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Catches `ConnectError`, returns `status="offline"` (HTTP 200), activates Fail-Closed mutation lock. |
 
+#### Surgical Execution Flow: How an Agent Switches to a Fallback LLM at Runtime
+
+> **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#a-surgical-switch-mechanics--runtime-lifecycle-sequence--latency-optimization`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#a-surgical-switch-mechanics--runtime-lifecycle-sequence--latency-optimization)** | **Source Module**: **[`agentic_ops/adapters/llm_protocol.py`](agentic_ops/adapters/llm_protocol.py)**
+
+When an autonomous agent encounters an upstream LLM failure (`HTTP 429` rate limit, timeout, provider outage), the switch to a backup model is entirely autonomous, non-blocking, and transparent to the agent's internal business logic:
+
+```text
++-------------------------------------------------------------------------------------------------------+
+| SURGICAL SEQUENCE FLOW: AGENT FAILOVER TO BACKUP LLM AT RUNTIME                                       |
++-------------------------------------------------------------------------------------------------------+
+
+ [ Cognitive Agent ]          [ FallbackLLMAdapter ]         [ Primary Adapter ]        [ Fallback Adapter ]
+  (e.g., ModelSpecialist)                                     (DeepSeek-R1)              (DeepSeek-Chat)
+          |                            |                              |                          |
+          | 1. complete(Diagnosis)     |                              |                          |
+          |--------------------------->|                              |                          |
+          |                            | 2. complete()                |                          |
+          |                            |----------------------------->|                          |
+          |                            |                              | HTTP 429 / Timeout / 5xx |
+          |                            |                              | (Fails after retries)    |
+          |                            |                              |-- - - - - - - - - - - - -+
+          |                            | 3. Intercept Exception       |                          |
+          |                            |<-----------------------------|                          |
+          |                            |    Prometheus error inc()                               |
+          |                            |                                                         |
+          |                            | 4. Immediate Fallback (max_retries=1)                   |
+          |                            |-------------------------------------------------------->|
+          |                            |                                                         | 200 OK + JSON
+          |                            | 5. Validate Pydantic Schema (Diagnosis)                | (via _strip_think_tags)
+          |                            |<--------------------------------------------------------|
+          |                            |    Prometheus success inc()                             |
+          | 6. Return typed Diagnosis  |                                                         |
+          |<---------------------------|                                                         |
+          | (Agent unaware of failure) |                                                         |
+          v                            v                                                         v
+```
+
+1. **Hexagonal Inversion (`LLMPort`)**: Agents (`ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`) never import vendor SDKs directly; they interact exclusively with the abstract `LLMPort` interface.
+2. **Cascading Latency Prevention (`max_retries=1`)**: While primary adapters run a multi-attempt exponential backoff loop, fallback adapters are configured with `max_retries=1`. This guarantees that failover occurs in `< 50 ms` without compounding latency delays.
+3. **Structured Output Sanitization**: Reasoning models emitting chain-of-thought envelopes (`<think>...</think>`) are automatically sanitized by `_strip_think_tags()` before Pydantic schema validation.
+4. **Independent Prometheus Telemetry**: Failures and successes are tracked on separate metric labels (`agentic_ops_llm_requests_total{status="error|success"}` and `agentic_ops_llm_latency_seconds`), ensuring immediate SRE observability.
+5. **Deterministic Circuit Breaker**: If all models in the chain fail, `LLMCircuitBreaker` locks the cluster in `Fail-Closed` mode (`default_effect: "deny"`), issues `ActionType.CREATE_ISSUE` via pure Python `CIRCUIT_BREAKER_FALLBACK` (0 tokens), and signs the event in the WORM Trust Ledger.
+
 #### Provider Independence & Disaster Recovery: What If OpenRouter Cuts Access or Changes Policies?
 
 > **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md#d-provider-independence--disaster-recovery-what-if-openrouter-cuts-access-or-changes-policies)** | **Source Module**: **[`agentic_ops/adapters/llm_provider_registry.py`](agentic_ops/adapters/llm_provider_registry.py)**

@@ -44,11 +44,123 @@ In `Agentic-Ops`, resilience is not an afterthought: **the MAS architecture is s
 
 The cognitive reasoning engine is protected against rate-limiting (`HTTP 429 Too Many Requests`), provider outages, and timeouts by `FallbackLLMAdapter` in [`agentic_ops/adapters/llm_protocol.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py).
 
-### A. Fallback Chain Mechanics
-1. The primary model configured for the role is queried first (e.g., `openrouter/deepseek/deepseek-r1:free`).
-2. If it raises any exception (`AuthenticationError`, `RateLimitError`, `TimeoutException`, `5xx`), `FallbackLLMAdapter` catches the error, records a failure metric in Prometheus, and immediately queries the next model in `LLM_FALLBACK_MODELS_{ROLE}`.
-3. If no role-specific fallback chain is specified, it inherits the global `LLM_FALLBACK_MODELS`.
-4. If no global fallback is configured and OpenRouter is used, it falls back to the catalog of free models (`profile["free_models"]`).
+### A. Surgical Switch Mechanics & Runtime Lifecycle (Sequence & Latency Optimization)
+
+In `Agentic-Ops`, when an autonomous agent switches from its primary LLM to a backup model, the operation is completely transparent to the agent's cognitive logic. This is achieved via the Decorator and Chain of Responsibility patterns implemented in [`FallbackLLMAdapter`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py#L320-L367).
+
+#### 1. Surgical Sequence Diagram
+
+```text
++-------------------------------------------------------------------------------------------------------+
+| SURGICAL SEQUENCE FLOW: AGENT FAILOVER TO BACKUP LLM AT RUNTIME                                       |
++-------------------------------------------------------------------------------------------------------+
+
+ [ Cognitive Agent ]          [ FallbackLLMAdapter ]         [ Primary Adapter ]        [ Fallback Adapter ]
+  (e.g., ModelSpecialist)                                     (DeepSeek-R1)              (DeepSeek-Chat)
+          |                            |                              |                          |
+          | 1. complete(Diagnosis)     |                              |                          |
+          |--------------------------->|                              |                          |
+          |                            | 2. complete()                |                          |
+          |                            |----------------------------->|                          |
+          |                            |                              | HTTP 429 / Timeout / 5xx |
+          |                            |                              | (Fails after retries)    |
+          |                            |                              |-- - - - - - - - - - - - -+
+          |                            | 3. Intercept Exception       |                          |
+          |                            |<-----------------------------|                          |
+          |                            |    Prometheus error inc()                               |
+          |                            |                                                         |
+          |                            | 4. Immediate Fallback (max_retries=1)                   |
+          |                            |-------------------------------------------------------->|
+          |                            |                                                         | 200 OK + JSON
+          |                            | 5. Validate Pydantic Schema (Diagnosis)                | (via _strip_think_tags)
+          |                            |<--------------------------------------------------------|
+          |                            |    Prometheus success inc()                             |
+          | 6. Return typed Diagnosis  |                                                         |
+          |<---------------------------|                                                         |
+          | (Agent unaware of failure) |                                                         |
+          v                            v                                                         v
+```
+
+#### 2. The 6 Internal Lifecycle Phases
+
+- **Phase 1: Cognitive Inconscience & Hexagonal Inversion (`LLMPort`)**:
+  Agents (`ModelSpecialist`, `InfraSpecialist`, `DataSpecialist`, `RemediationAgent`) never import or bind to specific vendor libraries (`litellm`, `openai`, `google-genai`). They interact exclusively with the structural protocol [`LLMPort`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py#L81-L90):
+  ```python
+  class LLMPort(Protocol):
+      def complete(
+          self,
+          *,
+          system: str,
+          user: str,
+          response_model: type[T],
+          temperature: float = 0.0,
+      ) -> T: ...
+  ```
+  The agent requests an output satisfying a Pydantic contract (e.g., `response_model=Diagnosis`). To the calling agent, `self.llm` is an opaque black box.
+
+- **Phase 2: Fallback Chain Assembly (`FallbackLLMAdapter`)**:
+  During startup or on-demand dependency injection, [`LLMProviderRegistry.build_adapter_for_role(role)`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_provider_registry.py#L286-L362) builds a unified composite adapter:
+  ```python
+  chain = [self.primary] + self.fallbacks
+  ```
+  The primary adapter is loaded alongside an ordered list of secondary adapters pre-resolved from environment variables.
+
+- **Phase 3: Failure Interception & Cascading Latency Prevention (`max_retries=1`)**:
+  When the primary adapter encounters an `HTTP 429` (Rate Limit), an upstream timeout, or an unhandled `5xx` error, `FallbackLLMAdapter` catches the exception:
+  ```python
+  except Exception as exc:
+      last_exc = exc
+      logger.warning("FallbackLLMAdapter: adapter %d (%s) failed: %s — trying next.", i, label, exc)
+  ```
+  **Critical SRE Invariant**: Primary models utilize an exponential backoff retry loop (`@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))`). However, fallback adapters in the chain are initialized with `max_retries=1`. This prevents compounding latency explosions (where retrying multiple secondary models sequentially could freeze the orchestrator for 45+ seconds). Fallover between models takes less than `50 ms`.
+
+- **Phase 4: Structured Output Sanitization (`_strip_think_tags`) & Pydantic Validation**:
+  When the fallback model returns its payload:
+  1. Pure reasoning models (such as `DeepSeek-R1`) emit internal chain-of-thought blocks wrapped in `<think>...</think>`. The regex engine [`_strip_think_tags()`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py#L37-L51) strips these tags and any Markdown JSON code fences.
+  2. The raw JSON is validated against the requested Pydantic class (`response_model.model_validate(parsed)`).
+  3. If validation succeeds, the strongly-typed domain model is returned to the agent without schema corruption.
+
+- **Phase 5: Granular Prometheus Telemetry Instrumentation**:
+  Every attempt across the chain is individually tracked in Prometheus metrics:
+  - Failure on Primary: `agentic_ops_llm_requests_total{role="model", provider="openrouter", model="deepseek-r1", status="error"}` incremented.
+  - Success on Fallback: `agentic_ops_llm_requests_total{role="model", provider="openrouter", model="deepseek-chat", status="success"}` incremented.
+  - Latency: `agentic_ops_llm_latency_seconds{role="model", provider="openrouter", model="deepseek-chat"}` observed in histogram buckets.
+
+- **Phase 6: Fail-Closed Emergency Clamp (`CIRCUIT_BREAKER_FALLBACK`)**:
+  If every model in the fallback chain fails simultaneously:
+  1. `FallbackLLMAdapter` raises a `RuntimeError` (`All N LLM adapters in the fallback chain failed`).
+  2. The orchestrator catches the failure or the hourly call limit in [`LLMCircuitBreaker`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/circuit_breaker.py#L6-L40).
+  3. The system engages `CIRCUIT_BREAKER_FALLBACK` (0 tokens, deterministic pure Python), issues non-mutating `ActionType.CREATE_ISSUE`, locks the cluster in `Fail-Closed` mode (`default_effect: "deny"`), and signs the event in the WORM Trust Ledger.
+
+#### 3. Declarative Static Precedence Hierarchy
+
+In addition to dynamic runtime failover, operators can override an agent's default LLM declaratively without touching code. The resolution engine [`LLMProviderRegistry.resolve_role_config(role)`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_provider_registry.py#L178-L278) resolves configurations in strict order of precedence:
+
+```text
++--------------------------------------------------------------------------------------------------+
+| DECLARATIVE LLM CONFIGURATION RESOLUTION HIERARCHY                                               |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Level 1: Explicit Role Env Variable]                                                            |
+| LLM_MODEL_{ROLE}, LLM_PROVIDER_{ROLE}, LLM_FALLBACK_MODELS_{ROLE}                                |
+| (e.g., LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest)                                           |
+|                                     │                                                            |
+|                                     ▼ (if unset)                                                 |
+| [Level 2: Global Env Variable]                                                                   |
+| LLM_MODEL, LLM_PROVIDER, LLM_FALLBACK_MODELS                                                     |
+| (e.g., LLM_MODEL=openrouter/deepseek/deepseek-r1:free)                                           |
+|                                     │                                                            |
+|                                     ▼ (if unset)                                                 |
+| [Level 3: Native MAS Recommended Expert Role Default]                                            |
+| ROLE_RECOMMENDED_MODELS[role]["model"]                                                           |
+| (e.g., role="infra" -> openrouter/google/gemma-4-31b-it:free)                                    |
+|                                     │                                                            |
+|                                     ▼ (if unset)                                                 |
+| [Level 4: Provider Profile Default Model]                                                        |
+| PROVIDER_PROFILES[provider]["default_model"]                                                     |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
+```
 
 ### B. Exact Runtime Fallback Chains per Agent
 
