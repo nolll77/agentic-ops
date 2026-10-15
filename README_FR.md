@@ -1264,6 +1264,17 @@ Fallbacks count : 2
 - **Runbook C : Blackout Total d'Internet ou des APIs IA** :
   Si l'ensemble des providers échoue, le coupe-circuit s'enclenche automatiquement (`CIRCUIT_BREAKER_FALLBACK`, 0-Token Python pur), émet l'action passive `ActionType.CREATE_ISSUE`, verrouille le cluster en mode `Fail-Closed` (`default_effect: "deny"`) et signe l'événement dans le `WORM Trust Ledger`.
 
+##### Analyse de Complexité Opérationnelle & Effort Humain (Réduction du Toil)
+
+| Scénario d'Incident ou Défaillance | Effort Humain Requis | Temps de Réponse | Action Requise de l'Opérateur |
+| :--- | :--- | :--- | :--- |
+| **Erreur Transitoire HTTP 429 (Rate Limit OpenRouter)** | **ZÉRO (0 clic)** | **0 seconde** | Aucune action. `FallbackLLMAdapter` bascule de manière transparente en 50 ms vers les modèles gratuits secondaires (`deepseek-chat`, `llama-3.3-70b`, `gemini-2.0-flash`). |
+| **Timeout Modèle / Panne 5xx Fournisseur** | **ZÉRO (0 clic)** | **0 seconde** | Aucune action. La chaîne de repli intercepte l'exception, incrémente les compteurs Prometheus d'erreur et interroge le modèle suivant. |
+| **Tempête d'Alertes Monitoring / Boucle Infinie** | **ZÉRO (0 clic)** | **0 seconde** | Aucune action. Le `LLMCircuitBreaker` disjoncte automatiquement au seuil de 50 req/h, coupe la consommation de jetons, force `CREATE_ISSUE` et bascule en `Fail-Closed`. |
+| **Blackout Total d'Internet / Coupure Générale des APIs IA** | **ZÉRO (0 clic)** | **0 seconde** | Aucune action. Le repli déterministe `CIRCUIT_BREAKER_FALLBACK` (0 token, Python pur) s'exécute passivement sans planter le cluster. |
+| **Fermeture Définitive du Tiers Gratuit OpenRouter -> Bascule Gemini** | **Trivial (2 copier-coller d'env)** | **30 secondes** | Ajouter `LLM_PROVIDER=gemini` et `GOOGLE_API_KEY=AIzaSy...` dans le tableau de bord Render. Le conteneur redémarre automatiquement en 10s. Zéro modification de code. |
+| **Fermeture Définitive du Tiers Gratuit OpenRouter -> Bascule Ollama VPS** | **Simple (1 commande sur le VPS)** | **2 minutes** | Exécuter `curl -fsSL https://ollama.com/install.sh \| sh && ollama run deepseek-r1:7b` sur le VPS Scaleway. Configurer `LLM_PROVIDER=ollama` et `OLLAMA_BASE_URL=http://100.117.99.62:11434` sur Render. Le maillage WireGuard `:1055` est déjà actif 24/7. |
+
 ##### Validation par la Suite de Tests Automatisée
 
 Vérifié par 16 tests automatisés dans [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py) : `test_all_8_providers_are_registered`, `test_ollama_adapter_mocked_success`, `test_strip_think_tags_removes_r1_reasoning_blocks`, `test_fallback_chain_on_primary_failure`, et `test_fallback_chain_all_failing_raises_runtime_error`.

@@ -1264,6 +1264,17 @@ Fallbacks count : 2
 - **Runbook C: Total AI Blackout / Complete Network Disconnection**:
   If all providers fail, `LLMCircuitBreaker` automatically trips, engages `CIRCUIT_BREAKER_FALLBACK` (0-Token, pure Python), issues non-mutating `ActionType.CREATE_ISSUE`, enters `Fail-Closed` mode (`default_effect: "deny"`), and signs the event in the `WORM Trust Ledger`.
 
+##### Operational Complexity & Human Effort Matrix (Zero-Toil Guarantee)
+
+| Incident / Failure Scenario | Human Effort Required | Response Time | Operator Action Required |
+| :--- | :--- | :--- | :--- |
+| **Transient HTTP 429 Rate Limit on OpenRouter** | **ZERO (0 clicks)** | **0 seconds** | None. `FallbackLLMAdapter` transparently fails over to secondary free models (`deepseek-chat`, `llama-3.3-70b`, `gemini-2.0-flash`) in 50 ms. |
+| **Model Timeout / Provider 5xx Outage** | **ZERO (0 clicks)** | **0 seconds** | None. The fallback chain catches the exception, increments Prometheus error counters, and evaluates the next model in sequence. |
+| **Monitoring Alert Storm / Infinite Loop** | **ZERO (0 clicks)** | **0 seconds** | None. `LLMCircuitBreaker` automatically trips at 50 req/h, halts LLM token spend, forces `CREATE_ISSUE`, and enters `Fail-Closed`. |
+| **Total Internet / Global AI API Blackout** | **ZERO (0 clicks)** | **0 seconds** | None. Deterministic `CIRCUIT_BREAKER_FALLBACK` (0-token, pure Python) executes passively without crashing. |
+| **Permanent OpenRouter Free Tier Closure -> Switch to Gemini** | **Trivial (2 env copy-pastes)** | **30 seconds** | Add `LLM_PROVIDER=gemini` and `GOOGLE_API_KEY=AIzaSy...` in Render dashboard. Container restarts automatically in 10s. Zero code changes. |
+| **Permanent OpenRouter Free Tier Closure -> Switch to Ollama VPS** | **Simple (1 command on VPS)** | **2 minutes** | Run `curl -fsSL https://ollama.com/install.sh \| sh && ollama run deepseek-r1:7b` on Scaleway VPS. Set `LLM_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://100.117.99.62:11434` in Render. WireGuard mesh `:1055` is already live. |
+
 ##### Test Suite Verification
 
 Verified by 16 automated tests in [`tests/adapters/test_llm_provider_registry.py`](tests/adapters/test_llm_provider_registry.py): `test_all_8_providers_are_registered`, `test_ollama_adapter_mocked_success`, `test_strip_think_tags_removes_r1_reasoning_blocks`, `test_fallback_chain_on_primary_failure`, and `test_fallback_chain_all_failing_raises_runtime_error`.

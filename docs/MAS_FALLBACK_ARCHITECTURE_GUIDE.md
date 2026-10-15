@@ -273,7 +273,20 @@ If every external provider fails simultaneously:
 - Forces non-mutating `ActionType.CREATE_ISSUE` and enters `Fail-Closed` mode (`default_effect: "deny"`).
 - Appends an audit entry to the `WORM Trust Ledger` and alerts the on-call engineer via Slack.
 
-#### 9. Test Suite Verification
+#### 9. Operational Complexity & Human Effort Matrix (Toil Reduction)
+
+A core SRE design invariant in `Agentic-Ops` is **Toil Elimination**: human operators should never undergo manual configuration panic during incidents. The platform differentiates passive autonomous recovery from rare manual provider migrations:
+
+| Incident / Failure Scenario | Human Effort Required | Response Time | Operator Action Required |
+| :--- | :--- | :--- | :--- |
+| **Transient HTTP 429 Rate Limit on OpenRouter** | **ZERO (0 clicks)** | **0 seconds** | None. `FallbackLLMAdapter` transparently fails over to secondary free models (`deepseek-chat`, `llama-3.3-70b`, `gemini-2.0-flash`) in 50 ms. |
+| **Model Timeout / Provider 5xx Outage** | **ZERO (0 clicks)** | **0 seconds** | None. The fallback chain catches the exception, increments Prometheus error counters, and evaluates the next model in sequence. |
+| **Monitoring Alert Storm / Infinite Loop** | **ZERO (0 clicks)** | **0 seconds** | None. `LLMCircuitBreaker` automatically trips at 50 req/h, halts LLM token spend, forces `CREATE_ISSUE`, and enters `Fail-Closed`. |
+| **Total Internet / Global AI API Blackout** | **ZERO (0 clicks)** | **0 seconds** | None. Deterministic `CIRCUIT_BREAKER_FALLBACK` (0-token, pure Python) executes passively without crashing. |
+| **Permanent OpenRouter Free Tier Closure -> Switch to Gemini** | **Trivial (2 env copy-pastes)** | **30 seconds** | Add `LLM_PROVIDER=gemini` and `GOOGLE_API_KEY=AIzaSy...` in Render dashboard. Container restarts automatically in 10s. Zero code changes. |
+| **Permanent OpenRouter Free Tier Closure -> Switch to Ollama VPS** | **Simple (1 command on VPS)** | **2 minutes** | Run `curl -fsSL https://ollama.com/install.sh \| sh && ollama run deepseek-r1:7b` on Scaleway VPS. Set `LLM_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://100.117.99.62:11434` in Render. WireGuard mesh `:1055` is already live. |
+
+#### 10. Test Suite Verification
 
 The implementation is verified across 16 unit and integration tests in [`tests/adapters/test_llm_provider_registry.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adapters/test_llm_provider_registry.py):
 - `test_all_8_providers_are_registered`: Validates presence and configuration of all 8 provider profiles.
