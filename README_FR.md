@@ -999,7 +999,61 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 - **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 
-### 5. Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping
+### 5. Architecture de Sélection des Agents & Routage par Défaut du MAS
+
+> **Référence Technique Dédiée** : **[`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** | **Guide de Spécialisation Cognitive** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
+
+Pour éliminer le goulot d'étranglement de l'agent unique et bannir les conflits d'intérêts judiciaires (l'anti-pattern du "juge et partie"), `Agentic-Ops` sépare strictement l'investigation du diagnostic et la planification de remédiation au travers de 5 rôles d'agents spécialisés :
+
+```text
+                                  +---------------------------------------+
+                                  |         Signal d'Alerte Reçu          |
+                                  |         (risk_id, signal_id)          |
+                                  +---------------------------------------+
+                                                      |
+                                                      v
+                                        +---------------------------+
+                                        |  Orchestrator (Routeur)   |
+                                        | _get_specialist(risk_id)  |
+                                        +---------------------------+
+                                                      |
+                     +--------------------------------+-------------------------------+
+                     |                                |                               |
+            "MODEL" in risk_id               "INFRA" in risk_id                 Non-reconnu / Autre
+                     |                                |                               |
+                     v                                v                               v
+           +--------------------+           +--------------------+           +--------------------+
+           |  ModelSpecialist   |           |  InfraSpecialist   |           |   DataSpecialist   |
+           | (role="model")     |           | (role="infra")     |           | (role="data")      |
+           | MLflow / Dérive F1 |           | Loki / Logs Noyau  |           | [AGENT PAR DÉFAUT] |
+           +--------------------+           +--------------------+           +--------------------+
+                     \                                |                              /
+                      \                               |                             /
+                       +------------------------------+----------------------------+
+                                                      |
+                                                      v Émet un Diagnosis (Contrat Pydantic)
+                                      +-------------------------------+
+                                      |       RemediationAgent        |
+                                      | (role="remediation")          |
+                                      | Évaluateur de Rayon d'Impact  |
+                                      +-------------------------------+
+                                                      | Émet un ActionIntent (Contrat Pydantic)
+                                                      v
+                                      +-------------------------------+
+                                      |         PolicyEngine          |
+                                      |    (Garde-Fou OPA Fail-Closed)|
+                                      +-------------------------------+
+```
+
+| Rôle d'Agent (`role`) | Responsabilité Métier | Condition d'Activation (`risk_id`) | Modèle par Défaut Alloué | Justification & Rationale Opérationnel |
+| :--- | :--- | :--- | :--- | :--- |
+| **`DataSpecialist`**<br>(`role="data"`) | Mutations de schémas, dérives de covariables & contrats tabulaires | **Repli Universel par Défaut** / Tout `risk_id` sans `"MODEL"` ou `"INFRA"` | `google/gemma-4-26b-a4b-it:free` | **Le Socle de la Plateforme** : Plus de 80% des pannes MLOps réelles émanent des données. Toute alerte non répertoriée bascule ici pour éviter tout crash de routage non géré. |
+| **`ModelSpecialist`**<br>(`role="model"`) | Dégradation statistique ML, dérive de concept & baisse de F1-Score | `"MODEL" in risk_id.upper()` | `meta-llama/llama-3.3-70b-instruct:free` | Évalue la divergence de distribution par rapport au baseline MLflow sans confondre une anomalie ponctuelle de données avec une vraie dérive de concept ($P(Y \mid X)$). |
+| **`InfraSpecialist`**<br>(`role="infra"`) | SRE, restarts de conteneurs, saturation mémoire & connexions PostgreSQL | `"INFRA" in risk_id.upper()` | `google/gemma-4-31b-it:free` | Absorbe des dumps complets de logs système Loki et de traces noyau Linux grâce à sa fenêtre de contexte massive de 256 000 tokens sans troncature. |
+| **`RemediationAgent`**<br>(`role="remediation"`) | Planification indépendante, calcul du rayon d'impact (0-5) & réversibilité | Exécuté systématiquement lors de l'état FSM `PLANNED` | `deepseek/deepseek-r1:free` | **Séparation Anti-Biais** : Les spécialistes se limitent au constat factuel ; seul le coordinateur évalue le rayon d'impact systémique et la proportionnalité de l'action. |
+| **`WebChatCopilot`**<br>(`role="chat"`) | Assistance conversationnelle de l'opérateur & audit du Grand Livre WORM | Déclenché via `/chat` et `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimisé pour le dialogue à très faible latence et l'exécution immédiate des 20 Starter Prompts Cognitifs MCP sans délai de réflexion CoT. |
+
+### 6. Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping
 
 > **Référence Technique Dédiée** : **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Guide de Spécialisation Cognitive** : **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
 
@@ -1013,7 +1067,7 @@ Un Système Multi-Agents autonome opérant en production ne peut supposer une ex
 | **4. Repli Fail-Closed du Moteur de Règles** | Action non listée ou rayon d'impact > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Rejet par défaut (`DecisionEnum.DENY`) ou rétrogradation du mode autonome vers le circuit Slack HITL humain. |
 | **5. Repli Réseau & Target Distante** | Déconnexion VPS distant ou mesh Tailscale | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Capture de `ConnectError`, retour `status="offline"` (HTTP 200), verrouillage Fail-Closed de toute mutation. |
 
-### 6. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
+### 7. Honnêteté Radicale : Les 2 Pièges Opérationnels du Gratuit Cloud & les Parades Implémentées
 
 En application de la règle d'**Honnêteté Radicale** du projet, utiliser des modèles cloud à 0 EUR implique deux contraintes techniques strictes que nous avons traitées directement dans l'architecture :
 
@@ -1028,7 +1082,7 @@ En application de la règle d'**Honnêteté Radicale** du projet, utiliser des m
      - Les adaptateurs `LiteLLMAdapter` (via `instructor.from_litellm`) et `OllamaAdapter` intègrent la fonction `_strip_think_tags()` qui purge les blocs `<think>...</think>` et les balises markdown avant la validation Pydantic.
      - Pour un triage d'alertes à très faible latence, il est recommandé d'utiliser `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, qui génère du JSON direct sans bloc de réflexion.
 
-### 7. Double Interface Client : Web Chat Cloud Sans Dépendance vs. Station LibreChat Locale
+### 8. Double Interface Client : Web Chat Cloud Sans Dépendance vs. Station LibreChat Locale
 
 Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Ops` via deux interfaces distinctes, selon leurs besoins de déploiement :
 
@@ -1143,6 +1197,8 @@ python -m agentic_ops.entrypoints.mcp_server
    Guide exhaustif de raccordement du Control Plane à 8 fournisseurs de modèles d'IA : OpenRouter (tier gratuit 24h/24 incluant DeepSeek-R1 et Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, et Ollama (local ou routé via le réseau privé Tailscale à `0 EUR`). Chaîne de bascule automatique (`FallbackLLMAdapter`) et instrumentation des métriques Prometheus.
 10. **[Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** :
     Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs et états de repli.
+11. **[Architecture de Sélection des Agents & Routage par Défaut du MAS (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** :
+    Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme.
 
 
 

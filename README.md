@@ -999,7 +999,61 @@ Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an arc
 - **Granular FinOps Metrics**: Prometheus isolates token consumption and latency per role: `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Live Topology**: Active roles and their models are dynamically inspectable via `GET /api/llm/status` under the `roles_topology` key.
 
-### 5. Multi-Agent System (MAS) Fallback Architecture & Mapping Keys
+### 5. Multi-Agent System (MAS) Agent Selection & Default Routing Architecture
+
+> **Dedicated Technical Reference**: **[`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** | **Role Specialization Guide**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
+
+To avoid the single-agent bottleneck and prevent judicial conflicts of interest (the "judge vs. executioner" anti-pattern), `Agentic-Ops` decouples diagnostic investigation from remediation planning across 5 specialized agent roles:
+
+```text
+                                  +---------------------------------------+
+                                  |         Incoming Alert Signal         |
+                                  |         (risk_id, signal_id)          |
+                                  +---------------------------------------+
+                                                      |
+                                                      v
+                                        +---------------------------+
+                                        |  Orchestrator (Router)    |
+                                        | _get_specialist(risk_id)  |
+                                        +---------------------------+
+                                                      |
+                     +--------------------------------+-------------------------------+
+                     |                                |                               |
+            "MODEL" in risk_id               "INFRA" in risk_id                 Unmatched / Other
+                     |                                |                               |
+                     v                                v                               v
+           +--------------------+           +--------------------+           +--------------------+
+           |  ModelSpecialist   |           |  InfraSpecialist   |           |   DataSpecialist   |
+           | (role="model")     |           | (role="infra")     |           | (role="data")      |
+           | MLflow / F1 Drift  |           | Loki / Kernel Logs |           | [PLATFORM DEFAULT] |
+           +--------------------+           +--------------------+           +--------------------+
+                     \                                |                              /
+                      \                               |                             /
+                       +------------------------------+----------------------------+
+                                                      |
+                                                      v Emits Diagnosis (Pydantic Contract)
+                                      +-------------------------------+
+                                      |       RemediationAgent        |
+                                      | (role="remediation")          |
+                                      | CoT / Blast Radius Evaluator  |
+                                      +-------------------------------+
+                                                      | Emits ActionIntent (Pydantic Contract)
+                                                      v
+                                      +-------------------------------+
+                                      |         PolicyEngine          |
+                                      |    (Fail-Closed OPA Gate)     |
+                                      +-------------------------------+
+```
+
+| Agent Role (`role`) | Functional Responsibility | Activation Condition (`risk_id`) | Default Assigned Model | Operational Rationale |
+| :--- | :--- | :--- | :--- | :--- |
+| **`DataSpecialist`**<br>(`role="data"`) | Schema mutations, drift detection & tabular contracts | **Catch-all MAS Default** / Any `risk_id` without `"MODEL"` or `"INFRA"` | `google/gemma-4-26b-a4b-it:free` | **The Platform Anchor**: >80% of real-world MLOps failures originate in data pipelines. Unknown or custom alerts fall back here to prevent unhandled routing crashes. |
+| **`ModelSpecialist`**<br>(`role="model"`) | ML degradation, concept drift & F1-score tracking | `"MODEL" in risk_id.upper()` | `meta-llama/llama-3.3-70b-instruct:free` | Evaluates statistical distribution shifts against MLflow baseline without confusing raw data anomalies with genuine concept drift ($P(Y \mid X)$). |
+| **`InfraSpecialist`**<br>(`role="infra"`) | SRE, container restarts, memory leaks & PostgreSQL limits | `"INFRA" in risk_id.upper()` | `google/gemma-4-31b-it:free` | Ingests high-density Loki log streams and Linux kernel traces via its massive 256,000-token context window without truncation. |
+| **`RemediationAgent`**<br>(`role="remediation"`) | Independent planning, blast radius (0-5) & reversibility | Executed on every incident during FSM state `PLANNED` | `deepseek/deepseek-r1:free` | **Anti-Bias Separation**: Specialists only diagnose facts; only the Remediation Agent evaluates cross-system blast radius and action proportionality. |
+| **`WebChatCopilot`**<br>(`role="chat"`) | Interactive operator assistance & WORM ledger audits | Triggered via `/chat` and `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimized for low-latency dialogue and immediate execution of the 20 MCP Cognitive Starter Prompts without Chain-of-Thought delay. |
+
+### 6. Multi-Agent System (MAS) Fallback Architecture & Mapping Keys
 
 > **Dedicated Technical Reference**: **[`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** | **Cognitive Specialization Guide**: **[`docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md`](docs/MULTI_LLM_ROLE_SPECIALIZATION_GUIDE.md)**
 
@@ -1013,7 +1067,7 @@ An autonomous Multi-Agent System operating in production cannot assume nominal e
 | **4. Policy Engine Fail-Closed** | Unlisted action or blast radius > 0 | `default_effect: "deny"` / `effect: "require_approval"` | Denies by default (`DecisionEnum.DENY`) or falls back from autonomous execution to Slack HITL. |
 | **5. Network & Target Fallback** | Remote VPS or Tailscale partition | `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` | Catches `ConnectError`, returns `status="offline"` (HTTP 200), activates Fail-Closed mutation lock. |
 
-### 6. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
+### 7. Radical Honesty: The 2 Operational Pitfalls of `:free` Cloud Models & Built-in Defenses
 
 Applying the project's **Radical Honesty** rule, utilizing zero-cost public endpoints entails two concrete technical constraints that have been engineered into `Agentic-Ops`:
 
@@ -1028,7 +1082,7 @@ Applying the project's **Radical Honesty** rule, utilizing zero-cost public endp
      - Both `LiteLLMAdapter` (via `instructor.from_litellm`) and `OllamaAdapter` embed the regex filter `_strip_think_tags()` to excise `<think>...</think>` envelopes and Markdown fences before passing the JSON payload to `response_model.model_validate()`.
      - For ultra-fast sub-second alert triaging, developers can select `LLM_MODEL=openrouter/deepseek/deepseek-chat:free`, which outputs raw JSON directly without thinking blocks.
 
-### 7. Dual Client Interface: Zero-Dependency Cloud Web Chat vs. Local LibreChat Workstation
+### 8. Dual Client Interface: Zero-Dependency Cloud Web Chat vs. Local LibreChat Workstation
 
 Operators can interact conversationally with `Agentic-Ops` through two independent frontends, depending on their deployment model:
 
@@ -1143,6 +1197,8 @@ python -m agentic_ops.entrypoints.mcp_server
    Comprehensive guide to connecting the Control Plane to 8 AI model providers: OpenRouter (24/7 free tier including DeepSeek-R1 and Llama 3.3 70B), Gemini, OpenAI, Anthropic, Azure OpenAI, Mistral AI, HuggingFace Inference API, and Ollama (local or Tailscale mesh-routed at `0 EUR`). Includes automatic failover chains (`FallbackLLMAdapter`) and Prometheus metrics instrumentation.
 10. **[Multi-Agent System (MAS) Fallback Architecture & Mapping Keys (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)**:
     Exhaustive architectural breakdown of the 5 cascading resilience and safety fallback layers in `Agentic-Ops`: Cognitive Multi-LLM failover, FinOps Circuit Breaker, Specialist routing fallback, Policy Engine fail-closed enforcement, and Remote VPS/Tailscale partition locks. Includes complete code mapping keys, trigger conditions, and fallback states.
+11. **[Multi-Agent System (MAS) Agent Selection & Default Routing Architecture (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)**:
+    In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default.
 
 
 
