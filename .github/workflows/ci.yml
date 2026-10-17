@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
       - name: Run tests
-        run: pytest tests/adversarial tests/scenarios -q -p no:randomly
+        run: pytest tests/ -q -p no:randomly
       - name: Dettes ouvertes
         if: always()
         run: python -c "import yaml;g=yaml.safe_load(open('tests/known_gaps.yaml'));print(f'{len(g)} dettes ouvertes:',sorted({v['p0'] for v in g.values()}))"
