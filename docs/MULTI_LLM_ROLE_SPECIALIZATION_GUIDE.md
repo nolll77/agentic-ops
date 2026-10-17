@@ -23,27 +23,27 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 
 ## 2. Global Cognitive Architecture
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m AGENTIC-OPS CONTROL PLANE — COGNITIVE MULTI-LLM TOPOLOGY                                         [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[Remediation Coordinator][0m ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  [1;34m|[0m
-[1;34m|[0m (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[Infra Specialist][0m -----------> role="infra" ----------> LLM_MODEL_INFRA                        [1;34m|[0m
-[1;34m|[0m (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[Data Specialist][0m ------------> role="data" -----------> LLM_MODEL_DATA                         [1;34m|[0m
-[1;34m|[0m (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[Model Specialist][0m -----------> role="model" ----------> LLM_MODEL_MODEL                        [1;34m|[0m
-[1;34m|[0m (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[Web Chat SRE Assistant][0m -----> role="chat" -----------> LLM_MODEL_CHAT                         [1;34m|[0m
-[1;34m|[0m (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS CONTROL PLANE — COGNITIVE MULTI-LLM TOPOLOGY                                         |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Remediation Coordinator] ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  |
+| (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             |
+|                                                                                                  |
+| [Infra Specialist] -----------> role="infra" ----------> LLM_MODEL_INFRA                        |
+| (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          |
+|                                                                                                  |
+| [Data Specialist] ------------> role="data" -----------> LLM_MODEL_DATA                         |
+| (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      |
+|                                                                                                  |
+| [Model Specialist] -----------> role="model" ----------> LLM_MODEL_MODEL                        |
+| (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  |
+|                                                                                                  |
+| [Web Chat SRE Assistant] -----> role="chat" -----------> LLM_MODEL_CHAT                         |
+| (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
 ```
 
 ---

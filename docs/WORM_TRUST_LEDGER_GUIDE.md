@@ -18,22 +18,22 @@ The **WORM (Write Once, Read Many) Trust Ledger** (`ledger.jsonl`) provides math
 3. **Signed with HMAC-SHA512**: Digitally signed using a secret key (`sign_payload(previous_hash + canonical_json)`).
 4. **Appended in WORM Storage**: Written via append-only mode (`open(..., "a")`) into `agentic_ops/evidence_store/ledger.jsonl`.
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m [1;36m[1mCRYPTOGRAPHIC WORM CHAIN TOPOLOGY[0m [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| CRYPTOGRAPHIC WORM CHAIN TOPOLOGY                                                                |
++--------------------------------------------------------------------------------------------------+
                                                                                                    
  [ Block 1: EP-0001 ]                     [ Block 2: EP-0002 ]                     [ Block 3: EP-0003 ]
  +------------------------+               +------------------------+               +------------------------+
-[1;34m|[0m episode_id: "EP-0001"  |               | episode_id: "EP-0002"  |               | episode_id: "EP-0003"  [1;34m|[0m
-[1;34m|[0m prev_hash : "genesis"  |               | prev_hash : hash(EP1)  |               | prev_hash : hash(EP2)  [1;34m|[0m
-[1;34m|[0m action    : create_iss |               | action    : deploy_pro |               | action    : rollback   [1;34m|[0m
-[1;34m|[0m decision  : ALLOW      |               | decision  : REQ_APPR   |               | decision  : REQ_APPR   [1;34m|[0m
-[1;34m|[0m status    : SUCCESS    |               | status    : AWAIT_APPR |               | status    : AWAIT_APPR [1;34m|[0m
-[1;34m|[0m signature : HMAC-512   |               | signature : HMAC-512   |               | signature : HMAC-512   [1;34m|[0m
+ | episode_id: "EP-0001"  |               | episode_id: "EP-0002"  |               | episode_id: "EP-0003"  |
+ | prev_hash : "genesis"  |               | prev_hash : hash(EP1)  |               | prev_hash : hash(EP2)  |
+ | action    : create_iss |               | action    : deploy_pro |               | action    : rollback   |
+ | decision  : ALLOW      |               | decision  : REQ_APPR   |               | decision  : REQ_APPR   |
+ | status    : SUCCESS    |               | status    : AWAIT_APPR |               | status    : AWAIT_APPR |
+ | signature : HMAC-512   |               | signature : HMAC-512   |               | signature : HMAC-512   |
  +-----------+------------+               +-----------+------------+               +-----------+------------+
-[1;34m|[0m                                        |                                        [1;34m|[0m
-             +---- Linked by Merkle hash ----------[1;33m-[1;36m->[0m[0m+---- Linked by Merkle hash ----------[1;33m-[1;36m->[0m[0m+
+             |                                        |                                        |
+             +---- Linked by Merkle hash ------------>+---- Linked by Merkle hash ------------>+
 ```
 
 ---
@@ -72,19 +72,19 @@ Open **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5eb
 - Click the button **`WORM Trust Ledger CLI`**.
 - It directly invokes `python -m agentic_ops.cli.trust_ledger list` inside the Render cloud container and outputs the sealed table:
 
-```ansi
+```text
 Trust Ledger - Audit Trail                           
-[1;34m┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓[0m
-[1;34m┃[0m Episode ID        [1;34m┃[0m Timestamp [1;34m┃[0m Risk Mode [1;34m┃[0m Agent LLM [1;34m┃[0m Action    [1;34m┃[0m Décision [1;34m┃[0m
-[1;34m┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩[0m
-[1;34m│[0m EP-[1;36mCHAOS-31[0mc6e006 [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mMODEL-005[0m [1;34m│[0m speciali… [1;34m│[0m propose_… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m EP-[1;36mCHAOS-5950095[0md [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m speciali… [1;34m│[0m propose_… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m EP-CHAOS-d6c18601 [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mINFRA-001[0m [1;34m│[0m speciali… [1;34m│[0m create_i… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m [1;36mEP-0005[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
-[1;34m│[0m [1;36mEP-0004[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
-[1;34m│[0m [1;36mEP-0003[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m rollback… [1;34m│[0m [1;33mREQUIRE[0m… [1;34m│[0m
-[1;34m│[0m [1;36mEP-0002[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m deploy_p… [1;34m│[0m [1;33mREQUIRE[0m… [1;34m│[0m
-[1;34m│[0m [1;36mEP-0001[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
+┃ Episode ID        ┃ Timestamp ┃ Risk Mode ┃ Agent LLM ┃ Action    ┃ Décision ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
+│ EP-CHAOS-31c6e006 │ 2026-10-… │ MODEL-005 │ speciali… │ propose_… │   DENY   │
+│ EP-CHAOS-5950095d │ 2026-10-… │ DATA-042  │ speciali… │ propose_… │   DENY   │
+│ EP-CHAOS-d6c18601 │ 2026-10-… │ INFRA-001 │ speciali… │ create_i… │   DENY   │
+│ EP-0005           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│ EP-0004           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│ EP-0003           │ 2026-09-… │ DATA-042  │ data_spe… │ rollback… │ REQUIRE… │
+│ EP-0002           │ 2026-09-… │ DATA-042  │ data_spe… │ deploy_p… │ REQUIRE… │
+│ EP-0001           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
 └───────────────────┴───────────┴───────────┴───────────┴───────────┴──────────┘
 ```
 
@@ -151,18 +151,18 @@ If an attacker modifies even a single comma or timestamp in `ledger.jsonl`, `ver
 
 Applying the project's **Radical Honesty** rule, the exact physical lifecycle of the WORM ledger in `Render` is governed by the following deployment mechanics:
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m [1;36m[1mPHYSICAL STORAGE DUALITY IN RENDER FREE TIER[0m [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1. Immutable Docker Image Layer]                [2. Local Ephemeral Storage (/tmp & /app)]      [1;34m|[0m
-[1;34m|[0m - Sealed into container at build time             - Runtime scratch space for active session     [1;34m|[0m
-[1;34m|[0m - Path: /app/agentic_ops/evidence_store/*.json    - Path: /app/.../ledger.jsonl & /tmp/.../*.db  [1;34m|[0m
-[1;34m|[0m - Contains historical reference blocks (EP-0001   - Captures new live episodes and chaos runs    [1;34m|[0m
-[1;34m|[0m   to EP-0005, chaos runs)                         - Resets on container sleep (15 min) or rebuild[1;34m|[0m
-[1;34m|[0m - PERMANENT across all wake-ups ([1;32m0 EUR[0m)           - EPHEMERAL in [1;32mFree Tier[0m ([1;32m0 EUR[0m)               [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| PHYSICAL STORAGE DUALITY IN RENDER FREE TIER                                                     |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [1. Immutable Docker Image Layer]                [2. Local Ephemeral Storage (/tmp & /app)]      |
+| - Sealed into container at build time             - Runtime scratch space for active session     |
+| - Path: /app/agentic_ops/evidence_store/*.json    - Path: /app/.../ledger.jsonl & /tmp/.../*.db  |
+| - Contains historical reference blocks (EP-0001   - Captures new live episodes and chaos runs    |
+|   to EP-0005, chaos runs)                         - Resets on container sleep (15 min) or rebuild|
+| - PERMANENT across all wake-ups (0 EUR)           - EPHEMERAL in Free Tier (0 EUR)               |
++--------------------------------------------------------------------------------------------------+
 ```
 
 ### A. The Reference Archive: Sealed Inside the Docker Image Layer

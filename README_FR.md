@@ -111,49 +111,49 @@ Le système repose sur une **Architecture Hexagonale** couplée à une **Machine
 
 L'architecture applicative est reflétée par cette structure de dossiers formelle, où chaque composant joue un rôle critique dans la chaîne de sécurité :
 
-```ansi
+```text
 agentic-ops-core/
-[1;34m├──[0m agentic_ops/
-[1;34m│[0m   ├── core/
-[1;34m│[0m   [1;34m│[0m   ├── orchestrator.py       # FSM principale. Stoppe physiquement sur [1;33mREQUIRE_APPROVAL[0m, gère la reprise (resume_episode).
-[1;34m│[0m   [1;34m│[0m   ├── policy.py             # Moteur de gouvernance (Pydantic), évalue les manifestes de droits.
-[1;34m│[0m   [1;34m│[0m   ├── executor.py           # Dernier kilomètre. Mute le Model Registry. Bloque et retourne FAILED en cas de rejet métier.
-[1;34m│[0m   [1;34m│[0m   ├── evidence.py           # Trust Ledger WORM. Sérialisation canonique, chaînage de blocs (previous_hash).
-[1;34m│[0m   [1;34m│[0m   ├── distributed.py        # Idempotence et Rate Limiting via Redis (Pipelines atomiques & Locks).
-[1;34m│[0m   [1;34m│[0m   └── circuit_breaker.py    # Protection FinOps contre le Monitoring Storm (bascule en mode dégradé).
-[1;34m│[0m   ├── adapters/
-[1;34m│[0m   [1;34m│[0m   ├── cac_pull_collector.py # Connecteur Tailscale Pull (GET uniquement) vers jakatt/cac_mlops (Loki, Prometheus, MLflow, Prefect).
-[1;34m│[0m   [1;34m│[0m   └── registry_adapter.py   # Protocole et simulation du Gatekeeper (ex: rejet automatique si F1 < 0.85).
-[1;34m│[0m   ├── governance/
-[1;34m│[0m   [1;34m│[0m   ├── autonomy_policy.yaml  # Manifeste MLOps strict de production (exigences d'approbation).
-[1;34m│[0m   [1;34m│[0m   └── shadow_policy.yaml    # A/B testing des politiques de sécurité (analyse de divergence).
-[1;34m│[0m   ├── cli/
-[1;34m│[0m   [1;34m│[0m   └── main.py               # Serveur FastAPI exposant /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
-[1;34m│[0m   └── entrypoints/
-[1;34m│[0m       ├── mcp_server.py         # Passerelle Model Context Protocol (MCP) : 8 Tools, 5 Resources, 20 Starter Prompts.
-[1;34m│[0m       └── slack_webhook.py      # HITL : Réception des validations humaines (HMAC-SHA256, Anti-replay attack max 5m).
-[1;34m├──[0m scripts/
-[1;34m│[0m   └── entrypoint.sh             # Script d'initialisation Auto-Wake Zéro-Clic (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
-[1;34m├──[0m docs/
-[1;34m│[0m   ├── MCP_SERVER_GUIDE.md       # Guide complet du Serveur MCP, branchement STDIO/HTTP et catalogue de 20 Starter Prompts.
-[1;34m│[0m   ├── mlops_failure_modes_taxonomy.md      # Ontologie des 435 failure modes MLOps sur 10 dimensions.
-[1;34m│[0m   └── mlops_simulation_scenarios_registry.md # Registre des scénarios de simulation MLOps
-[1;34m├──[0m tests/
-[1;34m│[0m   ├── adapters/
-[1;34m│[0m   [1;34m│[0m   └── test_cac_pull_collector.py # 13 tests unitaires (parsing, résilience offline, enforcement read-only).
-[1;34m│[0m   ├── entrypoints/
-[1;34m│[0m   [1;34m│[0m   └── test_mcp_server.py         # 12 tests unitaires & E2E de la passerelle MCP (lecture /console, WORM, Policy).
-[1;34m│[0m   ├── integration/
-[1;34m│[0m   [1;34m│[0m   └── test_registry_e2e.py       # Preuve formelle E2E du blocage de l'Orchestrateur sans intervention humaine.
-[1;34m│[0m   └── security/
-[1;34m│[0m       ├── test_trust_ledger.py       # Détection de falsification de la blockchain WORM (Anti-tampering).
-[1;34m│[0m       └── test_executor.py           # Tests des invariants de sécurité (Sandboxing, OS-Level isolation).
-[1;34m├──[0m Dockerfile                         [90m# Image conteneur Auto-Wake de production (Render / Koyeb / Self-Hosted, Port 8001).[0m
-[1;34m├──[0m Dockerfile.hf                      [90m# Image conteneur Auto-Wake pour Hugging Face Spaces (Port 7860, UID non-root 1000).[0m
-[1;34m├──[0m DOCKER_SANDBOX_VALIDATION.md       [90m# Rapport de déploiement et validation sur Cloud Sandbox Docker.[0m
-[1;34m├──[0m CAC_TAILSCALE_PULL_CONNECTOR.md    [90m# Architecture et validation du connecteur Tailscale Pull vers CAC MLOps.[0m
-[1;34m├──[0m README.md                          [90m# Documentation principale (Anglais).[0m
-[1;34m├──[0m README_FR.md                       [90m# Documentation complète (Français).[0m
+├── agentic_ops/
+│   ├── core/
+│   │   ├── orchestrator.py       # FSM principale. Stoppe physiquement sur REQUIRE_APPROVAL, gère la reprise (resume_episode).
+│   │   ├── policy.py             # Moteur de gouvernance (Pydantic), évalue les manifestes de droits.
+│   │   ├── executor.py           # Dernier kilomètre. Mute le Model Registry. Bloque et retourne FAILED en cas de rejet métier.
+│   │   ├── evidence.py           # Trust Ledger WORM. Sérialisation canonique, chaînage de blocs (previous_hash).
+│   │   ├── distributed.py        # Idempotence et Rate Limiting via Redis (Pipelines atomiques & Locks).
+│   │   └── circuit_breaker.py    # Protection FinOps contre le Monitoring Storm (bascule en mode dégradé).
+│   ├── adapters/
+│   │   ├── cac_pull_collector.py # Connecteur Tailscale Pull (GET uniquement) vers jakatt/cac_mlops (Loki, Prometheus, MLflow, Prefect).
+│   │   └── registry_adapter.py   # Protocole et simulation du Gatekeeper (ex: rejet automatique si F1 < 0.85).
+│   ├── governance/
+│   │   ├── autonomy_policy.yaml  # Manifeste MLOps strict de production (exigences d'approbation).
+│   │   └── shadow_policy.yaml    # A/B testing des politiques de sécurité (analyse de divergence).
+│   ├── cli/
+│   │   └── main.py               # Serveur FastAPI exposant /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
+│   └── entrypoints/
+│       ├── mcp_server.py         # Passerelle Model Context Protocol (MCP) : 8 Tools, 5 Resources, 20 Starter Prompts.
+│       └── slack_webhook.py      # HITL : Réception des validations humaines (HMAC-SHA256, Anti-replay attack max 5m).
+├── scripts/
+│   └── entrypoint.sh             # Script d'initialisation Auto-Wake Zéro-Clic (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
+├── docs/
+│   ├── MCP_SERVER_GUIDE.md       # Guide complet du Serveur MCP, branchement STDIO/HTTP et catalogue de 20 Starter Prompts.
+│   ├── mlops_failure_modes_taxonomy.md      # Ontologie des 435 failure modes MLOps sur 10 dimensions.
+│   └── mlops_simulation_scenarios_registry.md # Registre des scénarios de simulation MLOps
+├── tests/
+│   ├── adapters/
+│   │   └── test_cac_pull_collector.py # 13 tests unitaires (parsing, résilience offline, enforcement read-only).
+│   ├── entrypoints/
+│   │   └── test_mcp_server.py         # 12 tests unitaires & E2E de la passerelle MCP (lecture /console, WORM, Policy).
+│   ├── integration/
+│   │   └── test_registry_e2e.py       # Preuve formelle E2E du blocage de l'Orchestrateur sans intervention humaine.
+│   └── security/
+│       ├── test_trust_ledger.py       # Détection de falsification de la blockchain WORM (Anti-tampering).
+│       └── test_executor.py           # Tests des invariants de sécurité (Sandboxing, OS-Level isolation).
+├── Dockerfile                         # Image conteneur Auto-Wake de production (Render / Koyeb / Self-Hosted, Port 8001).
+├── Dockerfile.hf                      # Image conteneur Auto-Wake pour Hugging Face Spaces (Port 7860, UID non-root 1000).
+├── DOCKER_SANDBOX_VALIDATION.md       # Rapport de déploiement et validation sur Cloud Sandbox Docker.
+├── CAC_TAILSCALE_PULL_CONNECTOR.md    # Architecture et validation du connecteur Tailscale Pull vers CAC MLOps.
+├── README.md                          # Documentation principale (Anglais).
+├── README_FR.md                       # Documentation complète (Français).
 └── pyproject.toml                     # Manifeste des dépendances (Pydantic, FastAPI, Redis, httpx[socks], etc.)
 ```
 
@@ -175,97 +175,97 @@ Dans le cadre du déploiement de référence, `Agentic-Ops` tourne à la fois da
 
 Ce schéma ASCII illustre l'intégralité des points de connexion réseau, la séparation stricte entre les **ports d'observabilité en lecture seule** et la **zone sanctuarisée d'écriture**, ainsi que la boucle d'interaction humaine via **Slack** :
 
-```ansi
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m PLATEFORME MLOPS CIBLE EN PRODUCTION : jakatt/cac_mlops (VPS Scaleway scw-jovial-dubinsky)            [1;34m|[0m
-[1;34m|[0m Repo : https://github.com/jakatt/cac_mlops  |  IP Tailscale : 100.117.99.62                           [1;34m|[0m
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m                                                                                                       [1;34m|[0m
-[1;34m|[0m  [1;32m[ ZONE 1 : POINTS DE BRANCHEMENT D'OBSERVABILITE (AUTORISES - LECTURE SEULE HTTP GET) ][0m              [1;34m|[0m
-[1;34m|[0m[1;34m  +-------------------------------------------------------------------------------------------------+  [0m[1;34m|[0m
-[1;34m|[0m  | 1. Grafana Loki   (:3100) [1;36m->[0m GET /loki/api/v1/query_range    (Logs d'alertes, rollbacks, CI/CD) |  [1;34m|[0m
-[1;34m|[0m  | 2. Prometheus     (:9090) [1;36m->[0m GET /api/v1/query               (cac_mlops_drift_share, model_info)|  [1;34m|[0m
-[1;34m|[0m  | 3. MLflow Server  (:5001) [1;36m->[0m GET /api/2.0/mlflow/...         (Alias @Production, F1-score, run) |  [1;34m|[0m
-[1;34m|[0m  | 4. Prefect Server (:4200) [1;36m->[0m GET /api/flow_runs              (Etat des 10 derniers pipelines)   |  [1;34m|[0m
-[1;34m|[0m  | 5. Evidently Web  (:443)  [1;36m->[0m GET https://mlops.jakat-inc.fr/reports/drift/latest_summary.json   |  [1;34m|[0m
-[1;34m|[0m[1;34m  +------------------------------------------------+------------------------------------------------+  [0m[1;34m|[0m
-[1;34m|[0m                                                   |                                                   [1;34m|[0m
-[1;34m|[0m  [1;31m[ ZONE 2 : ZONE SANCTUARISEE (INTERDITE EN MODE PULL - PROTEGEE PAR PARE-FEU LOGIQUE) ][0m              [1;34m|[0m
-[1;34m|[0m  +------------------------------------------------v------------------------------------------------+  [1;34m|[0m
-[1;34m|[0m  | [X] POST /predict (API Inference)        [1;36m->[0m Interdit (polluerait la base et le calcul de drift) |  [1;34m|[0m
-[1;34m|[0m  | [X] POST /loki/api/v1/push               [1;36m->[0m Interdit (injecterait de fausses alertes en prod)   |  [1;34m|[0m
-[1;34m|[0m  | [X] POST/DELETE .../registered-models    [1;36m->[0m Interdit hors [1;32mExecutor[0m approuve (changerait le mod.)|  [1;34m|[0m
-[1;34m|[0m  | [X] POST /api/deployments/.../flow_run   [1;36m->[0m Interdit hors [1;32mExecutor[0m approuve (risque de reset)   |  [1;34m|[0m
-[1;34m|[0m  | [X] Port :7860 (Cockpit Admin Gradio)    [1;36m->[0m Interdit (declenche des actions humaines directes)  |  [1;34m|[0m
-[1;34m|[0m[1;34m  +-------------------------------------------------------------------------------------------------+  [0m[1;34m|[0m
-[1;34m+===================================================|===================================================+[0m
-[1;34m|[0m[1;34m|[0m
+```text
++=======================================================================================================+
+| PLATEFORME MLOPS CIBLE EN PRODUCTION : jakatt/cac_mlops (VPS Scaleway scw-jovial-dubinsky)            |
+| Repo : https://github.com/jakatt/cac_mlops  |  IP Tailscale : 100.117.99.62                           |
++=======================================================================================================+
+|                                                                                                       |
+|  [ ZONE 1 : POINTS DE BRANCHEMENT D'OBSERVABILITE (AUTORISES - LECTURE SEULE HTTP GET) ]              |
+|  +-------------------------------------------------------------------------------------------------+  |
+|  | 1. Grafana Loki   (:3100) -> GET /loki/api/v1/query_range    (Logs d'alertes, rollbacks, CI/CD) |  |
+|  | 2. Prometheus     (:9090) -> GET /api/v1/query               (cac_mlops_drift_share, model_info)|  |
+|  | 3. MLflow Server  (:5001) -> GET /api/2.0/mlflow/...         (Alias @Production, F1-score, run) |  |
+|  | 4. Prefect Server (:4200) -> GET /api/flow_runs              (Etat des 10 derniers pipelines)   |  |
+|  | 5. Evidently Web  (:443)  -> GET https://mlops.jakat-inc.fr/reports/drift/latest_summary.json   |  |
+|  +------------------------------------------------+------------------------------------------------+  |
+|                                                   |                                                   |
+|  [ ZONE 2 : ZONE SANCTUARISEE (INTERDITE EN MODE PULL - PROTEGEE PAR PARE-FEU LOGIQUE) ]              |
+|  +------------------------------------------------v------------------------------------------------+  |
+|  | [X] POST /predict (API Inference)        -> Interdit (polluerait la base et le calcul de drift) |  |
+|  | [X] POST /loki/api/v1/push               -> Interdit (injecterait de fausses alertes en prod)   |  |
+|  | [X] POST/DELETE .../registered-models    -> Interdit hors Executor approuve (changerait le mod.)|  |
+|  | [X] POST /api/deployments/.../flow_run   -> Interdit hors Executor approuve (risque de reset)   |  |
+|  | [X] Port :7860 (Cockpit Admin Gradio)    -> Interdit (declenche des actions humaines directes)  |  |
+|  +-------------------------------------------------------------------------------------------------+  |
++===================================================|===================================================+
+                                                    |
                                                     | Réseau Maillé Chiffré WireGuard (Tailscale)
-                                                    | Tra[1;33mv[0mersée pare-feu [1;33mv[0mia Relais DERP (Paris <[1;36m->[0m Seattle)
+                                                    | Traversée pare-feu via Relais DERP (Paris <-> Seattle)
                                                     | + Flux HTTPS direct pour le rapport Evidently public
                                                     v
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m CONTROL PLANE DE GOUVERNANCE : AGENTIC-OPS (Cloud Sandbox Docker - IP Tailscale : 100.102.123.121)    [1;34m|[0m
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m                                                                                                       [1;34m|[0m
-[1;34m|[0m  1. COUCHE D'INGESTION RESEAU                                                                         [1;34m|[0m
-[1;34m|[0m     [1;36m[ Demon tailscaled (--tun=userspace-networking) ][0m ---> [1;36m[ Proxy local SOCKS5 : 127.0.0.1:1055 ][0m    [1;34m|[0m
-[1;34m|[0m                                                                      |                                [1;34m|[0m
-[1;34m|[0m                                                                      v                                [1;34m|[0m
-[1;34m|[0m  2. ADAPTATEUR D'OBSERVABILITE (agentic_ops/adapters/cac_pull_collector.py)                           [1;34m|[0m
-[1;34m|[0m     [ CacPullCollector.collect_all() ]                                                                [1;34m|[0m
-[1;34m|[0m       |-- Interroge les 5 sources en GET (Timeout 20s)                                                [1;34m|[0m
-[1;34m|[0m       |-- Absorbe les pannes réseau (Retourne ONLINE, PARTIAL ou REMOTE_TARGET_OFFLINE sans crash)    [1;34m|[0m
-[1;34m|[0m       +-- Produit un contrat Pydantic immuable : CacCollectedSnapshot                                 [1;34m|[0m
-[1;34m|[0m                                                                      |                                [1;34m|[0m
-[1;34m|[0m                                                                      v                                [1;34m|[0m
-[1;34m|[0m [1;36m[1m3. EXTRACTION DES FAITS & DIAGNOSTIC COGNITIF[0m [1;34m|[0m
-[1;34m|[0m     [ compute_facts() ] -[1;33m-[1;36m->[0m[0m Extrait objectivement : drift_share=0.34, colonnes dérivées, F1=0.883    [1;34m|[0m
-[1;34m|[0m     [1;35m[ Agent LLM Enquêteur ][0m -> Analyse les faits isolés (<untrusted_data>) et propose un ActionIntent [1;34m|[0m
-[1;34m|[0m                                (ex: intent = TRIGGER_RETRAINING ou PROMOTE_MODEL)                     [1;34m|[0m
-[1;34m|[0m                                                                      |                                [1;34m|[0m
-[1;34m|[0m                                                                      v                                [1;34m|[0m
-[1;34m|[0m  4. MOTEUR DE GOUVERNANCE DETERMINISTE (agentic_ops/core/orchestrator.py & policy.py)                 [1;34m|[0m
-[1;34m|[0m     [ [1;32mPolicyEngine[0m ] [1;36m->[0m Croise l'ActionIntent avec autonomy_policy.yaml et risk_register.yaml         [1;34m|[0m
-[1;34m|[0m       |-- Si Action = Faible Risque (ex: INVESTIGATE) -----> Decision = ALLOW                         [1;34m|[0m
-[1;34m|[0m       |-- Si Action = Interdite ou Hors Quota Redis -------> Decision = DENY (Blocage immédiat)       [1;34m|[0m
-[1;34m|[0m       +-- Si Action = Critique (PROMOTE_MODEL / RETRAIN) --> Decision = REQUIRE_APPROVAL              [1;34m|[0m
-[1;34m|[0m                                                                      |                                [1;34m|[0m
-[1;34m|[0m     [1;33m[ Orchestrator FSM ][0m -> Transitionne vers l'état AWAITING_APPROVAL et STOPPE PHYSIQUEMENT.        [1;34m|[0m
-[1;34m|[0m                             Sauvegarde la transaction dans SQLite (WAL) + Verrou d'idempotence Redis. [1;34m|[0m
-[1;34m+===================================================|===================================================+[0m
-[1;34m|[0m[1;34m|[0m
-[1;34m                      +-----------------------------+-----------------------------+[0m
++=======================================================================================================+
+| CONTROL PLANE DE GOUVERNANCE : AGENTIC-OPS (Cloud Sandbox Docker - IP Tailscale : 100.102.123.121)    |
++=======================================================================================================+
+|                                                                                                       |
+|  1. COUCHE D'INGESTION RESEAU                                                                         |
+|     [ Demon tailscaled (--tun=userspace-networking) ] ---> [ Proxy local SOCKS5 : 127.0.0.1:1055 ]    |
+|                                                                      |                                |
+|                                                                      v                                |
+|  2. ADAPTATEUR D'OBSERVABILITE (agentic_ops/adapters/cac_pull_collector.py)                           |
+|     [ CacPullCollector.collect_all() ]                                                                |
+|       |-- Interroge les 5 sources en GET (Timeout 20s)                                                |
+|       |-- Absorbe les pannes réseau (Retourne ONLINE, PARTIAL ou REMOTE_TARGET_OFFLINE sans crash)    |
+|       +-- Produit un contrat Pydantic immuable : CacCollectedSnapshot                                 |
+|                                                                      |                                |
+|                                                                      v                                |
+|  3. EXTRACTION DES FAITS & DIAGNOSTIC COGNITIF                                                        |
+|     [ compute_facts() ] ---> Extrait objectivement : drift_share=0.34, colonnes dérivées, F1=0.883    |
+|     [ Agent LLM Enquêteur ] -> Analyse les faits isolés (<untrusted_data>) et propose un ActionIntent |
+|                                (ex: intent = TRIGGER_RETRAINING ou PROMOTE_MODEL)                     |
+|                                                                      |                                |
+|                                                                      v                                |
+|  4. MOTEUR DE GOUVERNANCE DETERMINISTE (agentic_ops/core/orchestrator.py & policy.py)                 |
+|     [ PolicyEngine ] -> Croise l'ActionIntent avec autonomy_policy.yaml et risk_register.yaml         |
+|       |-- Si Action = Faible Risque (ex: INVESTIGATE) -----> Decision = ALLOW                         |
+|       |-- Si Action = Interdite ou Hors Quota Redis -------> Decision = DENY (Blocage immédiat)       |
+|       +-- Si Action = Critique (PROMOTE_MODEL / RETRAIN) --> Decision = REQUIRE_APPROVAL              |
+|                                                                      |                                |
+|     [ Orchestrator FSM ] -> Transitionne vers l'état AWAITING_APPROVAL et STOPPE PHYSIQUEMENT.        |
+|                             Sauvegarde la transaction dans SQLite (WAL) + Verrou d'idempotence Redis. |
++===================================================|===================================================+
+                                                    |
+                      +-----------------------------+-----------------------------+
                       | 5. NOTIFICATION SORTANTE                                  | 6. WEBHOOK ENTRANT SIGNE
                       |    (Message Slack Block Kit)                              |    POST /webhooks/slack (:8001)
                       v                                                           |    (Signature HMAC-SHA256 + TTL 5m)
-[1;34m+=================================================================================|=====================+[0m
-[1;34m|[0m INTERFACE HUMAN-IN-THE-LOOP (SLACK)                                             |                     [1;34m|[0m
-[1;34m|[0m                                                                                 |                     [1;34m|[0m
-[1;34m|[0m  +---------------------------------------------------------------------------+  |                     [1;34m|[0m
-[1;34m|[0m  | [1;33m[ALERTE MLOPS - DATA-042][0m Dérive détectée sur jakatt/cac_mlops            |  |                     [1;34m|[0m
-[1;34m|[0m  | - Source : Prometheus (cac_mlops_drift_share = 34%) & Evidently           |  |                     [1;34m|[0m
-[1;34m|[0m  | - Colonnes en dérive : age_conducteur, hrmn, surf                         |  |                     [1;34m|[0m
-[1;34m|[0m  | - Modèle actif : lgbm_accidents v7 (F1 = 0.883)                           |  |                     [1;34m|[0m
-[1;34m|[0m  | - Action proposée par l'Agent : TRIGGER_RETRAINING                        |  |                     [1;34m|[0m
-[1;34m|[0m  |                                                                           |  |                     [1;34m|[0m
-[1;34m|[0m  |   Bouton 1 : [1;31m[ APPROUVER L'EXECUTION ][0m      Bouton 2 : [1;31m[ REJETER (DENY) ][0m +--+                     [1;34m|[0m
-[1;34m|[0m[1;34m  +---------------------------------------------------------------------------+                        [0m[1;34m|[0m
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m[1;34m|[0m
++=================================================================================|=====================+
+| INTERFACE HUMAN-IN-THE-LOOP (SLACK)                                             |                     |
+|                                                                                 |                     |
+|  +---------------------------------------------------------------------------+  |                     |
+|  | [ALERTE MLOPS - DATA-042] Dérive détectée sur jakatt/cac_mlops            |  |                     |
+|  | - Source : Prometheus (cac_mlops_drift_share = 34%) & Evidently           |  |                     |
+|  | - Colonnes en dérive : age_conducteur, hrmn, surf                         |  |                     |
+|  | - Modèle actif : lgbm_accidents v7 (F1 = 0.883)                           |  |                     |
+|  | - Action proposée par l'Agent : TRIGGER_RETRAINING                        |  |                     |
+|  |                                                                           |  |                     |
+|  |   Bouton 1 : [ APPROUVER L'EXECUTION ]      Bouton 2 : [ REJETER (DENY) ] +--+                     |
+|  +---------------------------------------------------------------------------+                        |
++=======================================================================================================+
+                                                    |
                                                     | 7. REPRISE TRANSACTIONNELLE (Si "APPROVE" validé)
                                                     v
-[1;34m+=======================================================================================================+[0m
-[1;34m|[0m EXECUTION DU DERNIER KILOMETRE & REGISTRE DE PREUVES (agentic_ops/core/executor.py & [1;36mevidence.py[0m)     [1;34m|[0m
-[1;34m|[0m                                                                                                       [1;34m|[0m
-[1;34m|[0m  1. [ slack_webhook.py ] [1;36m->[0m Vérifie HMAC-SHA256, anti-rejeu (< 5 min), groupe d'approbateurs YAML     [1;34m|[0m
-[1;34m|[0m                             et pose un verrou atomique SQLite (BEGIN IMMEDIATE) contre le double-clic.[1;34m|[0m
-[1;34m|[0m  2. [1;33m[ orchestrator.resume_episode() ][0m -> Débloque la FSM (AWAITING_APPROVAL -> EXECUTING).            [1;34m|[0m
-[1;34m|[0m  3. [ [1;32mExecutor[0m ] [1;36m->[0m Seul module autorisé à émettre l'appel d'écriture validé.                         [1;34m|[0m
-[1;34m|[0m  4. [ Trust Ledger WORM ([1;36mevidence.py[0m) ] [1;36m->[0m Scelle l'épisode complet (Snapshot CAC + Décision +        [1;34m|[0m
-[1;34m|[0m                             Identité de l'approbateur Slack + Résultat) avec chaînage SHA-256         [1;34m|[0m
-[1;34m|[0m                             (`previous_hash`) et signature cryptographique `HMAC-SHA512`.             [1;34m|[0m
-[1;34m+=======================================================================================================+[0m
++=======================================================================================================+
+| EXECUTION DU DERNIER KILOMETRE & REGISTRE DE PREUVES (agentic_ops/core/executor.py & evidence.py)     |
+|                                                                                                       |
+|  1. [ slack_webhook.py ] -> Vérifie HMAC-SHA256, anti-rejeu (< 5 min), groupe d'approbateurs YAML     |
+|                             et pose un verrou atomique SQLite (BEGIN IMMEDIATE) contre le double-clic.|
+|  2. [ orchestrator.resume_episode() ] -> Débloque la FSM (AWAITING_APPROVAL -> EXECUTING).            |
+|  3. [ Executor ] -> Seul module autorisé à émettre l'appel d'écriture validé.                         |
+|  4. [ Trust Ledger WORM (evidence.py) ] -> Scelle l'épisode complet (Snapshot CAC + Décision +        |
+|                             Identité de l'approbateur Slack + Résultat) avec chaînage SHA-256         |
+|                             (`previous_hash`) et signature cryptographique `HMAC-SHA512`.             |
++=======================================================================================================+
 ```
 
 ---
@@ -465,31 +465,31 @@ L'intégralité des phases de validation documentées dans [`reports/DOCKER_SAND
 
 Cliquer sur **`WORM Trust Ledger CLI`** dans [`/console`](https://agentic-ops-5ebv.onrender.com/console) (`GET /api/diagnostics/trust_ledger_list`) exécute `python -m agentic_ops.cli.trust_ledger list` dans le conteneur `Render` et affiche la piste d'audit immuable `WORM` (`agentic_ops/evidence_store/*.json`) :
 
-```ansi
+```text
 $ /usr/local/bin/python -m agentic_ops.cli.trust_ledger list
 [exit_code=0 | duration=2866ms]
-[1;34m------------------------------------------------------------------------[0m
+------------------------------------------------------------------------
 Trust Ledger - Audit Trail                           
-[1;34m┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓[0m
-[1;34m┃[0m                   [1;34m┃[0m           [1;34m┃[0m Risk /    [1;34m┃[0m           [1;34m┃[0m Action    [1;34m┃[0m Décision [1;34m┃[0m
-[1;34m┃[0m Episode ID        [1;34m┃[0m Timestamp [1;34m┃[0m Mode      [1;34m┃[0m Agent LLM [1;34m┃[0m Demandée  [1;34m┃[0m  Policy  [1;34m┃[0m
-[1;34m┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩[0m
-[1;34m│[0m EP-[1;36mCHAOS-31[0mc6e006 [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mMODEL-005[0m [1;34m│[0m speciali… [1;34m│[0m propose_… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (SHADOW)  [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m EP-[1;36mCHAOS-5950095[0md [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m speciali… [1;34m│[0m propose_… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (SHADOW)  [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m EP-CHAOS-d6c18601 [1;34m│[0m 2026-10-… [1;34m│[0m [1;36mINFRA-001[0m [1;34m│[0m speciali… [1;34m│[0m create_i… [1;34m│[0m   [1;31mDENY[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (SHADOW)  [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m [1;36mEP-0005[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (LIVE)    [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m [1;36mEP-0004[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (LIVE)    [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m [1;36mEP-0003[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m rollback… [1;34m│[0m [1;33mREQUIRE[0m… [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (LIVE)    [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m [1;36mEP-0002[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m deploy_p… [1;34m│[0m [1;33mREQUIRE[0m… [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (LIVE)    [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
-[1;34m│[0m [1;36mEP-0001[0m           [1;34m│[0m 2026-09-… [1;34m│[0m [1;36mDATA-042[0m  [1;34m│[0m data_spe… [1;34m│[0m create_i… [1;34m│[0m  [1;32mALLOW[0m   [1;34m│[0m
-[1;34m│[0m                   [1;34m│[0m           [1;34m│[0m (LIVE)    [1;34m│[0m           [1;34m│[0m           [1;34m│[0m          [1;34m│[0m
+┏━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━┓
+┃                   ┃           ┃ Risk /    ┃           ┃ Action    ┃ Décision ┃
+┃ Episode ID        ┃ Timestamp ┃ Mode      ┃ Agent LLM ┃ Demandée  ┃  Policy  ┃
+┡━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━┩
+│ EP-CHAOS-31c6e006 │ 2026-10-… │ MODEL-005 │ speciali… │ propose_… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-CHAOS-5950095d │ 2026-10-… │ DATA-042  │ speciali… │ propose_… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-CHAOS-d6c18601 │ 2026-10-… │ INFRA-001 │ speciali… │ create_i… │   DENY   │
+│                   │           │ (SHADOW)  │           │           │          │
+│ EP-0005           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0004           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0003           │ 2026-09-… │ DATA-042  │ data_spe… │ rollback… │ REQUIRE… │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0002           │ 2026-09-… │ DATA-042  │ data_spe… │ deploy_p… │ REQUIRE… │
+│                   │           │ (LIVE)    │           │           │          │
+│ EP-0001           │ 2026-09-… │ DATA-042  │ data_spe… │ create_i… │  ALLOW   │
+│                   │           │ (LIVE)    │           │           │          │
 └───────────────────┴───────────┴───────────┴───────────┴───────────┴──────────┘
 ```
 
@@ -928,27 +928,27 @@ Pour éliminer le verrouillage propriétaire (Vendor Lock-in) et garantir un fon
 
 Le cerveau actif peut être permuté dynamiquement via deux simples variables d'environnement (`LLM_PROVIDER`, `LLM_MODEL`) sans modifier une seule ligne de code métier :
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m MOTEUR DE RAISONNEMENT AGENTIC-OPS (RemediationAgent / Spécialistes / ActionIntent Pydantic)     [1;34m|[0m
-[1;34m+------------------------------------------------+-------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| MOTEUR DE RAISONNEMENT AGENTIC-OPS (RemediationAgent / Spécialistes / ActionIntent Pydantic)     |
++------------------------------------------------+-------------------------------------------------+
                                                  | (Protocole standard LLMPort)
                                                  v
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m REGISTRE DES FOURNISSEURS LLM (agentic_ops/adapters/llm_provider_registry.py)                   [1;34m|[0m
-[1;34m|[0m Résout : LLM_PROVIDER -> Profils, Clés Masquées, Métriques Prometheus, Chaîne de Repli Auto     [1;34m|[0m
-[1;34m+------------------------------------------------+-------------------------------------------------+[0m
-[1;34m|[0m[1;34m|[0m
-[1;34m         +---------------------------------------+---------------------------------------+[0m
-[1;34m|[0m                                       |                                       [1;34m|[0m
++--------------------------------------------------------------------------------------------------+
+| REGISTRE DES FOURNISSEURS LLM (agentic_ops/adapters/llm_provider_registry.py)                   |
+| Résout : LLM_PROVIDER -> Profils, Clés Masquées, Métriques Prometheus, Chaîne de Repli Auto     |
++------------------------------------------------+-------------------------------------------------+
+                                                 |
+         +---------------------------------------+---------------------------------------+
+         |                                       |                                       |
          v                                       v                                       v
 +---------------------------------+ +---------------------------------+ +---------------------------------+
-[1;34m|[0m 1. OPENROUTER (:[1;32mfree[0m Cloud 24/7)| | 2. OLLAMA (Local / Tailscale)   | | 3. PROPRIÉTAIRE & ENTREPRISE    [1;34m|[0m
-[1;34m|[0m - deepseek/deepseek-r1:[1;32mfree[0m     | | - Local: http://localhost:11434 | | - Google Gemini (1.5 Pro/Flash) [1;34m|[0m
-[1;34m|[0m - deepseek/deepseek-chat:[1;32mfree[0m   | | - Mesh:  http://100.x.y.z:11434 | | - OpenAI (GPT-4o, GPT-4o-mini)  [1;34m|[0m
-[1;34m|[0m - meta-llama/llama-3.3-70b:[1;32mfree[0m | | - Tunnel Cloudflare (HTTPS)     | | - Anthropic (Claude 3.5 Haiku)  [1;34m|[0m
-[1;34m|[0m - google/gemini-2.0-flash:[1;32mfree[0m  | | - VPS Cloud GPU Vast.ai         | | - Azure OpenAI & Mistral AI     [1;34m|[0m
-[1;34m|[0m [1;36m->[0m Coût : [1;32m0 EUR[0m (Sans CB requise| | [1;36m->[0m Coût : [1;32m0 EUR[0m (JSON Natif)    | | [1;36m->[0m Coût : Facturation à l'usage [1;34m|[0m
+| 1. OPENROUTER (:free Cloud 24/7)| | 2. OLLAMA (Local / Tailscale)   | | 3. PROPRIÉTAIRE & ENTREPRISE    |
+| - deepseek/deepseek-r1:free     | | - Local: http://localhost:11434 | | - Google Gemini (1.5 Pro/Flash) |
+| - deepseek/deepseek-chat:free   | | - Mesh:  http://100.x.y.z:11434 | | - OpenAI (GPT-4o, GPT-4o-mini)  |
+| - meta-llama/llama-3.3-70b:free | | - Tunnel Cloudflare (HTTPS)     | | - Anthropic (Claude 3.5 Haiku)  |
+| - google/gemini-2.0-flash:free  | | - VPS Cloud GPU Vast.ai         | | - Azure OpenAI & Mistral AI     |
+| -> Coût : 0 EUR (Sans CB requise| | -> Coût : 0 EUR (JSON Natif)    | | -> Coût : Facturation à l'usage |
 +---------------------------------+ +---------------------------------+ +---------------------------------+
 ```
 
@@ -1012,44 +1012,44 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 
 Pour éliminer le goulot d'étranglement de l'agent unique et bannir les conflits d'intérêts judiciaires (l'anti-pattern du "juge et partie"), `Agentic-Ops` sépare strictement l'investigation du diagnostic et la planification de remédiation au travers de 5 rôles d'agents spécialisés :
 
-```ansi
-[1;34m                                  +---------------------------------------+[0m
-[1;34m|[0m         Signal d'Alerte Reçu          [1;34m|[0m
-[1;34m|[0m         (risk_id, signal_id)          [1;34m|[0m
-[1;34m                                  +---------------------------------------+[0m
-[1;34m|[0m[1;34m|[0m
+```text
+                                  +---------------------------------------+
+                                  |         Signal d'Alerte Reçu          |
+                                  |         (risk_id, signal_id)          |
+                                  +---------------------------------------+
+                                                      |
                                                       v
-[1;34m                                        +---------------------------+[0m
-[1;34m|[0m  [1;32mOrchestrator[0m (Routeur)   [1;34m|[0m
-[1;34m|[0m _get_specialist(risk_id)  [1;34m|[0m
-[1;34m                                        +---------------------------+[0m
-[1;34m|[0m[1;34m|[0m
-[1;34m                     +--------------------------------+-------------------------------+[0m
-[1;34m|[0m                                |                               [1;34m|[0m
+                                        +---------------------------+
+                                        |  Orchestrator (Routeur)   |
+                                        | _get_specialist(risk_id)  |
+                                        +---------------------------+
+                                                      |
+                     +--------------------------------+-------------------------------+
+                     |                                |                               |
             "MODEL" in risk_id               "INFRA" in risk_id                 Non-reconnu / Autre
-[1;34m|[0m                                |                               [1;34m|[0m
+                     |                                |                               |
                      v                                v                               v
            +--------------------+           +--------------------+           +--------------------+
-[1;34m|[0m  [1;35mModelSpecialist[0m   |           |  [1;35mInfraSpecialist[0m   |           |   [1;35mDataSpecialist[0m   [1;34m|[0m
-[1;34m|[0m (role="model")     |           | (role="infra")     |           | (role="data")      [1;34m|[0m
-[1;34m|[0m MLflow / Dérive F1 |           | Loki / Logs Noyau  |           | [1;35m[AGENT PAR DÉFAUT][0m [1;34m|[0m
+           |  ModelSpecialist   |           |  InfraSpecialist   |           |   DataSpecialist   |
+           | (role="model")     |           | (role="infra")     |           | (role="data")      |
+           | MLflow / Dérive F1 |           | Loki / Logs Noyau  |           | [AGENT PAR DÉFAUT] |
            +--------------------+           +--------------------+           +--------------------+
                      \                                |                              /
                       \                               |                             /
-[1;34m                       +------------------------------+----------------------------+[0m
-[1;34m|[0m[1;34m|[0m
+                       +------------------------------+----------------------------+
+                                                      |
                                                       v Émet un Diagnosis (Contrat Pydantic)
-[1;34m                                      +-------------------------------+[0m
-[1;34m|[0m       [1;35mRemediationAgent[0m        [1;34m|[0m
-[1;34m|[0m (role="remediation")          [1;34m|[0m
-[1;34m|[0m Évaluateur de Rayon d'Impact  [1;34m|[0m
-[1;34m                                      +-------------------------------+[0m
+                                      +-------------------------------+
+                                      |       RemediationAgent        |
+                                      | (role="remediation")          |
+                                      | Évaluateur de Rayon d'Impact  |
+                                      +-------------------------------+
                                                       | Émet un ActionIntent (Contrat Pydantic)
                                                       v
-[1;34m                                      +-------------------------------+[0m
-[1;34m|[0m         [1;32mPolicyEngine[0m          [1;34m|[0m
-[1;34m|[0m    (Garde-Fou OPA Fail-Closed)[1;34m|[0m
-[1;34m                                      +-------------------------------+[0m
+                                      +-------------------------------+
+                                      |         PolicyEngine          |
+                                      |    (Garde-Fou OPA Fail-Closed)|
+                                      +-------------------------------+
 ```
 
 | Rôle d'Agent (`role`) | Responsabilité Métier | Condition d'Activation (`risk_id`) | Modèle par Défaut Alloué | Justification & Rationale Opérationnel |
@@ -1084,48 +1084,48 @@ Pour garantir une transparence cognitive radicale lors des opérations réelles,
 - **Badge de Header & Bouton Améthyste de la Console** : Dans [`/console`](https://agentic-ops-5ebv.onrender.com/console), l'opérateur peut cliquer soit sur le badge `[Topologie MAS & LLMs Live]` du header, soit sur le bouton d'action principal améthyste pour inspecter les 11 composants du système en temps réel.
 - **Badge Interactif du Chat & Suggestion Rapide** : Dans [`/chat`](https://agentic-ops-5ebv.onrender.com/chat), cliquer sur le badge de statut `#llm-status-badge`, le bouton de navigation `[Topologie MAS]`, ou la chip de suggestion `[Inspecter les LLMs des Agents MAS]` ouvre la modale d'inspection sans interrompre le fil de la conversation.
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m  TOPOLOGIE MAS & INSPECTEUR DES MODÈLES D'AGENTS EN DIRECT                         [1;35m[ X Fermer ][0m  [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m  [1;35m[Filtre : Tous (11)][0m  [1;35m[Filtre : Cerveaux LLM (5)][0m  [1;35m[Filtre : Actionneurs Déterministes (6)][0m     [1;34m|[0m
-[1;34m+------------------------------------+-------------------------------------------------------------+[0m
-[1;34m|[0m [1;36m[1mLISTE DE SÉLECTION DES ACTEURS    |  DOSSIER TECHNIQUE DÉTAILLÉ ("ENCART DÉDIÉ")[0m [1;34m|[0m
-[1;34m|[0m                                    |                                                             [1;34m|[0m
-[1;34m|[0m  [*] [1;35mRemediationAgent[0m              |  [Rôle : [1;35mRemediationAgent[0m]  | Domaine : Planification SRE   [1;34m|[0m
-[1;34m|[0m      deepseek-r1:free (CoT)        |  Statut : EN LIGNE (LIVE)   | Type : Cerveau Cognitif LLM   [1;34m|[0m
+```text
++--------------------------------------------------------------------------------------------------+
+|  TOPOLOGIE MAS & INSPECTEUR DES MODÈLES D'AGENTS EN DIRECT                         [ X Fermer ]  |
++--------------------------------------------------------------------------------------------------+
+|  [Filtre : Tous (11)]  [Filtre : Cerveaux LLM (5)]  [Filtre : Actionneurs Déterministes (6)]     |
++------------------------------------+-------------------------------------------------------------+
+|  LISTE DE SÉLECTION DES ACTEURS    |  DOSSIER TECHNIQUE DÉTAILLÉ ("ENCART DÉDIÉ")               |
+|                                    |                                                             |
+|  [*] RemediationAgent              |  [Rôle : RemediationAgent]  | Domaine : Planification SRE   |
+|      deepseek-r1:free (CoT)        |  Statut : EN LIGNE (LIVE)   | Type : Cerveau Cognitif LLM   |
 |                                    +-------------------------------------------------------------+
-[1;34m|[0m  [ ] [1;35mInfraSpecialist[0m               |                                                             [1;34m|[0m
-[1;34m|[0m      gemma-4-31b-it:[1;32mfree[0m (256k)    |  1. IDENTITÉ & MISSION OPÉRATIONNELLE                       [1;34m|[0m
-[1;34m|[0m                                    |     - Responsabilité : Analyse causale & calcul blast radius[1;34m|[0m
-[1;34m|[0m  [ ] [1;35mDataSpecialist[0m                |     - Déclencheur FSM : Exécuté lors de l'état [PLANNED]    [1;34m|[0m
-[1;34m|[0m      gemma-4-26b-a4b-it:[1;32mfree[0m (MoE) |     - Garde-fou Judiciaire : Séparation des pouvoirs        [1;34m|[0m
-[1;34m|[0m                                    |                                                             [1;34m|[0m
-[1;34m|[0m  [ ] [1;35mModelSpecialist[0m               |  2. MOTEUR ACTIF & CONFIGURATION D'INFÉRENCE                [1;34m|[0m
-[1;34m|[0m      llama-3.3-70b-instruct:[1;32mfree[0m   |     - Modèle Résolu : openrouter/deepseek/deepseek-r1:[1;32mfree[0m  [1;34m|[0m
-[1;34m|[0m                                    |     - Raisonnement : Chain-of-Thought (<think> filtrés)     [1;34m|[0m
-[1;34m|[0m  [ ] [1;35mWebChatCopilot[0m                |     - Chaîne de Repli : deepseek-chat [1;36m->[0m llama-3.3-70b      [1;34m|[0m
-[1;34m|[0m      deepseek-chat:[1;32mfree[0m            |     - Hyperparamètres : Temp = 0.0 | MaxTokens = 4096 | 30s [1;34m|[0m
-[1;34m|[0m                                    |     - Variable d'Override : LLM_MODEL_REMEDIATION           [1;34m|[0m
-[1;34m|[0m  [ ] CircuitBreakerFallback        |     - Rationale Métier : Seul modèle gratuit capable        [1;34m|[0m
-[1;34m|[0m      [1;32m0-Token[0m Python Pur            |       d'évaluation causale pas-à-pas du rayon d'impact.     [1;34m|[0m
-[1;34m|[0m                                    |                                                             [1;34m|[0m
-[1;34m|[0m  [ ] ActionExecutor                |  3. CONTRATS DE DONNÉES & DÉPENDANCES SYSTÈME               [1;34m|[0m
-[1;34m|[0m      [1;32m0-Token[0m Isolation Subprocess  |     - Contrat d'Entrée : Pydantic Diagnosis                 [1;34m|[0m
-[1;34m|[0m                                    |     - Contrat de Sortie : Pydantic ActionIntent             [1;34m|[0m
-[1;34m|[0m  [ ] CacPullCollector             |     - Services Liés : Redis (:6379), OPA [1;32mPolicyEngine[0m       [1;34m|[0m
-[1;34m|[0m      [1;32m0-Token[0m Polling Télémétrique  |     - Outils Autorisés : Aucun (Isolation judiciaire pure)  [1;34m|[0m
-[1;34m|[0m                                    |                                                             [1;34m|[0m
-[1;34m|[0m  [ ] SlackWebhookAgent             |  4. SÉCURITÉ, RAYON D'IMPACT & OBSERVABILITÉ FINOPS         [1;34m|[0m
-[1;34m|[0m      [1;32m0-Token[0m Portier Crypto HMAC   |     - Blast Radius Autorisé : 0 à 5 (Veto [1;32mPolicyEngine[0m)     [1;34m|[0m
-[1;34m|[0m                                    |     - Grand Livre WORM : Signé par arbre de Merkle (SHA256) [1;34m|[0m
-[1;34m|[0m  [ ] 8 AgentTools                  |     - Métrique PromQL : agentic_ops_llm_requests_total{role}[1;34m|[0m
-[1;34m|[0m      [1;32m0-Token[0m Sondes Déterministes  |     - Tolérance Panne : Coupe-circuit sur rate-limit 429    [1;34m|[0m
-[1;34m|[0m                                    |                                                             [1;34m|[0m
-[1;34m|[0m  [1;36m[ ][0m MCPServerGateway              |  5. CONTRÔLES INTERACTIFS EN DIRECT                         [1;34m|[0m
-[1;34m|[0m      Pont Protocole JSON-RPC 2.0   |     [1;35m[ ⚡ Tester la Sonde LLM (/api/llm/probe) ][0m             [1;34m|[0m
-[1;34m|[0m                                    |     [ 📋 Copier Requête Métrique PromQL ]                   [1;34m|[0m
-[1;34m+------------------------------------+-------------------------------------------------------------+[0m
+|  [ ] InfraSpecialist               |                                                             |
+|      gemma-4-31b-it:free (256k)    |  1. IDENTITÉ & MISSION OPÉRATIONNELLE                       |
+|                                    |     - Responsabilité : Analyse causale & calcul blast radius|
+|  [ ] DataSpecialist                |     - Déclencheur FSM : Exécuté lors de l'état [PLANNED]    |
+|      gemma-4-26b-a4b-it:free (MoE) |     - Garde-fou Judiciaire : Séparation des pouvoirs        |
+|                                    |                                                             |
+|  [ ] ModelSpecialist               |  2. MOTEUR ACTIF & CONFIGURATION D'INFÉRENCE                |
+|      llama-3.3-70b-instruct:free   |     - Modèle Résolu : openrouter/deepseek/deepseek-r1:free  |
+|                                    |     - Raisonnement : Chain-of-Thought (<think> filtrés)     |
+|  [ ] WebChatCopilot                |     - Chaîne de Repli : deepseek-chat -> llama-3.3-70b      |
+|      deepseek-chat:free            |     - Hyperparamètres : Temp = 0.0 | MaxTokens = 4096 | 30s |
+|                                    |     - Variable d'Override : LLM_MODEL_REMEDIATION           |
+|  [ ] CircuitBreakerFallback        |     - Rationale Métier : Seul modèle gratuit capable        |
+|      0-Token Python Pur            |       d'évaluation causale pas-à-pas du rayon d'impact.     |
+|                                    |                                                             |
+|  [ ] ActionExecutor                |  3. CONTRATS DE DONNÉES & DÉPENDANCES SYSTÈME               |
+|      0-Token Isolation Subprocess  |     - Contrat d'Entrée : Pydantic Diagnosis                 |
+|                                    |     - Contrat de Sortie : Pydantic ActionIntent             |
+|  [ ] CacPullCollector             |     - Services Liés : Redis (:6379), OPA PolicyEngine       |
+|      0-Token Polling Télémétrique  |     - Outils Autorisés : Aucun (Isolation judiciaire pure)  |
+|                                    |                                                             |
+|  [ ] SlackWebhookAgent             |  4. SÉCURITÉ, RAYON D'IMPACT & OBSERVABILITÉ FINOPS         |
+|      0-Token Portier Crypto HMAC   |     - Blast Radius Autorisé : 0 à 5 (Veto PolicyEngine)     |
+|                                    |     - Grand Livre WORM : Signé par arbre de Merkle (SHA256) |
+|  [ ] 8 AgentTools                  |     - Métrique PromQL : agentic_ops_llm_requests_total{role}|
+|      0-Token Sondes Déterministes  |     - Tolérance Panne : Coupe-circuit sur rate-limit 429    |
+|                                    |                                                             |
+|  [ ] MCPServerGateway              |  5. CONTRÔLES INTERACTIFS EN DIRECT                         |
+|      Pont Protocole JSON-RPC 2.0   |     [ ⚡ Tester la Sonde LLM (/api/llm/probe) ]             |
+|                                    |     [ 📋 Copier Requête Métrique PromQL ]                   |
++------------------------------------+-------------------------------------------------------------+
 ```
 
 ##### Les 5 Sections Structurantes de l'Encart Dédié
@@ -1153,25 +1153,25 @@ Un Système Multi-Agents autonome opérant en production doit gérer deux périm
 1. **Que se passe-t-il si le LLM par défaut d'un agent bugue ?** (Rate limit `HTTP 429`, timeout, indisponibilité API) $\rightarrow$ Pris en charge de façon transparente par `FallbackLLMAdapter` sans interruption du diagnostic.
 2. **Que se passe-t-il si un agent ou le système MAS bugue ?** (Taxonomie d'alerte inconnue, emballement budgétaire LLM, action hors catalogue, rupture réseau VPS) $\rightarrow$ Verrouillé par des transitions d'état déterministes Fail-Safe et Fail-Closed.
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m DOUBLE ÉTAGE DE RÉSILIENCE : REPLI MODÈLE LLM VS. GARDE-FOU SYSTÈME AGENT                       [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[ÉTAGE 1 : DÉFAILLANCE DU MODÈLE LLM (API / Quota / Timeout)][0m                                    [1;34m|[0m
-[1;34m|[0m - [1;35mRemediationAgent[0m   : deepseek-r1:[1;32mfree[0m     [1;34m──([0mErreur ?[1;34m)[1;33m──>[0m[0m deepseek-chat [1;33m──>[0m llama-3.3-70b ...  [1;34m|[0m
-[1;34m|[0m - [1;35mInfraSpecialist[0m    : gemma-4-31b-it:[1;32mfree[0m  [1;34m──([0mErreur ?[1;34m)[1;33m──>[0m[0m deepseek-r1   [1;33m──>[0m deepseek-chat ...  [1;34m|[0m
-[1;34m|[0m - [1;35mDataSpecialist[0m     : gemma-4-26b-it:[1;32mfree[0m  [1;34m──([0mErreur ?[1;34m)[1;33m──>[0m[0m deepseek-r1   [1;33m──>[0m deepseek-chat ...  [1;34m|[0m
-[1;34m|[0m - [1;35mModelSpecialist[0m    : llama-3.3-70b:[1;32mfree[0m   [1;34m──([0mErreur ?[1;34m)[1;33m──>[0m[0m deepseek-r1   [1;33m──>[0m deepseek-chat ...  [1;34m|[0m
-[1;34m|[0m - [1;35mWebChatCopilot[0m     : deepseek-chat:[1;32mfree[0m   [1;34m──([0mErreur ?[1;34m)[1;33m──>[0m[0m deepseek-r1   [1;33m──>[0m llama-3.3-70b ...  [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[ÉTAGE 2 : DÉFAILLANCE DE L'AGENT OU DE L'ORCHESTRATEUR (Logique / Réseau / Sécurité)][0m          [1;34m|[0m
-[1;34m|[0m - Alerte Inconnue    : Repli automatique sur [1;35mDataSpecialist[0m (analyse de corruption des données)  [1;34m|[0m
-[1;34m|[0m - Emballement Appels : Déclenchement Circuit Breaker (>50 req/h) [1;36m->[0m CIRCUIT_BREAKER_FALLBACK     [1;34m|[0m
-[1;34m|[0m - Action Hallucinée  : [1;32mPolicyEngine[0m default_effect: "deny" [1;36m->[0m Rejet Fail-Closed / Slack HITL     [1;34m|[0m
-[1;34m|[0m - Rupture Réseau VPS : ConnectError intercepté [1;36m->[0m status="offline" [1;36m->[0m Verrouillage des mutations[1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| DOUBLE ÉTAGE DE RÉSILIENCE : REPLI MODÈLE LLM VS. GARDE-FOU SYSTÈME AGENT                       |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [ÉTAGE 1 : DÉFAILLANCE DU MODÈLE LLM (API / Quota / Timeout)]                                    |
+| - RemediationAgent   : deepseek-r1:free     ──(Erreur ?)──> deepseek-chat ──> llama-3.3-70b ...  |
+| - InfraSpecialist    : gemma-4-31b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - DataSpecialist     : gemma-4-26b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - ModelSpecialist    : llama-3.3-70b:free   ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
+| - WebChatCopilot     : deepseek-chat:free   ──(Erreur ?)──> deepseek-r1   ──> llama-3.3-70b ...  |
+|                                                                                                  |
+| [ÉTAGE 2 : DÉFAILLANCE DE L'AGENT OU DE L'ORCHESTRATEUR (Logique / Réseau / Sécurité)]          |
+| - Alerte Inconnue    : Repli automatique sur DataSpecialist (analyse de corruption des données)  |
+| - Emballement Appels : Déclenchement Circuit Breaker (>50 req/h) -> CIRCUIT_BREAKER_FALLBACK     |
+| - Action Hallucinée  : PolicyEngine default_effect: "deny" -> Rejet Fail-Closed / Slack HITL     |
+| - Rupture Réseau VPS : ConnectError intercepté -> status="offline" -> Verrouillage des mutations|
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
 ```
 
 | Niveau de Repli | Condition Déclenchante | Clé de Mapping Code / Config | Comportement / État de Repli Obtenu |
@@ -1188,34 +1188,34 @@ Un Système Multi-Agents autonome opérant en production doit gérer deux périm
 
 Lorsqu'un agent autonome subit une défaillance de son LLM primaire (erreur de quota `HTTP 429`, timeout réseau, panne 5xx du fournisseur), la bascule vers le modèle de secours est entièrement autonome, non-bloquante et transparente pour la logique métier de l'agent :
 
-```ansi
-[1;34m+-------------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m SÉQUENCE CHIRURGICALE DE BASCULE D'UN AGENT VERS SON LLM DE SECOURS                                   [1;34m|[0m
-[1;34m+-------------------------------------------------------------------------------------------------------+[0m
+```text
++-------------------------------------------------------------------------------------------------------+
+| SÉQUENCE CHIRURGICALE DE BASCULE D'UN AGENT VERS SON LLM DE SECOURS                                   |
++-------------------------------------------------------------------------------------------------------+
 
  [ Agent Cognitif ]           [ FallbackLLMAdapter ]         [ Primary Adapter ]        [ Fallback Adapter ]
   (ex: ModelSpecialist)                                       (DeepSeek-R1)              (DeepSeek-Chat)
-[1;34m|[0m                            |                              |                          [1;34m|[0m
-[1;34m|[0m 1. complete(Diagnosis)     |                              |                          [1;34m|[0m
-[1;34m|[0m-------------------------[1;33m-[1;36m->[0m[0m|                              |                          [1;34m|[0m
-[1;34m|[0m                            | 2. complete()                |                          [1;34m|[0m
-[1;34m|[0m                            |---------------------------[1;33m-[1;36m->[0m[0m|                          [1;34m|[0m
-[1;34m|[0m                            |                              | HTTP 429 / Timeout / 5xx [1;34m|[0m
-[1;34m|[0m                            |                              | (Échec après retries)    [1;34m|[0m
+          |                            |                              |                          |
+          | 1. complete(Diagnosis)     |                              |                          |
+          |--------------------------->|                              |                          |
+          |                            | 2. complete()                |                          |
+          |                            |----------------------------->|                          |
+          |                            |                              | HTTP 429 / Timeout / 5xx |
+          |                            |                              | (Échec après retries)    |
           |                            |                              |-- - - - - - - - - - - - -+
-[1;34m|[0m                            | 3. Interception Exception    |                          [1;34m|[0m
-[1;34m|[0m                            |<-----------------------------|                          [1;34m|[0m
-[1;34m|[0m                            |    Prometheus error inc()                               [1;34m|[0m
-[1;34m|[0m                            |                                                         [1;34m|[0m
-[1;34m|[0m                            | 4. Bascule immédiate (max_retries=1)                    [1;34m|[0m
-[1;34m|[0m                            |------------------------------------------------------[1;33m-[1;36m->[0m[0m[1;34m|[0m
+          |                            | 3. Interception Exception    |                          |
+          |                            |<-----------------------------|                          |
+          |                            |    Prometheus error inc()                               |
+          |                            |                                                         |
+          |                            | 4. Bascule immédiate (max_retries=1)                    |
+          |                            |-------------------------------------------------------->|
           |                            |                                                         | 200 OK + JSON
           |                            | 5. Validation Contrat Pydantic (Diagnosis)             | (avec _strip_think_tags)
-[1;34m|[0m                            |<--------------------------------------------------------[1;34m|[0m
-[1;34m|[0m                            |    Prometheus success inc()                             [1;34m|[0m
-[1;34m|[0m 6. Retour Diagnosis typé   |                                                         [1;34m|[0m
-[1;34m|[0m<---------------------------|                                                         [1;34m|[0m
-[1;34m|[0m (L'agent ignore la panne)  |                                                         [1;34m|[0m
+          |                            |<--------------------------------------------------------|
+          |                            |    Prometheus success inc()                             |
+          | 6. Retour Diagnosis typé   |                                                         |
+          |<---------------------------|                                                         |
+          | (L'agent ignore la panne)  |                                                         |
           v                            v                                                         v
 ```
 
@@ -1233,37 +1233,37 @@ Fonder la survie d'un système multi-agents autonome sur un unique intermédiair
 
 Dans `Agentic-Ops`, **OpenRouter n'est qu'un hub d'amorçage à 0 EUR, et non une dépendance bloquante**. L'architecture a été conçue dès sa première ligne selon le principe d'inversion de dépendance (`LLMPort`) et l'abstraction de protocole `LiteLLM`, protégée par 4 lignes de défense étanches :
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m AGENTIC-OPS DISASTER RECOVERY : QUE SE PASSE-T-IL SI OPENROUTER COUPE LE TUYAU ?                [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;32m[ÉTAT NOMINAL][0m                                                                                   [1;34m|[0m
-[1;34m|[0m OpenRouter [1;32mFree Tier[0m (:[1;32mfree[0m)                                                                     [1;34m|[0m
-[1;34m|[0m DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m                                     │                                                            [1;34m|[0m
-[1;34m|[0m                                     ▼ (Événement : HTTP 429, 401, Révocation Free, Panne API)    [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [LIGNE 1 : BASCULE ZERO-CODE] ───[1;33m──►[0m Changement d'env var en 30s sans redéployer de code :       [1;34m|[0m
-[1;34m|[0m                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  [1;34m|[0m
-[1;34m|[0m                                      LLM_PROVIDER=huggingface (Inference API Serverless — 0 EUR)  [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [LIGNE 2 : SANCTUAIRE SOUVERAIN] [1;33m──►[0m Autonomie 100% Hors-Cloud via Maillage VPN Tailscale :       [1;34m|[0m
-[1;34m|[0m                                      LLM_PROVIDER=ollama                                         [1;34m|[0m
-[1;34m|[0m                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (VPS Scaleway)   [1;34m|[0m
-[1;34m|[0m                                      (Fait tourner deepseek-r1:7b ou llama3.2:3b à [1;32m0 EUR[0m, privé)  [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[LIGNE 3 : ISOLATION PAR AGENT][0m ───► Découplage fin des fournisseurs par rôle :                  [1;34m|[0m
-[1;34m|[0m                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 [1;34m|[0m
-[1;34m|[0m                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   [1;34m|[0m
-[1;34m|[0m                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [1;35m[LIGNE 4 : FILET DE SÉCURITÉ 0-LLM][0m► Panne Totale d'Internet ou des APIs IA :                    [1;34m|[0m
-[1;34m|[0m                                      CIRCUIT_BREAKER_FALLBACK ([1;32m0-Token[0m Python Pur)               [1;34m|[0m
-[1;34m|[0m                                      Force ActionType.CREATE_ISSUE | Verrouillage Fail-Closed    [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| AGENTIC-OPS DISASTER RECOVERY : QUE SE PASSE-T-IL SI OPENROUTER COUPE LE TUYAU ?                |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [ÉTAT NOMINAL]                                                                                   |
+| OpenRouter Free Tier (:free)                                                                     |
+| DeepSeek-R1, Gemma-4 31B, Gemma-4 26B, Llama 3.3 70B, DeepSeek-Chat                              |
+|                                                                                                  |
+|                                     │                                                            |
+|                                     ▼ (Événement : HTTP 429, 401, Révocation Free, Panne API)    |
+|                                                                                                  |
+| [LIGNE 1 : BASCULE ZERO-CODE] ─────► Changement d'env var en 30s sans redéployer de code :       |
+|                                      LLM_PROVIDER=gemini (Google Gemini Flash — 60 req/min free)  |
+|                                      LLM_PROVIDER=huggingface (Inference API Serverless — 0 EUR)  |
+|                                                                                                  |
+| [LIGNE 2 : SANCTUAIRE SOUVERAIN] ──► Autonomie 100% Hors-Cloud via Maillage VPN Tailscale :       |
+|                                      LLM_PROVIDER=ollama                                         |
+|                                      OLLAMA_BASE_URL=http://100.117.99.62:11434 (VPS Scaleway)   |
+|                                      (Fait tourner deepseek-r1:7b ou llama3.2:3b à 0 EUR, privé)  |
+|                                                                                                  |
+| [LIGNE 3 : ISOLATION PAR AGENT] ───► Découplage fin des fournisseurs par rôle :                  |
+|                                      LLM_MODEL_REMEDIATION=ollama/deepseek-r1:7b                 |
+|                                      LLM_MODEL_INFRA=gemini/gemini-1.5-flash-latest (1M tokens)   |
+|                                      LLM_MODEL_DATA=huggingface/mistralai/Mistral-7B-Instruct     |
+|                                                                                                  |
+| [LIGNE 4 : FILET DE SÉCURITÉ 0-LLM]► Panne Totale d'Internet ou des APIs IA :                    |
+|                                      CIRCUIT_BREAKER_FALLBACK (0-Token Python Pur)               |
+|                                      Force ActionType.CREATE_ISSUE | Verrouillage Fail-Closed    |
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
 ```
 
 ##### Matrice de Référence des Alternatives Post-OpenRouter
@@ -1291,10 +1291,10 @@ En application de la règle d'**Honnêteté Radicale**, nous différencions ce q
 
 Le code source chaîne nativement des fournisseurs hétérogènes. Voici la trace exacte d'exécution vérifiée dans l'environnement Python du projet :
 
-```ansi
+```text
 Primary adapter : LiteLLMAdapter (openrouter/deepseek/deepseek-r1:free)
 Fallbacks count : 2
-  [1;34m├──[0m Fallback 0: LiteLLMAdapter (gemini/gemini-1.5-flash-latest)
+  ├── Fallback 0: LiteLLMAdapter (gemini/gemini-1.5-flash-latest)
   └── Fallback 1: OllamaAdapter (deepseek-r1:7b -> http://100.117.99.62:11434)
 ```
 
@@ -1341,29 +1341,29 @@ En application de la règle d'**Honnêteté Radicale** du projet, utiliser des m
 
 Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Ops` via deux interfaces distinctes, selon leurs besoins de déploiement :
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m [1;36m[1mTOPOLOGIE CONVERSATIONNELLE À DOUBLE INTERFACE[0m [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [Option 1 : Client LibreChat Local]              [Option 2 : Web Chat Cloud Sans Dépendance]     [1;34m|[0m
-[1;34m|[0m - Conteneur Docker sur poste de travail (Mac/PC) - Hébergé directement sur le [1;32mFree Tier[0m Render   [1;34m|[0m
-[1;34m|[0m - Connecté via la passerelle MCP (/mcp)          - URL : https://agentic-ops-5ebv.onrender.com/chat [1;34m|[0m
-[1;34m|[0m - Clone complet de ChatGPT avec historique & PJ  - 0 installation locale, 0 conteneur, [1;32m0 EUR[0m    [1;34m|[0m
-[1;34m|[0m - Empreinte RAM lourde (~1.5 Go de RAM)          - Empreinte RAM ultra-légère (< 2 Mo de RAM)    [1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m             \                                                     /                              [1;34m|[0m
-[1;34m|[0m              \                                                   /                               [1;34m|[0m
-[1;34m|[0m[1;34m               +------------------------+------------------------+                                [0m[1;34m|[0m
-[1;34m|[0m                                        |                                                         [1;34m|[0m
-[1;34m|[0m                                        v                                                         [1;34m|[0m
-[1;34m|[0m[1;34m                     +---------------------------------------+                                    [0m[1;34m|[0m
-[1;34m|[0m                     | AGENTIC-OPS CONTROL PLANE (FastAPI)   |                                    [1;34m|[0m
-[1;34m|[0m                     | - POST /api/chat                      |                                    [1;34m|[0m
-[1;34m|[0m                     | - POST /mcp (Passerelle JSON-RPC 2.0) |                                    [1;34m|[0m
-[1;34m|[0m                     | - LLMProviderRegistry (Auto-Fallback) |                                    [1;34m|[0m
-[1;34m|[0m[1;34m                     +---------------------------------------+                                    [0m[1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| TOPOLOGIE CONVERSATIONNELLE À DOUBLE INTERFACE                                                   |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Option 1 : Client LibreChat Local]              [Option 2 : Web Chat Cloud Sans Dépendance]     |
+| - Conteneur Docker sur poste de travail (Mac/PC) - Hébergé directement sur le Free Tier Render   |
+| - Connecté via la passerelle MCP (/mcp)          - URL : https://agentic-ops-5ebv.onrender.com/chat |
+| - Clone complet de ChatGPT avec historique & PJ  - 0 installation locale, 0 conteneur, 0 EUR    |
+| - Empreinte RAM lourde (~1.5 Go de RAM)          - Empreinte RAM ultra-légère (< 2 Mo de RAM)    |
+|                                                                                                  |
+|             \                                                     /                              |
+|              \                                                   /                               |
+|               +------------------------+------------------------+                                |
+|                                        |                                                         |
+|                                        v                                                         |
+|                     +---------------------------------------+                                    |
+|                     | AGENTIC-OPS CONTROL PLANE (FastAPI)   |                                    |
+|                     | - POST /api/chat                      |                                    |
+|                     | - POST /mcp (Passerelle JSON-RPC 2.0) |                                    |
+|                     | - LLMProviderRegistry (Auto-Fallback) |                                    |
+|                     +---------------------------------------+                                    |
++--------------------------------------------------------------------------------------------------+
 ```
 
 | Dimension Architecturale | Option 1 : LibreChat Local (Docker sur Mac/PC) | Option 2 : Web Chat Cloud Standalone (`/chat` sur Render) |
@@ -1381,19 +1381,19 @@ Les opérateurs peuvent interagir de manière conversationnelle avec `Agentic-Op
 
 En application stricte de la règle d'**Honnêteté Radicale** du projet, `Agentic-Ops` exclut délibérément l'utilisation d'une base de données vectorielle externe (`ChromaDB`, `Pinecone`, `Qdrant`, `Weaviate`, `Milvus`). Le moteur repose à la place sur un **Moteur de Récupération Déterministe en Mémoire** (`LocalRunbookRAG` dans [`agentic_ops/adapters/runbook_rag.py`](agentic_ops/adapters/runbook_rag.py) et `search_failure_taxonomy` dans [`agentic_ops/entrypoints/mcp_server.py`](agentic_ops/entrypoints/mcp_server.py)).
 
-```ansi
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m [1;36m[1mARCHITECTURE DE RECHERCHE DE CONNAISSANCES : IN-MEMORY DÉTERMINISTE VS BASE VECTORIELLE[0m [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m|[0m [Architecture Théorique / Marketing]              [Architecture Réelle Agentic-Ops]             [1;34m|[0m
-[1;34m|[0m - Base Vectorielle externe (Pinecone, ChromaDB)    - Index Déterministe 100% In-Memory           [1;34m|[0m
-[1;34m|[0m - Modèle d'embeddings neural chargé en RAM         - Résolution exacte par risk_id + lexique     [1;34m|[0m
-[1;34m|[0m - Empreinte RAM lourde (300 à 600 Mo) [1;36m->[0m OOMKilled - Empreinte RAM ultra-légère (< 1 Mo)          [1;34m|[0m
-[1;34m|[0m - Latence réseau élevée (50 à 200 ms)              - Latence sub-milliseconde (< 1 ms in-process)[1;34m|[0m
-[1;34m|[0m - Similarité cosinus probabiliste / floue          - Alignement déterministe strict de l'incident[1;34m|[0m
-[1;34m|[0m                                                                                                  [1;34m|[0m
-[1;34m+--------------------------------------------------------------------------------------------------+[0m
+```text
++--------------------------------------------------------------------------------------------------+
+| ARCHITECTURE DE RECHERCHE DE CONNAISSANCES : IN-MEMORY DÉTERMINISTE VS BASE VECTORIELLE          |
++--------------------------------------------------------------------------------------------------+
+|                                                                                                  |
+| [Architecture Théorique / Marketing]              [Architecture Réelle Agentic-Ops]             |
+| - Base Vectorielle externe (Pinecone, ChromaDB)    - Index Déterministe 100% In-Memory           |
+| - Modèle d'embeddings neural chargé en RAM         - Résolution exacte par risk_id + lexique     |
+| - Empreinte RAM lourde (300 à 600 Mo) -> OOMKilled - Empreinte RAM ultra-légère (< 1 Mo)          |
+| - Latence réseau élevée (50 à 200 ms)              - Latence sub-milliseconde (< 1 ms in-process)|
+| - Similarité cosinus probabiliste / floue          - Alignement déterministe strict de l'incident|
+|                                                                                                  |
++--------------------------------------------------------------------------------------------------+
 ```
 
 | Dimension Architecturale | Base de Données Vectorielle (`ChromaDB`, `Pinecone`, `Qdrant`) | `Agentic-Ops` RAG Déterministe In-Memory |
