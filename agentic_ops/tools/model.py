@@ -15,5 +15,15 @@ class GetMLflowModelInfo(AgentTool):
     description = "Récupère les métadonnées d'un modèle enregistré dans MLflow."
     args_schema = GetMLflowModelInfoArgs
 
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = True
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = True
+
     def _execute(self, model_name: str, stage: str) -> str:
         return f"[Simulé] Modèle {model_name} en {stage}. F1-Score: 0.88."

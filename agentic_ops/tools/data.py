@@ -14,6 +14,16 @@ class CheckDvcStatus(AgentTool):
     )
     args_schema = CheckDvcStatusArgs
 
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = False
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = False
+
     def _execute(self, dataset_path: str) -> str:
         return f"[Simulé] DVC up-to-date pour {dataset_path}. Hash: abcd123."
 
@@ -26,6 +36,16 @@ class ValidatePanderaSchema(AgentTool):
     name = "validate_pandera_schema"
     description = "Lance une validation de schéma à la volée sur une table de données."
     args_schema = ValidatePanderaSchemaArgs
+
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = False
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = False
 
     def _execute(self, table_name: str) -> str:
         return f"[Simulé] Schéma validé pour {table_name}: 0 erreur trouvée."
@@ -42,6 +62,16 @@ class ExecuteSql(AgentTool):
     # [ALERTE MLOPS] Least Privilege
     requires_approval = True
     timeout_seconds = 5
+
+    readOnlyHint = False
+    destructiveHint = True
+    idempotentHint = False
+    openWorldHint = True
+
+    read_only_hint = False
+    destructive_hint = True
+    idempotent_hint = False
+    open_world_hint = True
 
     def _execute(self, query: str, database: str) -> str:
         return f"[Simulé] Exécution SQL '{query}' sur {database} terminée avec succès."

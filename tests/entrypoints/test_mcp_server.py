@@ -274,3 +274,194 @@ def test_fastapi_http_mcp_endpoints():
     )
     assert rpc_res.status_code == 200
     assert len(rpc_res.json()["result"]["prompts"]) == 20
+
+
+def test_mcp_tool_poll_target_mlops_snapshot(monkeypatch):
+    from unittest.mock import MagicMock
+
+    mock_collector = MagicMock()
+    mock_snap = MagicMock()
+    mock_snap.model_dump.return_value = {
+        "status": "ONLINE",
+        "endpoints": {"mlflow": 200, "prometheus": 200},
+        "target": "jakatt/cac_mlops",
+    }
+    mock_collector.collect_all.return_value = mock_snap
+    monkeypatch.setattr(
+        "agentic_ops.entrypoints.mcp_server.CacPullCollector",
+        lambda *args, **kwargs: mock_collector,
+    )
+
+    resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 16,
+            "method": "tools/call",
+            "params": {
+                "name": "poll_target_mlops_snapshot",
+                "arguments": {"use_proxy": False, "timeout": 1.0},
+            },
+        }
+    )
+    assert resp["result"]["isError"] is False
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["target"] == "jakatt/cac_mlops"
+
+
+def test_mcp_tools_declare_all_four_hints():
+    resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 17, "method": "tools/list"})
+    tools = resp["result"]["tools"]
+    assert len(tools) == 8
+    for tool in tools:
+        assert isinstance(tool.get("readOnlyHint"), bool), f"Missing readOnlyHint in {tool['name']}"
+        assert isinstance(tool.get("destructiveHint"), bool), f"Missing destructiveHint in {tool['name']}"
+        assert isinstance(tool.get("idempotentHint"), bool), f"Missing idempotentHint in {tool['name']}"
+        assert isinstance(tool.get("openWorldHint"), bool), f"Missing openWorldHint in {tool['name']}"
+
+
+def test_tool_get_mlflow_model_info():
+    from agentic_ops.tools.model import GetMLflowModelInfo
+
+    tool = GetMLflowModelInfo()
+    assert tool.name == "get_mlflow_model_info"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is True
+    res = tool.run(model_name="baac_rf", stage="Production")
+    assert "baac_rf" in res
+
+
+def test_tool_get_prometheus_metric():
+    from agentic_ops.tools.observability import GetPrometheusMetric
+
+    tool = GetPrometheusMetric()
+    assert tool.name == "get_prometheus_metric"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is True
+    res = tool.run(metric_name="http_requests_total", query_window="5m")
+    assert "42.0" in res
+
+
+def test_tool_get_evidently_report():
+    from agentic_ops.tools.observability import GetEvidentlyReport
+
+    tool = GetEvidentlyReport()
+    assert tool.name == "get_evidently_report"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is True
+    res = tool.run(model_version="v2.1")
+    assert "v2.1" in res
+
+
+def test_tool_check_database_health():
+    from agentic_ops.tools.infra import CheckDatabaseHealth
+
+    tool = CheckDatabaseHealth()
+    assert tool.name == "check_database_health"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is True
+    res = tool.run(db_name="postgres_production")
+    assert "postgres_production" in res
+
+
+def test_tool_check_docker_container():
+    from agentic_ops.tools.infra import CheckDockerContainer
+
+    tool = CheckDockerContainer()
+    assert tool.name == "check_docker_container"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is False
+    res = tool.run(container_name="model-api")
+    assert "model-api" in res
+
+
+def test_tool_check_dvc_status():
+    from agentic_ops.tools.data import CheckDvcStatus
+
+    tool = CheckDvcStatus()
+    assert tool.name == "check_dvc_status"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is False
+    res = tool.run(dataset_path="data/raw/accidents.csv")
+    assert "abcd123" in res
+
+
+def test_tool_validate_pandera_schema():
+    from agentic_ops.tools.data import ValidatePanderaSchema
+
+    tool = ValidatePanderaSchema()
+    assert tool.name == "validate_pandera_schema"
+    assert tool.readOnlyHint is True
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is True
+    assert tool.openWorldHint is False
+    res = tool.run(table_name="fact_accidents")
+    assert "fact_accidents" in res
+
+
+def test_tool_execute_sql():
+    from agentic_ops.tools.data import ExecuteSql
+
+    tool = ExecuteSql()
+    assert tool.name == "execute_sql"
+    assert tool.readOnlyHint is False
+    assert tool.destructiveHint is True
+    assert tool.idempotentHint is False
+    assert tool.openWorldHint is True
+    res = tool.run(query="SELECT 1;", database="analytics", approved_by_admin=True)
+    assert "analytics" in res
+
+
+def test_tool_create_github_issue():
+    from agentic_ops.tools.github import CreateIssue
+
+    tool = CreateIssue()
+    assert tool.name == "create_github_issue"
+    assert tool.readOnlyHint is False
+    assert tool.destructiveHint is False
+    assert tool.idempotentHint is False
+    assert tool.openWorldHint is True
+    res = tool.run(
+        title="Drift detected",
+        body="Drift on feature speed_limit > 0.05",
+        risk_id="DATA-042",
+        approved_by_admin=True,
+    )
+    assert "DATA-042" in res
+
+
+def test_all_17_tools_audit_and_coverage():
+    all_17_tools = [
+        # 8 Governed MCP Gateway Tools
+        "read_console_diagnostic",
+        "evaluate_governance_policy",
+        "run_governed_incident_episode",
+        "inspect_worm_trust_ledger",
+        "search_failure_taxonomy",
+        "get_scenario_blueprint",
+        "poll_target_mlops_snapshot",
+        "inspect_control_plane_vitals",
+        # 9 Modular Operational Tools
+        "get_mlflow_model_info",
+        "get_prometheus_metric",
+        "get_evidently_report",
+        "check_database_health",
+        "check_docker_container",
+        "check_dvc_status",
+        "validate_pandera_schema",
+        "execute_sql",
+        "create_github_issue",
+    ]
+    assert len(all_17_tools) == 17
+    assert len(set(all_17_tools)) == 17

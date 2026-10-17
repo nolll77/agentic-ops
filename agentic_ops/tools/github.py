@@ -16,5 +16,15 @@ class CreateIssue(AgentTool):
     requires_approval = True
     timeout_seconds = 10
 
+    readOnlyHint = False
+    destructiveHint = False
+    idempotentHint = False
+    openWorldHint = True
+
+    read_only_hint = False
+    destructive_hint = False
+    idempotent_hint = False
+    open_world_hint = True
+
     def _execute(self, title: str, body: str, risk_id: str) -> str:
         return f"[Simulé] Issue créée: '{title}' (Risque: {risk_id}). ID #42."

@@ -17,6 +17,16 @@ class GetPrometheusMetric(AgentTool):
     description = "Interroge une métrique Prometheus pour vérifier l'état du système."
     args_schema = GetPrometheusMetricArgs
 
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = True
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = True
+
     def _execute(self, metric_name: str, query_window: str) -> str:
         # Simulation
         return f"[Simulé] Valeur pour {metric_name} sur {query_window}: 42.0"
@@ -30,6 +40,16 @@ class GetEvidentlyReport(AgentTool):
     name = "get_evidently_report"
     description = "Récupère le dernier rapport Evidently pour détecter un data drift."
     args_schema = GetEvidentlyReportArgs
+
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = True
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = True
 
     def _execute(self, model_version: str) -> str:
         # Simulation

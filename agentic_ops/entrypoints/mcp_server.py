@@ -81,6 +81,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Returns the compact pytest PASSED results at the top followed by the color-coded cognitive "
             "pedagogical guide ([GUIDE:ROLE], [GUIDE:AGENT], [GUIDE:SLACK], [GUIDE:PROD], [GUIDE:HOW_IT_PASSES])."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -118,6 +126,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "(governance/autonomy_policy.yaml, action_catalog.yaml, risk_register.yaml). "
             "Returns ALLOW, REQUIRE_APPROVAL (Slack HITL), or DENY with exact rule IDs (R-001, CAT-001, CAT-002)."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -176,6 +192,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Executes a full end-to-end governed incident episode through the PolicyEngine and seals "
             "the cryptographic record (SHA-256 hash chain + HMAC-SHA512 signature) into the WORM Trust Ledger."
         ),
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": False,
+        "read_only_hint": False,
+        "destructive_hint": False,
+        "idempotent_hint": False,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -209,6 +233,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Audits the append-only WORM Trust Ledger (ledger.jsonl), verifies the full SHA-256 Merkle chain "
             "and HMAC-SHA512 signatures via EvidenceStore.verify_chain(), and returns sealed episodes."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -230,6 +262,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Searches the foundational 435 MLOps Failure Modes Taxonomy (docs/mlops_failure_modes_taxonomy.md) "
             "by keyword, risk ID, dimension, or symptom."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -252,6 +292,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Retrieves the architectural specification from docs/mlops_simulation_scenarios_registry.md and/or "
             "the executable YAML scenario contract from tests/scenarios/data/*.yaml."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -269,6 +317,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Executes a 100% Read-Only HTTP GET pull collection via CacPullCollector across the 5 observability "
             "endpoints of the target MLOps platform (jakatt/cac_mlops) over the Tailscale SOCKS5 mesh."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": True,
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -283,6 +339,14 @@ MCP_TOOLS: List[Dict[str, Any]] = [
             "Returns real-time health, socket status (Redis :6379, Tailscale SOCKS5 :1055), "
             "Linux cgroup v2 memory telemetry, and active PolicyBundle version hash."
         ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
         "inputSchema": {"type": "object", "properties": {}},
     },
 ]

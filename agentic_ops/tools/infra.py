@@ -14,6 +14,16 @@ class CheckDatabaseHealth(AgentTool):
     )
     args_schema = CheckDatabaseHealthArgs
 
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = True
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = True
+
     def _execute(self, db_name: str) -> str:
         return f"[Simulé] Ping réussi sur {db_name}. Latence: 12ms."
 
@@ -26,6 +36,16 @@ class CheckDockerContainer(AgentTool):
     name = "check_docker_container"
     description = "Simule l'inspection de l'état d'un conteneur Docker."
     args_schema = CheckDockerContainerArgs
+
+    readOnlyHint = True
+    destructiveHint = False
+    idempotentHint = True
+    openWorldHint = False
+
+    read_only_hint = True
+    destructive_hint = False
+    idempotent_hint = True
+    open_world_hint = False
 
     def _execute(self, container_name: str) -> str:
         return f"[Simulé] Le conteneur {container_name} est 'Up 24 hours'."

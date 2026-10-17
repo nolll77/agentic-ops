@@ -29,6 +29,17 @@ class AgentTool:
     requires_approval: bool = False
     timeout_seconds: int = 15
 
+    # MCP / OpenAI standard behavioral hints
+    readOnlyHint: bool = True
+    destructiveHint: bool = False
+    idempotentHint: bool = True
+    openWorldHint: bool = False
+
+    read_only_hint: bool = True
+    destructive_hint: bool = False
+    idempotent_hint: bool = True
+    open_world_hint: bool = False
+
     def run(self, **kwargs) -> Any:
         is_approved = kwargs.pop("approved_by_admin", False)
         validated_args = self.args_schema(**kwargs)
