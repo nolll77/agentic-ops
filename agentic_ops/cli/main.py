@@ -3188,5 +3188,12 @@ app.include_router(mcp_router)
 def start_server():
     import uvicorn
     port = int(os.environ.get("PORT", "8001"))
-    uvicorn.run("agentic_ops.cli.main:app", host="0.0.0.0", port=port)
+    uvicorn.run(
+        "agentic_ops.cli.main:app",
+        host="0.0.0.0",
+        port=port,
+        limit_concurrency=20,
+        timeout_keep_alive=15,
+        workers=1,
+    )
 

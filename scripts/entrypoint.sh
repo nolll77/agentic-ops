@@ -14,8 +14,8 @@ mkdir -p /tmp/state
 
 # 1. Start local Redis daemon if available (for distributed locks & rate limiting)
 if command -v redis-server >/dev/null 2>&1; then
-    echo "[1/4] Starting local Redis server on 127.0.0.1:6379..."
-    redis-server --daemonize yes --bind 127.0.0.1 --port 6379 || true
+    echo "[1/4] Starting local Redis server on 127.0.0.1:6379 (maxmemory 64mb, LRU eviction)..."
+    redis-server --daemonize yes --bind 127.0.0.1 --port 6379 --maxmemory 64mb --maxmemory-policy allkeys-lru || true
 else
     echo "[1/4] redis-server binary not found, skipping local daemon."
 fi
