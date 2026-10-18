@@ -57,7 +57,7 @@ Ce document formalise l'architecture de distribution publique du package `agenti
 
 * **Nom Officiel** : `agentic-ops`
 * **URL du Registre** : [https://pypi.org/project/agentic-ops/](https://pypi.org/project/agentic-ops/)
-* **Version Active** : `0.1.0`
+* **Version Active** : `0.1.1`
 * **Licence** : `MIT`
 * **Régistre Simple (Index)** : `https://pypi.org/simple/agentic-ops/`
 * **Compatibilité Runtimes** : `Python >= 3.10` (testé et validé unitairement sur 3.10, 3.11, 3.12).
