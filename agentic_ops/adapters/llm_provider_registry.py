@@ -495,14 +495,83 @@ class LLMProviderRegistry:
                 "latency_ms": latency_ms,
             }
         except Exception as exc:
+            t_elapsed = round((time.monotonic() - t0) * 1000, 1)
+            offline_answer = _get_offline_sre_answer(message)
+            if offline_answer:
+                return {
+                    "status": "ok",
+                    "answer": offline_answer,
+                    "action_type": "KNOWLEDGE_LOOKUP",
+                    "confidence_score": 1.0,
+                    "rationale": "Réponse déterministe servie depuis la base de connaissances SRE intégrée (mode dégradé Zero-Token).",
+                    "provider": "agentic_ops_builtin",
+                    "model": "deterministic_sre_knowledge_base",
+                    "latency_ms": t_elapsed,
+                }
+
+            key_env = os.environ.get("OPENROUTER_API_KEY", "")
+            key_hint = "" if key_env else " (La variable OPENROUTER_API_KEY est absente de l'environnement)."
             return {
                 "status": "error",
                 "error": str(exc),
-                "answer": f"Erreur de communication avec le fournisseur LLM ({exc}).",
+                "answer": (
+                    f"Incident Fournisseur LLM : {exc}.{key_hint} "
+                    "Vérifiez vos clés d'API (OPENROUTER_API_KEY, etc.) ou posez une question sur les concepts clés du Control Plane "
+                    "(Circuit Breaker, WORM Ledger, Slack HITL, Dérive Evidently, Fail-Closed)."
+                ),
                 "provider": os.environ.get("LLM_PROVIDER", "openrouter"),
                 "model": os.environ.get("LLM_MODEL", "unknown"),
-                "latency_ms": None,
+                "latency_ms": t_elapsed,
             }
+
+
+def _get_offline_sre_answer(message: str) -> str | None:
+    msg = message.lower()
+    if any(k in msg for k in ["circuit breaker", "saturation", "quota", "coupe-circuit"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "Le **Circuit Breaker** (FinOps & SecOps) protège le cluster contre les tempêtes de requêtes, "
+            "les boucles infinies d'agents et l'explosion des coûts d'API LLM :\n\n"
+            "• **Seuil de déclenchement** : au-delà de 50 requêtes/heure ou en cas de défaillances 5xx en chaîne, "
+            "le coupe-circuit bascule immédiatement en état `TRIPPED`.\n"
+            "• **Gouvernance Fail-Closed** : dès l'activation du coupe-circuit, tout appel vers les modèles probabilistes "
+            "est coupé. Le système injecte le diagnostic figé `CIRCUIT_BREAKER_FALLBACK` et restreint les actions possibles "
+            "à l'opération non-mutante `CREATE_ISSUE` (ouverture d'un ticket GitHub d'alerte, 0 token consommé, 0 mutation en production)."
+        )
+    if any(k in msg for k in ["worm", "trust ledger", "ledger", "immuab", "tamper", "audit trail"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "Le **WORM Trust Ledger** (*Write Once, Read Many*) garantit l'immuabilité cryptographique et la non-répudiation "
+            "de chaque intervention autonome sur le cluster MLOps :\n\n"
+            "• **Chaînage cryptographique** : chaque épisode résolu est scellé par double signature `SHA-256` et `HMAC-SHA512` "
+            "enchaînée sur l'état du bloc précédent (arbre de Merkle).\n"
+            "• **Traçabilité forensique** : le registre consigne l'empreinte exacte du signal d'alerte, les faits système observés, "
+            "le diagnostic de l'agent, l'approbation humaine Slack et la commande exécutée.\n"
+            "• **Détection d'altération** : la commande `agentic-ops audit` recalcule l'intégrité de la chaîne. Toute modification "
+            "post-mortem ou suppression d'entrée déclenche immédiatement une alerte de falsification (*Tampering Alert*)."
+        )
+    if any(k in msg for k in ["drift", "evidently", "dérive"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "La surveillance du **Data Drift** et du **Model Staleness** est opérée en continu via les connecteurs Evidently et Pandera :\n\n"
+            "• **Détection statistique** : calcul des distances de Wasserstein et tests de Kolmogorov-Smirnov sur les distributions d'entrées.\n"
+            "• **Routage spécialisé** : toute dérive avérée est acheminée vers le `DataSpecialist` pour discriminer une dérive ponctuelle de covariables d'une dérive de concept réelle exigeant un réentraînement."
+        )
+    if any(k in msg for k in ["slack", "hitl", "approbation", "quorum"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "Le protocole **Slack HITL** (*Human-in-the-Loop*) constitue le garde-fou obligatoire pour toute action à impact matériel (*Mutating Actions*) :\n\n"
+            "• **Sécurité cryptographique** : chaque interaction est validée par signature `HMAC-SHA256` (`X-Slack-Signature`) et fenêtre anti-rejeu (< 300s).\n"
+            "• **Concurrence distribuée** : les approbations concurrentes sont arbitrées par verrou atomique `SQLite BEGIN IMMEDIATE` pour éliminer tout risque de double exécution (Race Condition)."
+        )
+    if any(k in msg for k in ["fail-closed", "zero-trust", "politique", "policy"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "Le principe **Fail-Closed** stipule qu'en l'absence de règle explicite autorisant une action (`ALLOW`), "
+            "ou lors d'une défaillance réseau / partition Tailscale, le `PolicyEngine` applique par défaut le statut `DENY`.\n\n"
+            "Aucune action mutante ne peut être exécutée sans autorisation déterministe préalable."
+        )
+    return None
 
 
 def _set_env_if_missing(key: str, value: str) -> None:

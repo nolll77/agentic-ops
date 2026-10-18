@@ -18,7 +18,7 @@ from agentic_ops.adapters.cac_pull_collector import CacPullCollector
 app = FastAPI(
     title="Agentic-Ops Control Plane",
     description="Deterministic SRE & MLOps Governance Control Plane (Auto-Wake Ready + Web Console + MCP Gateway)",
-    version="0.1.1",
+    version="0.1.2",
 )
 
 # CORS enabled so a Vercel frontend or external dashboard can wake the container via fetch()
