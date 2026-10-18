@@ -233,11 +233,11 @@ The target is baac_rf.
         monkeypatch.delenv("LLM_MODEL_REMEDIATION", raising=False)
 
         topology = LLMProviderRegistry.get_roles_topology()
-        assert topology["remediation"]["model"] == "openrouter/deepseek/deepseek-r1:free"
+        assert topology["remediation"]["model"] == "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
         assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
         assert topology["data"]["model"] == "openrouter/google/gemma-4-26b-a4b-it:free"
-        assert topology["model"]["model"] == "openrouter/meta-llama/llama-3.3-70b-instruct:free"
-        assert topology["chat"]["model"] == "openrouter/deepseek/deepseek-chat:free"
+        assert topology["model"]["model"] == "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
+        assert topology["chat"]["model"] == "openrouter/google/gemma-4-31b-it:free"
 
         # All roles are natively specialized
         assert all(topology[r]["is_specialized"] is True for r in topology)
@@ -264,7 +264,7 @@ The target is baac_rf.
         assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
         assert topology["infra"]["is_specialized"] is True
         assert "recommendation" in topology["infra"]
-        assert topology["remediation"]["model"] == "openrouter/deepseek/deepseek-r1:free"
+        assert topology["remediation"]["model"] == "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
 
     @patch("agentic_ops.adapters.llm_protocol.LiteLLMAdapter.__init__", return_value=None)
     def test_build_adapter_for_role_applies_role_label(self, mock_litellm_init, monkeypatch):

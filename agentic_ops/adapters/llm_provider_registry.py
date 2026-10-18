@@ -46,16 +46,16 @@ logger = logging.getLogger("LLMProviderRegistry")
 PROVIDER_PROFILES: dict[str, dict[str, Any]] = {
     "openrouter": {
         "description": "OpenRouter hub — 200+ models, :free tag = 0 EUR",
-        "default_model": "openrouter/deepseek/deepseek-r1:free",
+        "default_model": "openrouter/google/gemma-4-31b-it:free",
         "api_key_env": "OPENROUTER_API_KEY",
         "litellm_prefix": "openrouter/",
         "free_models": [
-            "openrouter/deepseek/deepseek-r1:free",
-            "openrouter/deepseek/deepseek-chat:free",
-            "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-            "openrouter/google/gemini-2.0-flash-exp:free",
-            "openrouter/google/gemma-2-9b-it:free",
-            "openrouter/mistralai/mistral-7b-instruct:free",
+            "openrouter/google/gemma-4-31b-it:free",
+            "openrouter/google/gemma-4-26b-a4b-it:free",
+            "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+            "openrouter/openrouter/free",
+            "openrouter/liquid/lfm-2.5-2.6b:free",
         ],
         "rate_limits": "20 req/min, 200 req/day per key (free tier)",
     },
@@ -125,7 +125,7 @@ SUPPORTED_ROLES: tuple[str, ...] = ("remediation", "infra", "data", "model", "ch
 
 ROLE_RECOMMENDED_MODELS: dict[str, dict[str, str]] = {
     "remediation": {
-        "model": "openrouter/deepseek/deepseek-r1:free",
+        "model": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
         "reason": "Raisonnement CoT délibéré pour planification d'actions et calcul blast radius",
     },
     "infra": {
@@ -137,12 +137,12 @@ ROLE_RECOMMENDED_MODELS: dict[str, dict[str, str]] = {
         "reason": "Latence faible et parsing rapide des covariances et métriques Evidently",
     },
     "model": {
-        "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free",
-        "reason": "Benchmark 70B pour comparaison stricte des métriques F1 et dérives MLflow",
+        "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+        "reason": "Benchmark 120B pour comparaison stricte des métriques F1 et dérives MLflow",
     },
     "chat": {
-        "model": "openrouter/deepseek/deepseek-chat:free",
-        "reason": "Mode conversationnel rapide sans balises think pour interface SRE chat",
+        "model": "openrouter/google/gemma-4-31b-it:free",
+        "reason": "Mode multimodal rapide avec TTFT ultra-rapide pour interface SRE chat",
     },
 }
 
@@ -409,15 +409,16 @@ class LLMProviderRegistry:
         return result
 
     @staticmethod
-    def probe(timeout: float = 10.0) -> dict:
+    def probe(role: str = "global", timeout: float = 10.0) -> dict:
         """
         Sonde le LLM actif avec un prompt minimal et mesure la latence.
         Retourne le résultat et la latence en millisecondes.
         """
         from agentic_ops.adapters.llm_protocol import _ProbeResponse
+        target_role = role if role in SUPPORTED_ROLES else "global"
+        cfg = LLMProviderRegistry.resolve_role_config(role=target_role)
         try:
-            adapter = LLMProviderRegistry.build_adapter_from_env()
-            cfg = LLMProviderRegistry.resolve_config()
+            adapter = LLMProviderRegistry.build_adapter_for_role(role=target_role)
             t0 = time.monotonic()
             result = adapter.complete(
                 system="You are a health-check bot.",
@@ -428,6 +429,7 @@ class LLMProviderRegistry:
             latency_ms = round((time.monotonic() - t0) * 1000, 1)
             return {
                 "status": "ok",
+                "role": target_role,
                 "provider": cfg.provider,
                 "model": cfg.model,
                 "response": result.answer,
@@ -437,8 +439,9 @@ class LLMProviderRegistry:
             return {
                 "status": "error",
                 "error": str(exc),
-                "provider": os.environ.get("LLM_PROVIDER", "openrouter"),
-                "model": os.environ.get("LLM_MODEL", "unknown"),
+                "role": target_role,
+                "provider": cfg.provider,
+                "model": cfg.model,
                 "latency_ms": None,
             }
 

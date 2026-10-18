@@ -291,7 +291,7 @@ def get_mas_topology():
             "mission": "Évalue le rayon d'impact systémique (Blast Radius 0-5), analyse l'arbre de causalité et formule l'intention de remédiation (ActionIntent).",
             "fsm_trigger": "Exécuté systématiquement lors de l'état FSM [PLANNED].",
             "anti_bias_rule": "Principe Anti-Biais strict : les spécialistes se limitent aux faits, seul le RemediationAgent évalue la proportionnalité de l'action.",
-            "active_model": roles_top.get("remediation", {}).get("model", "openrouter/deepseek/deepseek-r1:free"),
+            "active_model": roles_top.get("remediation", {}).get("model", "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"),
             "provider": roles_top.get("remediation", {}).get("provider", "openrouter"),
             "fallback_models": roles_top.get("remediation", {}).get("fallback_models", []),
             "override_env": "LLM_MODEL_REMEDIATION",
@@ -582,23 +582,30 @@ def list_llm_models():
             {
                 "tier": "Primary (24/7 Cloud)",
                 "provider": "openrouter",
-                "model": "openrouter/deepseek/deepseek-r1:free",
+                "model": "openrouter/google/gemma-4-31b-it:free",
                 "cost": "0 EUR",
-                "reason": "Top reasoning benchmark (DeepSeek-R1), requires only OPENROUTER_API_KEY with no billing card.",
+                "reason": "Top multimodal benchmark (Gemma 4 31B), 256k tokens context window, requires only OPENROUTER_API_KEY with no billing card.",
             },
             {
                 "tier": "Fast Cloud (Fallback)",
                 "provider": "openrouter",
-                "model": "openrouter/deepseek/deepseek-chat:free",
+                "model": "openrouter/google/gemma-4-26b-a4b-it:free",
                 "cost": "0 EUR",
-                "reason": "Direct JSON output without think tags, fast p95 latency.",
+                "reason": "Fast MoE architecture with only 3.8B active parameters, ultra-low TTFT latency.",
             },
             {
-                "tier": "Meta Llama (Fallback)",
+                "tier": "Reasoning CoT (Fallback)",
                 "provider": "openrouter",
-                "model": "openrouter/meta-llama/llama-3.3-70b-instruct:free",
+                "model": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
                 "cost": "0 EUR",
-                "reason": "Enterprise-grade 70B parameter model hosted for free.",
+                "reason": "Dedicated Chain-of-Thought reasoning model for blast radius and dependency tree analysis.",
+            },
+            {
+                "tier": "High Capacity (Fallback)",
+                "provider": "openrouter",
+                "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
+                "cost": "0 EUR",
+                "reason": "High-capacity 120B parameter model hosted for free.",
             },
             {
                 "tier": "Tailscale / Local Mesh",
@@ -612,14 +619,15 @@ def list_llm_models():
 
 
 @app.post("/api/llm/probe")
-def probe_llm(timeout: float = Query(default=10.0)):
+def probe_llm(role: str | None = Query(default=None), timeout: float = Query(default=15.0)):
     """
     Actively probes the configured LLM provider with a minimal deterministic
     health-check query, measuring latency and verifying API key validity.
     """
     from agentic_ops.adapters.llm_provider_registry import LLMProviderRegistry
 
-    return LLMProviderRegistry.probe(timeout=timeout)
+    target_role = role or "global"
+    return LLMProviderRegistry.probe(role=target_role, timeout=timeout)
 
 
 from pydantic import BaseModel as _FastApiBaseModel
@@ -1851,7 +1859,8 @@ async function probeAgentModel(agentId) {
     btn.innerText = '⏳ Test de la sonde en cours...';
   }
   try {
-    const res = await fetch('/api/llm/probe?timeout=20.0', { method: 'POST' });
+    const url = '/api/llm/probe?role=' + encodeURIComponent(agentId || 'global') + '&timeout=20.0';
+    const res = await fetch(url, { method: 'POST' });
     const rawText = await res.text();
     let data;
     try {
@@ -1860,9 +1869,9 @@ async function probeAgentModel(agentId) {
       data = { status: 'error', error: rawText || 'Réponse vide du serveur (' + res.status + ')' };
     }
     if (data.status === 'ok') {
-      alert('✅ Sonde LLM Opérationnelle !\n\n• Provider : ' + data.provider + '\n• Modèle : ' + data.model + '\n• Réponse : ' + (data.response || 'ok') + '\n• Latence : ' + data.latency_ms + ' ms');
+      alert('✅ Sonde LLM Opérationnelle !\n\n• Agent : ' + (data.role || agentId || 'global') + '\n• Provider : ' + data.provider + '\n• Modèle : ' + data.model + '\n• Réponse : ' + (data.response || 'ok') + '\n• Latence : ' + data.latency_ms + ' ms');
     } else {
-      alert('⚠️ Erreur de Sonde LLM :\n\n' + (data.error || 'Erreur inconnue') + '\n\nVérifiez votre clé OPENROUTER_API_KEY dans les variables d\'environnement.');
+      alert('⚠️ Erreur de Sonde LLM (' + (data.role || agentId || 'global') + ') :\n\n• Modèle ciblé : ' + (data.model || 'inconnu') + '\n• Détail : ' + (data.error || 'Erreur inconnue') + '\n\nVérifiez votre clé OPENROUTER_API_KEY dans les variables d\'environnement.');
     }
   } catch (err) {
     alert('❌ Erreur réseau lors du test de la sonde : ' + err);
