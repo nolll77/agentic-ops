@@ -515,7 +515,7 @@ class LLMProviderRegistry:
                 "status": "error",
                 "error": str(exc),
                 "answer": (
-                    f"Incident Fournisseur LLM : {exc}.{key_hint} "
+                    f"Erreur de communication avec le fournisseur LLM : {exc}.{key_hint} "
                     "Vérifiez vos clés d'API (OPENROUTER_API_KEY, etc.) ou posez une question sur les concepts clés du Control Plane "
                     "(Circuit Breaker, WORM Ledger, Slack HITL, Dérive Evidently, Fail-Closed)."
                 ),
