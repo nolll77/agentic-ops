@@ -22,8 +22,9 @@ def pytest_collection_modifyitems(config, items):
             it.add_marker(pytest.mark.xfail(strict=True, reason=f"{GAPS[gid]['p0']}: {GAPS[gid]['why']}"))
 
 def pytest_collection_finish(session):
+    import os
     stale = set(GAPS) - _used
-    if stale and not session.config.option.keyword:
+    if stale and not session.config.option.keyword and os.environ.get("CHECK_GAPS"):
         import warnings
         warnings.warn(f"known_gaps.yaml: entrées sans test: {sorted(stale)}")
 

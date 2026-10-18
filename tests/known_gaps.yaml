@@ -1,16 +1,4 @@
-H1: {p0: P0-4, why: "signature Slack non vérifiée"}
-H2: {p0: P0-4, why: "pas de fenêtre anti-rejeu sur le timestamp"}
-H3: {p0: P0-4, why: "requête rejouée non rejetée"}
-H4: {p0: P0-4, why: "approbateur non contrôlé contre une liste/rôle"}
-H5: {p0: P0-4, why: "approbation non liée au hash de la proposition"}
-H6: {p0: P0-4, why: "AWAITING_APPROVAL sans TTL"}
-H7: {p0: P0-4, why: "resume_episode non atomique (double clic)"}
-H8: {p0: P0-4, why: "approvals_required=2 non appliqué"}
-C1: {p0: P0-5, why: "aucun journal d'intention avant EXECUTING"}
-C2: {p0: P0-5, why: "reprise après crash: double exécution possible"}
-T1: {p0: P0-2, why: "le timeout ne rend pas la main (with ThreadPoolExecutor)"}
-T2: {p0: P0-2, why: "un timeout d'outil mutant est reporté FAILED au lieu de UNKNOWN"}
-B1: {p0: P1,   why: "circuit breaker en mémoire: non partagé entre réplicas"}
-B2: {p0: P1,   why: "budget breaker global: une tempête DATA affame un INFRA critique"}
-B3: {p0: P1,   why: "une tempête génère une issue par alerte"}
-F1: {p0: P1,   why: "alertes auto-induites (boucle de rétroaction) non filtrées"}
+B1: {p0: P1, why: "circuit breaker en mémoire: non partagé entre réplicas Kubernetes"}
+B2: {p0: P1, why: "budget breaker global: isolation de quota par namespace/priorité requise"}
+B3: {p0: P1, why: "agrégation d'alertes requise pour éviter la saturation d'issues GitHub"}
+F1: {p0: P1, why: "filtrage des alertes auto-induites par les actions de remédiation"}
