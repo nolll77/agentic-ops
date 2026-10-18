@@ -1851,8 +1851,14 @@ async function probeAgentModel(agentId) {
     btn.innerText = '⏳ Test de la sonde en cours...';
   }
   try {
-    const res = await fetch('/api/llm/probe?timeout=15.0', { method: 'POST' });
-    const data = await res.json();
+    const res = await fetch('/api/llm/probe?timeout=20.0', { method: 'POST' });
+    const rawText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      data = { status: 'error', error: rawText || 'Réponse vide du serveur (' + res.status + ')' };
+    }
     if (data.status === 'ok') {
       alert('✅ Sonde LLM Opérationnelle !\n\n• Provider : ' + data.provider + '\n• Modèle : ' + data.model + '\n• Réponse : ' + (data.response || 'ok') + '\n• Latence : ' + data.latency_ms + ' ms');
     } else {
