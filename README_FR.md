@@ -1,5 +1,7 @@
 # Agentic-Ops Control Plane
 
+[![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
@@ -1408,7 +1410,25 @@ En application stricte de la règle d'**Honnêteté Radicale** du projet, `Agent
 
 ---
 
-## Installation & Tests (E2E Validation)
+## Installation & Prise en Main Rapide
+
+### Option A : Installation depuis PyPI (Recommandé pour la Production & Clusters)
+
+```bash
+# Installation standard via pip
+pip install agentic-ops
+
+# Ou via uv (gestionnaire de paquets ultra-rapide)
+uv pip install agentic-ops
+
+# Démarrer le Control Plane complet (API REST FastAPI, Console SRE /console, Chat /chat, Serveur MCP /sse)
+agentic-start --port 8000 --host 0.0.0.0
+
+# Exécuter l'audit d'intégrité du Trust Ledger
+agentic-ops audit
+```
+
+### Option B : Développement Local depuis les Sources & Suite de Tests Complète
 
 ```bash
 # 1. Préparation de l'environnement
@@ -1416,13 +1436,13 @@ git clone https://github.com/nolll77/agentic-ops.git
 cd agentic-ops-core
 uv venv .venv
 source .venv/bin/activate
-uv pip install -e .
+uv pip install -e ".[dev]"
 uv pip install 'httpx[socks]'
 
-# 2. Exécuter l'Intégration Continue E2E (Sécurité, Scénarios, Connecteur CAC & Passerelle MCP)
-PYTHONPATH=. pytest tests/ -v
+# 2. Exécuter la suite complète de 127 tests (Sécurité, Scénarios, Connecteur CAC & Passerelle MCP)
+pytest tests/ -v
 # > Vérifie l'immutabilité WORM, le Fail-Closed de la Gouvernance,
-# > l'incapacité de contournement de l'Orchestrateur, les 13 tests de CacPullCollector et les 12 tests MCP.
+# > l'incapacité de contournement de l'Orchestrateur, les 13 tests de CacPullCollector et les 24 tests MCP.
 
 # 3. Lancer la TUI d'Audit du Trust Ledger ou le Serveur MCP STDIO
 python -m agentic_ops.cli.trust_ledger list
@@ -1455,6 +1475,8 @@ python -m agentic_ops.entrypoints.mcp_server
     Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs, états de repli, ainsi que la **Stratégie d'Indépendance Fournisseur & Plan de Continuité** détaillant la défense en 4 lignes (bascule zero-code d'env var, sanctuaire souverain 100% hors-cloud via Ollama/Tailscale, isolation fine par agent, et filet de sécurité déterministe à 0-token) en cas de coupure des accès ou changement de politique d'OpenRouter.
 11. **[Architecture de Sélection des Agents & Routage par Défaut du MAS (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** :
     Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
+12. **[Guide d'Ingénierie de Distribution PyPI & Release (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)** :
+    Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.
 
 
 

@@ -1,5 +1,7 @@
 # Agentic-Ops Control Plane
 
+[![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
@@ -1408,7 +1410,25 @@ Applying the repository's **Radical Honesty** rule, `Agentic-Ops` intentionally 
 
 ---
 
-## Installation & E2E Validation Tests
+## Installation & Quickstart
+
+### Option A: Install from PyPI (Recommended for Production & Clusters)
+
+```bash
+# Standard installation via pip
+pip install agentic-ops
+
+# Or using uv (ultra-fast dependency resolver)
+uv pip install agentic-ops
+
+# Start the full Control Plane (FastAPI REST API, SRE Console /console, Chat /chat, MCP Server /sse)
+agentic-start --port 8000 --host 0.0.0.0
+
+# Run SRE Trust Ledger diagnostics
+agentic-ops audit
+```
+
+### Option B: Local Source Development & Full Test Suite
 
 ```bash
 # 1. Environment setup
@@ -1416,13 +1436,13 @@ git clone https://github.com/nolll77/agentic-ops.git
 cd agentic-ops-core
 uv venv .venv
 source .venv/bin/activate
-uv pip install -e .
+uv pip install -e ".[dev]"
 uv pip install 'httpx[socks]'
 
-# 2. Run the E2E Security, Scenarios, CAC Connector & MCP Gateway Test Suite
-PYTHONPATH=. pytest tests/ -v
+# 2. Run the E2E Security, Scenarios, CAC Connector & MCP Gateway Test Suite (127 tests)
+pytest tests/ -v
 # > Verifies WORM immutability, Fail-Closed governance,
-# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, and 12 MCP Gateway tests.
+# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, and 24 MCP Gateway tests.
 
 # 3. Launch the Trust Ledger Audit CLI or the STDIO MCP Server
 python -m agentic_ops.cli.trust_ledger list
@@ -1455,6 +1475,8 @@ python -m agentic_ops.entrypoints.mcp_server
     Exhaustive architectural breakdown of the 5 cascading resilience and safety fallback layers in `Agentic-Ops`: Cognitive Multi-LLM failover, FinOps Circuit Breaker, Specialist routing fallback, Policy Engine fail-closed enforcement, and Remote VPS/Tailscale partition locks. Includes complete code mapping keys, trigger conditions, fallback states, and the **Provider Independence & Disaster Recovery Strategy** detailing the 4 lines of defense (zero-code env switches, 100% sovereign off-cloud Ollama over Tailscale, granular per-role splitting, and deterministic 0-token safety net) if OpenRouter cuts access or changes policies.
 11. **[Multi-Agent System (MAS) Agent Selection & Default Routing Architecture (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)**:
     In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive breakdown of non-cognitive components operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model, as well as the interactive **Live MAS Topology & Agent Inspector** embedded directly in both the Web Console (`/console`) and Web Chat (`/chat`) backed by `GET /api/mas/topology`.
+12. **[PyPI Release & Distribution Engineering Guide (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)**:
+    Comprehensive guide to public package distribution on PyPI: software supply chain security, zero-static-secrets architecture using OpenID Connect (OIDC Trusted Publishing), SLSA provenance attestations, installation and CLI consumption options, and release lifecycle runbooks for maintainers.
 
 
 
