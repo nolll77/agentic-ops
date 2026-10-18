@@ -1429,6 +1429,94 @@ MAS_INSPECTOR_CSS = r"""
       border-color: #64748b;
       color: #fff;
     }
+
+    /* Support Mode Clair pour le Modal MAS */
+    html[data-theme="light"] .mas-modal-box {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+    }
+    html[data-theme="light"] .mas-modal-header {
+      background: #f8fafc;
+      border-bottom-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-close-btn {
+      color: #64748b;
+      border-color: #cbd5e1;
+    }
+    html[data-theme="light"] .mas-close-btn:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .mas-pills-bar {
+      background: #f1f5f9;
+      border-bottom-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-pill-btn {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    html[data-theme="light"] .mas-pill-btn.active, html[data-theme="light"] .mas-pill-btn:hover {
+      background: #7e22ce;
+      border-color: #9333ea;
+      color: #ffffff;
+    }
+    html[data-theme="light"] .mas-list-pane {
+      background: #f8fafc;
+      border-right-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-item-card {
+      background: #ffffff;
+      border-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-item-card:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    html[data-theme="light"] .mas-item-card.selected {
+      background: #f3e8ff;
+      border-color: #9333ea;
+    }
+    html[data-theme="light"] .mas-item-name {
+      color: #0f172a;
+    }
+    html[data-theme="light"] .mas-details-pane {
+      background: #ffffff;
+    }
+    html[data-theme="light"] .mas-detail-hero h3 {
+      color: #0f172a;
+    }
+    html[data-theme="light"] .mas-section-title {
+      color: #7e22ce;
+      border-bottom-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-prop-box {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+    html[data-theme="light"] .mas-prop-val {
+      color: #1e293b;
+    }
+    html[data-theme="light"] .mas-quote-box {
+      background: #faf5ff;
+      border-left-color: #9333ea;
+      color: #334155;
+    }
+    html[data-theme="light"] .mas-dep-pill {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+    html[data-theme="light"] .mas-action-btn.secondary {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    html[data-theme="light"] .mas-action-btn.secondary:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
 """
 
 MAS_INSPECTOR_HTML = r"""
@@ -1807,7 +1895,7 @@ def web_console():
     with color-coded pedagogical explanations.
     """
     raw_html = """<!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -1824,6 +1912,24 @@ def web_console():
       --emerald: #34d399;
       --text: #f8fafc;
       --muted: #94a3b8;
+      --terminal-bg: #05080f;
+      --terminal-bar: #0f172a;
+      --legend-bg: #0d1322;
+    }
+    html[data-theme="light"] {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --border: #cbd5e1;
+      --accent: #0284c7;
+      --purple: #9333ea;
+      --amber: #d97706;
+      --rose: #e11d48;
+      --emerald: #059669;
+      --text: #0f172a;
+      --muted: #64748b;
+      --terminal-bg: #0f172a;
+      --terminal-bar: #1e293b;
+      --legend-bg: #f1f5f9;
     }
     * { box-sizing: border-box; }
     body {
@@ -1832,6 +1938,7 @@ def web_console():
       background: var(--bg);
       color: var(--text);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      transition: background 0.2s, color 0.2s;
     }
     .container { max-width: 1240px; margin: 0 auto; }
     header {
@@ -1877,7 +1984,7 @@ def web_console():
       transition: all 0.15s ease;
     }
     button:hover {
-      background: #1e293b;
+      background: var(--border);
       border-color: var(--accent);
     }
     button.purple { border-left-color: var(--purple); }
@@ -1885,12 +1992,30 @@ def web_console():
     button.emerald { border-left-color: var(--emerald); }
     button strong { display: block; margin-bottom: 3px; font-size: 12.5px; }
     button span { color: var(--muted); font-size: 11px; }
+    .btn-theme-toggle {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
     .legend {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       padding: 10px 14px;
-      background: #0d1322;
+      background: var(--legend-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
       margin-bottom: 12px;
@@ -1911,8 +2036,8 @@ def web_console():
       gap: 6px;
       padding: 3px 9px;
       border-radius: 6px;
-      background: #111827;
-      border: 1px solid #1e293b;
+      background: var(--panel);
+      border: 1px solid var(--border);
     }
     .toggle-btn {
       background: #064e3b;
@@ -1927,13 +2052,13 @@ def web_console():
       white-space: nowrap;
     }
     .toggle-btn.compact {
-      background: #1e293b;
+      background: var(--panel);
       border-color: var(--accent);
       color: var(--accent);
     }
     .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
     .terminal {
-      background: #05080f;
+      background: var(--terminal-bg);
       border: 1px solid var(--border);
       border-radius: 8px;
       overflow: hidden;
@@ -1943,7 +2068,7 @@ def web_console():
       justify-content: space-between;
       align-items: center;
       padding: 8px 14px;
-      background: #0f172a;
+      background: var(--terminal-bar);
       border-bottom: 1px solid var(--border);
       font-size: 12px;
       color: var(--muted);
@@ -1983,6 +2108,10 @@ def web_console():
       </div>
       <div class="badges">
         <span class="badge" style="cursor:pointer;background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-weight:bold;" onclick="openMasModal()" title="Inspecter l'architecture MAS et les LLMs">🤖 Topologie MAS & LLMs Live</span>
+        <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
+          <span id="theme-icon">☀️</span>
+          <span id="theme-text">Clair</span>
+        </button>
         <span class="badge">Redis :6379 Active</span>
         <span class="badge">Tailscale SOCKS5 :1055 Active</span>
         <span class="badge">MCP Gateway /mcp Active</span>
@@ -2199,6 +2328,35 @@ Cliquez sur n'importe quel bouton ci-dessus :
         out.textContent = 'Request failed: ' + err;
       }
     }
+
+    function initTheme() {
+      const saved = localStorage.getItem('agentic_ops_theme') || 'dark';
+      applyTheme(saved);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('agentic_ops_theme', next);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const icon = document.getElementById('theme-icon');
+      const text = document.getElementById('theme-text');
+      if (icon && text) {
+        if (theme === 'light') {
+          icon.textContent = '🌙';
+          text.textContent = 'Sombre';
+        } else {
+          icon.textContent = '☀️';
+          text.textContent = 'Clair';
+        }
+      }
+    }
+
+    initTheme();
   </script>
 </body>
 </html>"""
@@ -2206,7 +2364,7 @@ Cliquez sur n'importe quel bouton ci-dessus :
 
 
 CHAT_HTML = r"""<!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2227,6 +2385,30 @@ CHAT_HTML = r"""<!DOCTYPE html>
       --accent-rose: #fb7185;
       --user-bg: #1e293b;
       --bot-bg: #0a1124;
+      --code-bg: #020617;
+      --modal-bg: #0f172a;
+      --modal-header: #0b1329;
+      --card-bg: #0b1329;
+    }
+    html[data-theme="light"] {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-hover: #f1f5f9;
+      --border: #e2e8f0;
+      --border-accent: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #059669;
+      --accent-blue: #0284c7;
+      --accent-purple: #7e22ce;
+      --accent-amber: #d97706;
+      --accent-rose: #e11d48;
+      --user-bg: #e2e8f0;
+      --bot-bg: #ffffff;
+      --code-bg: #f1f5f9;
+      --modal-bg: #ffffff;
+      --modal-header: #f8fafc;
+      --card-bg: #ffffff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -2237,6 +2419,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      transition: background 0.2s, color 0.2s;
     }
     header {
       background: var(--card);
@@ -2257,7 +2440,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .brand-title {
       font-size: 16px;
       font-weight: 700;
-      color: #fff;
+      color: var(--text);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -2312,6 +2495,24 @@ CHAT_HTML = r"""<!DOCTYPE html>
       background: #581c87;
       border-color: #a855f7;
       color: #fff;
+    }
+    .btn-theme-toggle {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
     }
     .nav-links {
       display: flex;
@@ -2503,7 +2704,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
       background: transparent;
       border: none;
       outline: none;
-      color: #fff;
+      color: var(--text);
       font-family: inherit;
       font-size: 14px;
       resize: none;
@@ -2837,6 +3038,10 @@ CHAT_HTML = r"""<!DOCTYPE html>
       <button class="btn-catalog-toggle" onclick="toggleCatalog(true)" title="Explorer les 20 Prompts Cognitifs MCP">
         <span>📚</span>
         <span>20 Prompts MCP</span>
+      </button>
+      <button class="btn-theme-toggle" id="chat-theme-btn" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
+        <span id="chat-theme-icon">☀️</span>
+        <span id="chat-theme-text">Clair</span>
       </button>
       <div class="nav-links">
         <a href="/console">🖥️ Console</a>
@@ -3222,6 +3427,34 @@ CHAT_HTML = r"""<!DOCTYPE html>
       this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 
+    function initTheme() {
+      const saved = localStorage.getItem('agentic_ops_theme') || 'dark';
+      applyTheme(saved);
+    }
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      localStorage.setItem('agentic_ops_theme', next);
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      const icon = document.getElementById('chat-theme-icon');
+      const text = document.getElementById('chat-theme-text');
+      if (icon && text) {
+        if (theme === 'light') {
+          icon.textContent = '🌙';
+          text.textContent = 'Sombre';
+        } else {
+          icon.textContent = '☀️';
+          text.textContent = 'Clair';
+        }
+      }
+    }
+
+    initTheme();
     loadLLMStatus();
   </script>
 </body>
