@@ -1544,7 +1544,7 @@ MAS_INSPECTOR_HTML = r"""
         <button class="mas-pill-btn" id="mas-filter-cog" onclick="filterMas('cognitive', this)">🧠 Cerveaux Cognitifs (5 LLMs)</button>
         <button class="mas-pill-btn" id="mas-filter-det" onclick="filterMas('deterministic', this)">🛡️ Actionneurs & Garde-Fous (6 Déterministes)</button>
         <span style="flex:1"></span>
-        <button class="mas-pill-btn" onclick="refreshMasData()" title="Recharger la topologie">🔄 Actualiser</button>
+        <button class="mas-pill-btn" id="mas-refresh-btn" onclick="refreshMasData()" title="Recharger la topologie">🔄 Actualiser</button>
       </div>
 
       <div class="mas-split-body">
@@ -1567,7 +1567,7 @@ let currentMasFilter = 'all';
 
 async function fetchMasData() {
   try {
-    const res = await fetch('/api/mas/topology');
+    const res = await fetch('/api/mas/topology?_t=' + Date.now(), { cache: 'no-store' });
     masData = await res.json();
     renderMasUI();
   } catch (err) {
@@ -1605,8 +1605,32 @@ function filterMas(filter, btn) {
   renderMasUI();
 }
 
-function refreshMasData() {
-  fetchMasData();
+async function refreshMasData() {
+  const btn = document.getElementById('mas-refresh-btn');
+  const origText = btn ? btn.innerText : '🔄 Actualiser';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '⏳ Chargement...';
+  }
+  try {
+    const res = await fetch('/api/mas/topology?_t=' + Date.now(), { cache: 'no-store' });
+    masData = await res.json();
+    renderMasUI();
+    if (btn) {
+      btn.innerText = '✅ À jour !';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerText = origText;
+      }, 1500);
+    }
+  } catch (err) {
+    console.error('Failed to load MAS topology:', err);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = '❌ Erreur';
+      setTimeout(() => { btn.innerText = origText; }, 2000);
+    }
+  }
 }
 
 function selectMasComponent(id) {
@@ -1813,10 +1837,21 @@ function renderMasUI() {
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #1e293b;">
       ${isCog ? `<button class="mas-action-btn" id="btn-probe-llm" onclick="probeAgentModel('${activeItem.id}')">⚡ Tester la Sonde LLM (/api/llm/probe)</button>` : ''}
-      <button class="mas-action-btn secondary" id="btn-copy-promql" onclick="copyPromqlMetric('${activeItem.promql_metric}')">📋 Copier Requête PromQL</button>
+      <button class="mas-action-btn secondary" id="btn-copy-promql" onclick="copyActivePromqlMetric()">📋 Copier Requête PromQL</button>
       <button class="mas-action-btn secondary" onclick="closeMasModal()">Fermer</button>
     </div>
   `;
+}
+
+async function copyActivePromqlMetric() {
+  if (!masData) return;
+  const allComponents = [
+    ...masData.cognitive_agents,
+    ...masData.deterministic_components
+  ];
+  const activeItem = allComponents.find(c => c.id === selectedMasId);
+  if (!activeItem || !activeItem.promql_metric) return;
+  await copyPromqlMetric(activeItem.promql_metric);
 }
 
 async function copyPromqlMetric(metricStr) {
