@@ -1716,20 +1716,67 @@ function renderMasUI() {
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #1e293b;">
-      ${isCog ? `<button class="mas-action-btn" onclick="probeAgentModel('${activeItem.id}')">⚡ Tester la Sonde LLM (/api/llm/probe)</button>` : ''}
-      <button class="mas-action-btn secondary" onclick="navigator.clipboard.writeText('${activeItem.promql_metric}'); alert('Métrique PromQL copiée dans le presse-papier !');">📋 Copier Requête PromQL</button>
+      ${isCog ? `<button class="mas-action-btn" id="btn-probe-llm" onclick="probeAgentModel('${activeItem.id}')">⚡ Tester la Sonde LLM (/api/llm/probe)</button>` : ''}
+      <button class="mas-action-btn secondary" id="btn-copy-promql" onclick="copyPromqlMetric('${activeItem.promql_metric}')">📋 Copier Requête PromQL</button>
       <button class="mas-action-btn secondary" onclick="closeMasModal()">Fermer</button>
     </div>
   `;
 }
 
-async function probeAgentModel(agentId) {
+async function copyPromqlMetric(metricStr) {
+  const btn = document.getElementById('btn-copy-promql');
   try {
-    const res = await fetch('/api/llm/probe?timeout=10.0', { method: 'POST' });
-    const data = await res.json();
-    alert('Résultat de la sonde LLM :\nStatus: ' + data.status + '\nProvider: ' + data.provider + '\nModèle: ' + data.model + '\nLatence: ' + data.latency_ms + ' ms');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(metricStr);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = metricStr;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if (btn) {
+      const orig = btn.innerText;
+      btn.innerText = '✅ PromQL Copié !';
+      btn.style.borderColor = '#10b981';
+      btn.style.color = '#10b981';
+      setTimeout(() => {
+        btn.innerText = orig;
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }, 2000);
+    }
   } catch (err) {
-    alert('Erreur lors du test de la sonde : ' + err);
+    prompt('Copiez manuellement la métrique PromQL :', metricStr);
+  }
+}
+
+async function probeAgentModel(agentId) {
+  const btn = document.getElementById('btn-probe-llm');
+  const origText = btn ? btn.innerText : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = '⏳ Test de la sonde en cours...';
+  }
+  try {
+    const res = await fetch('/api/llm/probe?timeout=15.0', { method: 'POST' });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      alert('✅ Sonde LLM Opérationnelle !\n\n• Provider : ' + data.provider + '\n• Modèle : ' + data.model + '\n• Réponse : ' + (data.response || 'ok') + '\n• Latence : ' + data.latency_ms + ' ms');
+    } else {
+      alert('⚠️ Erreur de Sonde LLM :\n\n' + (data.error || 'Erreur inconnue') + '\n\nVérifiez votre clé OPENROUTER_API_KEY dans les variables d\'environnement.');
+    }
+  } catch (err) {
+    alert('❌ Erreur réseau lors du test de la sonde : ' + err);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = origText;
+    }
   }
 }
 
