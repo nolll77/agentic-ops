@@ -29,7 +29,7 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 +--------------------------------------------------------------------------------------------------+
 |                                                                                                  |
 | [Remediation Coordinator] ----> role="remediation" ----> LLM_MODEL_REMEDIATION                  |
-| (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: deepseek-r1:free)             |
+| (Deep Reasoning & CoT)          Fallback: LLM_MODEL      (Default: nemotron-3-nano-omni-30b...:free) |
 |                                                                                                  |
 | [Infra Specialist] -----------> role="infra" ----------> LLM_MODEL_INFRA                        |
 | (256k Context Window Logs)      Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          |
@@ -38,10 +38,10 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 | (Evidently & Covariance)        Fallback: LLM_MODEL      (Default: gemma-4-26b-a4b-it:free)      |
 |                                                                                                  |
 | [Model Specialist] -----------> role="model" ----------> LLM_MODEL_MODEL                        |
-| (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: llama-3.3-70b-instruct:free)  |
+| (MLflow F1 Drift & Metrics)     Fallback: LLM_MODEL      (Default: nemotron-3-super-120b-a12b:free)|
 |                                                                                                  |
 | [Web Chat SRE Assistant] -----> role="chat" -----------> LLM_MODEL_CHAT                         |
-| (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: deepseek-chat:free)           |
+| (Interactive Low Latency)       Fallback: LLM_MODEL      (Default: gemma-4-31b-it:free)          |
 |                                                                                                  |
 +--------------------------------------------------------------------------------------------------+
 ```
@@ -52,22 +52,22 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 
 | Role (`role`) | Primary Focus | Default 0 EUR Model | Context Window | Key Capability |
 | :--- | :--- | :--- | :--- | :--- |
-| **`remediation`** | Action Planning & Blast Radius | `openrouter/deepseek/deepseek-r1:free` | `64,000` tokens | Deep CoT reasoning, risk impact grading (`0-5`), strict reversibility checks. |
+| **`remediation`** | Action Planning & Blast Radius | `openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | `64,000` tokens | Deep CoT reasoning, risk impact grading (`0-5`), strict reversibility checks. |
 | **`infra`** | Loki Logs & Network Saturation | `openrouter/google/gemma-4-31b-it:free` | `262,144` tokens | Multi-page log ingestion, kernel trace anomaly extraction without truncation. |
 | **`data`** | Evidently Drift & Schema Checks | `openrouter/google/gemma-4-26b-a4b-it:free` | `262,144` tokens | Fast Mixture-of-Experts JSON extraction, Pandera error parsing at sub-second latency. |
-| **`model`** | Model Drift & MLflow Evaluation | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `128,000` tokens | High-parameter benchmark evaluation, false positive suppression on minority classes. |
-| **`chat`** | Human SRE Copilot & Console UI | `openrouter/deepseek/deepseek-chat:free` | `64,000` tokens | Immediate interactive response, no `<think>` tags, structured metadata cards. |
+| **`model`** | Model Drift & MLflow Evaluation | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `128,000` tokens | High-parameter benchmark evaluation, false positive suppression on minority classes. |
+| **`chat`** | Human SRE Copilot & Console UI | `openrouter/google/gemma-4-31b-it:free` | `262,144` tokens | Immediate interactive multimodal response, structured metadata cards. |
 
 ---
 
 ### Detailed Rationale for Each Agent's Default Model Selection
 
-#### 1. RemediationAgent (`role="remediation"`) -> `DeepSeek-R1:free`
+#### 1. RemediationAgent (`role="remediation"`) -> `NVIDIA Nemotron-3 Reasoning (30B):free`
 - **The Operational Challenge**: The remediation coordinator does not merely read logs; it holds the responsibility of deciding whether to trigger container restarts, pod evacuations, or production rollbacks. Proposing an uncalculated mutation can cascade a minor incident into a total platform outage.
-- **Why DeepSeek-R1 is Non-Negotiable**: DeepSeek-R1 is an open-weights reasoning model that performs deliberate, multi-step Chain-of-Thought (CoT) reflection enclosed in `<think>...</think>` tags prior to delivering its JSON payload. This allows the model to perform out-of-band causal deduction:
+- **Why Nemotron-3 Reasoning is Non-Negotiable**: Nemotron-3 Reasoning is a dedicated open-weights reasoning model that performs deliberate, multi-step Chain-of-Thought (CoT) reflection prior to delivering its JSON payload. This allows the model to perform out-of-band causal deduction:
   - *Dependency cross-check*: Does this latency spike originate from a database deadlock or from downstream queue starvation?
   - *Blast radius calibration*: It mathematically estimates the blast radius score ($0$ to $5$) and reversibility flag required by `ActionIntent` before passing the proposal to the `PolicyEngine`.
-- **Verdict**: A fast, non-reasoning model would produce hasty, destructive action proposals; DeepSeek-R1 enforces judicial deliberation.
+- **Verdict**: A fast, non-reasoning model would produce hasty, destructive action proposals; Nemotron-3 Reasoning enforces judicial deliberation.
 
 #### 2. InfraSpecialist (`role="infra"`) -> `Google Gemma-4 31B:free`
 - **The Operational Challenge**: Infrastructure crashes (e.g. Linux kernel out-of-memory kills, TCP socket exhaustion, Docker container crash loops, PostgreSQL connection pool starvation) emit thousands of lines of dense, interleaved telemetry.
@@ -76,18 +76,18 @@ In high-stakes SRE and MLOps production systems, deploying a single undifferenti
 
 #### 3. DataSpecialist (`role="data"`) -> `Google Gemma-4 26B (MoE):free`
 - **The Operational Challenge**: Data quality failures (e.g. Pandera contract breaches, missing categorical levels in the BAAC road accident tables, covariate drift detected by Evidently) require sub-second triage across structured schemas and statistical tables.
-- **Why Gemma-4 26B is Non-Negotiable**: Data investigation requires high-throughput tabular comprehension, strict Pydantic JSON serialization, and minimal latency. Utilizing a 671B reasoning model for basic schema validation is economically wasteful and operationally sluggish. Gemma-4 26B uses an efficient Mixture-of-Experts (MoE) architecture that delivers immediate, deterministic diagnostics of drift matrices and schema anomalies with zero token waste.
+- **Why Gemma-4 26B is Non-Negotiable**: Data investigation requires high-throughput tabular comprehension, strict Pydantic JSON serialization, and minimal latency. Utilizing a heavy reasoning model for basic schema validation is economically wasteful and operationally sluggish. Gemma-4 26B uses an efficient Mixture-of-Experts (MoE) architecture (3.8B active params) that delivers immediate, deterministic diagnostics of drift matrices and schema anomalies with zero token waste.
 - **Verdict**: Pure schema and distribution validation demands throughput and precision rather than philosophical contemplation; Gemma-4 26B delivers sub-second extraction.
 
-#### 4. ModelSpecialist (`role="model"`) -> `Meta Llama 3.3 70B:free`
+#### 4. ModelSpecialist (`role="model"`) -> `NVIDIA Nemotron-3 Super (120B):free`
 - **The Operational Challenge**: Machine learning models in production rarely fail with simple syntax errors; they fail through subtle statistical decay (concept drift, prediction distribution shifts, covariate degradation). In the BAAC road accident severity domain, the model must maintain high F1-Score sensitivity on sparse, critical minority classes (fatalities and severe injuries) against the MLflow reference baseline.
-- **Why Llama 3.3 70B is Non-Negotiable**: Differentiating between genuine concept drift ($P(Y \mid X)$ shift requiring retraining) and transient input noise ($P(X)$ feature anomaly) requires strong mathematical and statistical reasoning capacity. With 70 billion parameters, Llama 3.3 provides the conceptual depth needed to interpret confusion matrices, evaluate ROC-AUC degradation, and suppress false-positive retraining proposals.
+- **Why Nemotron-3 Super 120B is Non-Negotiable**: Differentiating between genuine concept drift ($P(Y \mid X)$ shift requiring retraining) and transient input noise ($P(X)$ feature anomaly) requires strong mathematical and statistical reasoning capacity. With 120 billion parameters, Nemotron-3 Super provides the conceptual depth needed to interpret confusion matrices, evaluate ROC-AUC degradation, and suppress false-positive retraining proposals.
 - **Verdict**: High parameter count is essential to prevent costly, unwarranted model retraining cycles.
 
-#### 5. WebChatCopilot (`role="chat"`) -> `DeepSeek-Chat:free`
+#### 5. WebChatCopilot (`role="chat"`) -> `Google Gemma-4 31B:free`
 - **The Operational Challenge**: Unlike autonomous agents operating asynchronously in the background, the Web Chat interface (`/chat`) directly serves human SRE engineers and on-call operators in live operational war-rooms.
-- **Why DeepSeek-Chat is Non-Negotiable**: If `DeepSeek-R1` were assigned to `/chat`, the operator would wait 10 to 25 seconds while the model generated hundreds of invisible `<think>` tokens before displaying the first word. `deepseek-chat:free` (DeepSeek-V3) operates without thinking envelopes, streaming tokens instantaneously (sub-second Time-to-First-Token) while providing full markdown formatting and immediate execution of the 20 MCP Cognitive Starter Prompts.
-- **Verdict**: Human interaction requires instantaneous conversational streaming; DeepSeek-Chat provides immediate response times with zero cognitive lag.
+- **Why Gemma-4 31B is Non-Negotiable**: Gemma-4 31B provides instantaneous conversational streaming (sub-second Time-to-First-Token) while providing full markdown formatting and immediate execution of the 20 MCP Cognitive Starter Prompts.
+- **Verdict**: Human interaction requires instantaneous conversational streaming; Gemma-4 31B provides immediate response times with zero cognitive lag.
 
 ---
 
@@ -106,11 +106,11 @@ Tier 2: Global Environment Variable (Universal Override)
                          ▼ (if not defined)
 Tier 3: Native Role-Specialized Default Model (MAS Out-of-the-Box)
   e.g. ROLE_RECOMMENDED_MODELS[role]["model"] on OpenRouter
-  - remediation: openrouter/deepseek/deepseek-r1:free
+  - remediation: openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
   - infra:       openrouter/google/gemma-4-31b-it:free
   - data:        openrouter/google/gemma-4-26b-a4b-it:free
-  - model:       openrouter/meta-llama/llama-3.3-70b-instruct:free
-  - chat:        openrouter/deepseek/deepseek-chat:free
+  - model:       openrouter/nvidia/nemotron-3-super-120b-a12b:free
+  - chat:        openrouter/google/gemma-4-31b-it:free
                          │
                          ▼ (if provider is not OpenRouter and no role default)
 Tier 4: Provider Default Model

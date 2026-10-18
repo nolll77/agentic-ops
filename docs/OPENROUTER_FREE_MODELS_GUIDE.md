@@ -96,23 +96,23 @@ As queried directly against the OpenRouter API, the following **17 models** oper
 
 ---
 
-## 4. Why Default to `deepseek/deepseek-r1:free`? Rationale & Trade-offs
+## 4. Why Default to `google/gemma-4-31b-it:free`? Rationale & Trade-offs
 
 The default configuration in `LLMProviderRegistry` is set to:
 ```python
-"default_model": "openrouter/deepseek/deepseek-r1:free"
+"default_model": "openrouter/google/gemma-4-31b-it:free"
 ```
 
 ### The 3 Core Engineering Reasons:
-1. **Deliberate Chain-of-Thought (CoT)**:
-   - Diagnosing complex incidents (such as `DATA-042` feature drift or Kubernetes OOM loops) requires understanding causal dependencies (e.g., verifying whether an upstream sensor corrupted the data before attempting a model retraining).
-   - Reasoning models explicitly think before answering, preventing hasty hallucinations and respecting deterministic governance rules like `R-001` (`upstream_masks_service`).
-2. **Pydantic Schema Adherence**:
+1. **Massive 256k Context Window & Dense Architecture**:
+   - Diagnosing complex incidents (such as `DATA-042` feature drift or Kubernetes OOM loops) requires ingesting Loki log dumps, systemd journals, and Pandera/Evidently reports without premature truncation.
+   - Gemma 4 31B provides a 262,144 token context window while delivering near-instantaneous inference response times.
+2. **Pydantic Schema Adherence & Zero 404 Deprecation**:
    - `Agentic-Ops` agents must output strictly valid JSON conforming to the `ActionIntent` contract (`action`, `target`, `rationale`, `declared_blast_radius`).
-   - DeepSeek-R1 demonstrates one of the highest structural compliance rates among publicly accessible models.
-3. **Radical Honesty: The Free Tier Pitfall**:
-   - Because `deepseek-r1:free` is the most popular free reasoning model in the industry, it frequently hits concurrency rate limits (`HTTP 429`) during peak hours.
-   - Rather than masking this instability, `Agentic-Ops` addresses it architecturally using **automated fallback failovers**.
+   - Legacy endpoints (like `deepseek-r1:free`, `llama-3.3-70b-instruct:free`, `qwen-2.5-72b-instruct:free`) were retired by OpenRouter with `HTTP 404`. Gemma 4 31B is actively maintained on the live OpenRouter free catalog.
+3. **Dedicated Reasoning Chain via Nemotron & Meta-Routing**:
+   - For deliberate Chain-of-Thought reasoning (Blast Radius $0-5$), the `remediation` role natively routes to `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`.
+   - The universal failover chain terminates on `openrouter/free`, the official dynamic meta-router that absorbs model deprecations automatically.
 
 ---
 

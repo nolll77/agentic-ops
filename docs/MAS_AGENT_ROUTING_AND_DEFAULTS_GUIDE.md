@@ -80,10 +80,10 @@ The MAS architecture defines 5 distinct agent roles across 3 operational layers:
 | Agent Class / Role | Layer / Responsibility | Trigger / Routing Match | Default Assigned LLM Model | Override Env Variable |
 | :--- | :--- | :--- | :--- | :--- |
 | **`DataSpecialist`**<br>(`role="data"`) | Investigation: Data Quality & Schema Integrity | **MAS DEFAULT** / Any `risk_id` without `"MODEL"` or `"INFRA"` | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
-| **`ModelSpecialist`**<br>(`role="model"`) | Investigation: ML Degradation & Concept Drift | `"MODEL" in risk_id.upper()` | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
+| **`ModelSpecialist`**<br>(`role="model"`) | Investigation: ML Degradation & Concept Drift | `"MODEL" in risk_id.upper()` | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `LLM_MODEL_MODEL` |
 | **`InfraSpecialist`**<br>(`role="infra"`) | Investigation: SRE, Kernel & Docker Compute | `"INFRA" in risk_id.upper()` | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
-| **`RemediationAgent`**<br>(`role="remediation"`) | Coordination: Blast Radius & Action Planning | Called systematically during FSM state `PLANNED` | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
-| **`WebChatCopilot`**<br>(`role="chat"`) | Interface: Human Operator Assistance | Interactive endpoints (`/chat`, `POST /api/chat`) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
+| **`RemediationAgent`**<br>(`role="remediation"`) | Coordination: Blast Radius & Action Planning | Called systematically during FSM state `PLANNED` | `openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | `LLM_MODEL_REMEDIATION` |
+| **`WebChatCopilot`**<br>(`role="chat"`) | Interface: Human Operator Assistance | Interactive endpoints (`/chat`, `POST /api/chat`) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
 
 ---
 
@@ -96,14 +96,14 @@ The MAS architecture defines 5 distinct agent roles across 3 operational layers:
   1. **Empirical MLOps Statistics**: Historical post-mortems show that over 80% of production ML failures originate in data pipelines (Pandera schema mutations, missing columns, upstream sensor drops, unannounced API changes in tabular inputs).
   2. **Safe Fallback Anchor**: If an external monitoring source transmits a custom, corrupted, or unclassified alert (e.g. `UNKNOWN_ANOMALY_42` or `CUSTOM_PIPELINE_STALL`), assigning it to `DataSpecialist` ensures that data integrity, missing fields, and distribution bounds are evaluated first before considering invasive model rollbacks or container restarts.
 - **Prompt Architecture & Contract**: Injects observed signal metrics (`value`, `threshold`, `source`, `dimensions`) and produces a strictly typed `Diagnosis` contract with confidence score and evidence references.
-- **Default Cognitive Profile**: `google/gemma-4-26b-a4b-it:free` — Fast, instruction-tuned, optimized for structured tabular reasoning without unnecessary thinking overhead.
+- **Default Cognitive Profile**: `google/gemma-4-26b-a4b-it:free` — Fast Mixture-of-Experts (3.8B active params), instruction-tuned, optimized for structured tabular reasoning without unnecessary thinking overhead.
 
-### B. The ML Degredation Specialist: `ModelSpecialist` (`role="model"`)
+### B. The ML Degradation Specialist: `ModelSpecialist` (`role="model"`)
 - **Source Code**: [`agentic_ops/core/model_specialist.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/model_specialist.py)
 - **Routing Precedence**: Activated when `"MODEL" in risk_id.upper()` (e.g. `MODEL_PERF_DEGRADATION`, `MODEL_CONCEPT_DRIFT`, `MODEL_PREDICTION_BIAS`).
 - **Domain Focus**: Specializes in evaluating statistical performance shifts. In the BAAC road safety domain, this corresponds to tracking F1-Score degradation on minority classes (fatalities and severe injuries) against the MLflow Model Registry baseline.
 - **Prompt Architecture & Contract**: Tailored to differentiate true concept drift (statistical divergence in $P(Y \mid X)$) from transient feature anomalies ($P(X)$).
-- **Default Cognitive Profile**: `meta-llama/llama-3.3-70b-instruct:free` — High parameter capacity (70B) providing deep contextual understanding of statistical trade-offs and confusion matrices.
+- **Default Cognitive Profile**: `nvidia/nemotron-3-super-120b-a12b:free` — High parameter capacity (120B) providing deep contextual understanding of statistical trade-offs and confusion matrices.
 
 ### C. The SRE & Compute Specialist: `InfraSpecialist` (`role="infra"`)
 - **Source Code**: [`agentic_ops/core/infra_specialist.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/infra_specialist.py)
@@ -123,15 +123,15 @@ The MAS architecture defines 5 distinct agent roles across 3 operational layers:
   - Specialists are strictly forbidden from choosing or proposing actions. They only emit diagnostic findings.
   - The `RemediationAgent` acts as an independent magistrate: it reviews the findings, cross-examines the specialist's confidence score, and determines the most proportional remediation action (`INVESTIGATE`, `CREATE_ISSUE`, `PROPOSE_RETRAIN`, `ROLLBACK_PROD`, `ISOLATE_CONTAINER`).
   - It autonomously computes the `declared_blast_radius` (integer 0 to 5) and assesses operational reversibility before forwarding the intent to the `PolicyEngine`.
-- **Default Cognitive Profile**: `deepseek/deepseek-r1:free` — Advanced Chain-of-Thought (CoT) reasoning model. Performs extensive multi-step reflection within `<think>` tags to calculate secondary impact risks before returning the validated `ActionIntent`.
+- **Default Cognitive Profile**: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` — Dedicated Chain-of-Thought (CoT) reasoning model. Performs extensive multi-step reflection to calculate secondary impact risks before returning the validated `ActionIntent`.
 
 ### B. The Conversational Copilot: `WebChatCopilot` (`role="chat"`)
 - **Source Code**: [`agentic_ops/cli/main.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/cli/main.py)
 - **Execution Point**: Activated by HTTP `POST /api/chat` and `/chat`.
 - **Operational Requirements**:
   - Requires low time-to-first-token (TTFT) and high interactivity for SRE operators.
-  - Bypasses CoT reasoning loops to provide immediate answers, query WORM ledger records, and execute the 20 MCP starter prompts.
-- **Default Cognitive Profile**: `deepseek/deepseek-chat:free` — High-speed conversational agent with zero thinking delay.
+  - Provides immediate answers, query WORM ledger records, and execute the 20 MCP starter prompts.
+- **Default Cognitive Profile**: `google/gemma-4-31b-it:free` — High-speed multimodal conversational agent with zero thinking delay.
 
 ---
 

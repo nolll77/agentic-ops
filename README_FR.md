@@ -961,21 +961,23 @@ Le cerveau actif peut être permuté dynamiquement via deux simples variables d'
 
 | # | Fournisseur (`LLM_PROVIDER`) | Modèle Recommandé (`LLM_MODEL`) | Coût | Architecture de Déploiement & Atouts |
 | :--- | :--- | :--- | :--- | :--- |
-| **1** | **`openrouter` (Défaut)** | `openrouter/deepseek/deepseek-r1:free` | **0 EUR** | **Cloud 24h/24 Gratuit** : Raisonnement DeepSeek-R1 équivalent à OpenAI o1, utilisable sans carte bancaire. |
-| **2** | **`openrouter` (Fast JSON)** | `openrouter/deepseek/deepseek-chat:free` | **0 EUR** | **Latence Sub-Seconde** : Réponses JSON directes sans balises think, idéal pour gros volumes d'alertes. |
-| **3** | **`openrouter` (Llama 70B)** | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | **0 EUR** | **Open-Weights d'Entreprise** : Meta Llama 3.3 70B hébergé gratuitement par la communauté GPU cloud. |
-| **4** | **`gemini`** | `gemini/gemini-1.5-pro-latest` | Gratuit/Payant | **Multimodal Natif** : Fenêtre de contexte de 1M+ tokens et typage strict Google Structured Outputs. |
-| **5** | **`openai`** | `gpt-4o-mini` | Payant | **Standard Industriel** : Rapidité et fiabilité du Tool-Calling de référence OpenAI. |
-| **6** | **`anthropic`** | `claude-3-5-haiku-20241022` | Payant | **Raisonnement Supérieur** : Capacités logiques de pointe Anthropic avec la tarification légère d'Haiku. |
-| **7** | **`azure`** | `azure/gpt-4o` | Entreprise | **Cloud Souverain Privé** : Déploiement dédié avec intégration Azure Active Directory. |
-| **8** | **`mistral`** | `mistral/mistral-large-2411` | Payant (Bas) | **Souveraineté Européenne** : Modèles de pointe du laboratoire français Mistral AI avec Function Calling. |
-| **9** | **`huggingface`** | `huggingface/mistralai/Mistral-7B-Instruct-v0.2` | **0 EUR** | **Tier Gratuit Serverless** : Modèles communautaires sur HuggingFace Inference API (~1000 req/mois). |
-| **10** | **`ollama`** | `ollama/llama3.2:3b` | **0 EUR** | **Mesh Privé / Hors-Ligne** : Exécution locale sur machine de dev ou accessible par Render via l'IP Tailscale (`100.x.y.z:11434`). |
+| **1** | **`openrouter` (Défaut)** | `openrouter/google/gemma-4-31b-it:free` | **0 EUR** | **Cloud 24h/24 Gratuit** : Modèle Dense multimodal Gemma 4 31B (256k tokens), accessible sans carte bancaire. |
+| **2** | **`openrouter` (Fast MoE)** | `openrouter/google/gemma-4-26b-a4b-it:free` | **0 EUR** | **Latence Sub-Seconde** : Architecture MoE rapide (3.8B paramètres actifs), idéal pour triage de schémas. |
+| **3** | **`openrouter` (Raisonnement CoT)** | `openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | **0 EUR** | **Raisonnement Chain-of-Thought** : Modèle 30B dédié pour calcul de blast radius et causalité. |
+| **4** | **`openrouter` (Haute Capacité)** | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | **0 EUR** | **Échelle Entreprise** : Modèle 120B paramètres haute performance hébergé gratuitement. |
+| **5** | **`openrouter` (Routeur Dynamique)**| `openrouter/openrouter/free` | **0 EUR** | **Bascule Universelle** : Méta-routeur officiel qui délègue dynamiquement aux modèles gratuits disponibles. |
+| **6** | **`gemini`** | `gemini/gemini-1.5-pro-latest` | Gratuit/Payant | **Multimodal Natif** : Fenêtre de contexte de 1M+ tokens et typage strict Google Structured Outputs. |
+| **7** | **`openai`** | `gpt-4o-mini` | Payant | **Standard Industriel** : Rapidité et fiabilité du Tool-Calling de référence OpenAI. |
+| **8** | **`anthropic`** | `claude-3-5-haiku-20241022` | Payant | **Raisonnement Supérieur** : Capacités logiques de pointe Anthropic avec la tarification légère d'Haiku. |
+| **9** | **`azure`** | `azure/gpt-4o` | Entreprise | **Cloud Souverain Privé** : Déploiement dédié avec intégration Azure Active Directory. |
+| **10** | **`mistral`** | `mistral/mistral-large-2411` | Payant (Bas) | **Souveraineté Européenne** : Modèles de pointe du laboratoire français Mistral AI avec Function Calling. |
+| **11** | **`huggingface`** | `huggingface/mistralai/Mistral-7B-Instruct-v0.2` | **0 EUR** | **Tier Gratuit Serverless** : Modèles communautaires sur HuggingFace Inference API (~1000 req/mois). |
+| **12** | **`ollama`** | `ollama/llama3.2:3b` | **0 EUR** | **Mesh Privé / Hors-Ligne** : Exécution locale sur machine de dev ou accessible par Render via l'IP Tailscale (`100.x.y.z:11434`). |
 
 ### 2. Résilience Zéro Panne : Chaîne de Bascule Automatique (`FallbackLLMAdapter`)
 Les tiers gratuits cloud peuvent occasionnellement subir un rate limit (`HTTP 429 Too Many Requests`). Pour éviter tout blocage d'un diagnostic d'incident :
-1. Le modèle primaire est interrogé en premier (ex: `openrouter/deepseek/deepseek-r1:free`).
-2. S'il lève une erreur de quota ou de timeout, `FallbackLLMAdapter` bascule instantanément sur le second modèle configuré dans `LLM_FALLBACK_MODELS` (ex: `openrouter/deepseek/deepseek-chat:free`), puis sur `openrouter/meta-llama/llama-3.3-70b-instruct:free`.
+1. Le modèle primaire est interrogé en premier (ex: `openrouter/google/gemma-4-31b-it:free`).
+2. S'il lève une erreur de quota ou de timeout, `FallbackLLMAdapter` bascule instantanément sur le second modèle configuré dans `LLM_FALLBACK_MODELS` (ex: `openrouter/google/gemma-4-26b-a4b-it:free`), puis sur `openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, `openrouter/nvidia/nemotron-3-super-120b-a12b:free`, et `openrouter/openrouter/free`.
 3. Chaque tentative individuelle incrémente les métriques Prometheus (`agentic_ops_llm_requests_total{role=..., provider=..., model=..., status=...}`) pour une traçabilité FinOps totale.
 
 ### 3. Endpoints REST d'Observabilité SRE & Sondes Live
@@ -995,19 +997,19 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 
 | Rôle d'Agent (`role`) | Spécialisation Cible | Modèle Natif par Défaut (0 EUR) | Variable Optionnelle d'Override |
 | :--- | :--- | :--- | :--- |
-| **`remediation`** | Planification & Rayon d'Impact Blast Radius (CoT) | `openrouter/deepseek/deepseek-r1:free` | `LLM_MODEL_REMEDIATION` |
+| **`remediation`** | Planification & Rayon d'Impact Blast Radius (CoT) | `openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` | `LLM_MODEL_REMEDIATION` |
 | **`infra`** | Dumps Loki & Traces Système Noyau (256k tokens) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
 | **`data`** | Triage Rapide Schémas Pandera & Dérives Evidently | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
-| **`model`** | Évaluation Dérive F1 MLflow & Distributions | `openrouter/meta-llama/llama-3.3-70b-instruct:free` | `LLM_MODEL_MODEL` |
-| **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/deepseek/deepseek-chat:free` | `LLM_MODEL_CHAT` |
+| **`model`** | Évaluation Dérive F1 MLflow & Distributions | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `LLM_MODEL_MODEL` |
+| **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
 
 - **Intelligence Distribuée Native Sans Configuration** : Sans définir la moindre variable d'environnement, chaque agent hérite nativement et automatiquement de son modèle expert ci-dessus. Si `LLM_MODEL` est renseigné, il agit comme un override universel pour tous les agents ; si `LLM_MODEL_{ROLE}` est défini, il surcharge spécifiquement cet agent.
 - **Pourquoi ces Modèles Spécifiques par Défaut ? (Justification Architecturale)** :
-  - **`remediation` $\rightarrow$ `DeepSeek-R1`** : Raisonnement délibéré pas-à-pas (Chain-of-Thought) au sein des balises `<think>` pour évaluer le rayon d'impact (*Blast Radius* de 0 à 5), les dépendances du cluster et la réversibilité avant toute mutation en production.
+  - **`remediation` $\rightarrow$ `Nemotron-3 Reasoning (30B)`** : Raisonnement délibéré pas-à-pas (Chain-of-Thought) au sein des balises `<think>` pour évaluer le rayon d'impact (*Blast Radius* de 0 à 5), les dépendances du cluster et la réversibilité avant toute mutation en production.
   - **`infra` $\rightarrow$ `Gemma-4 31B`** : Contexte massif de 256 000 tokens permettant d'ingérer des dumps complets de logs système Loki, de journaux systemd et de traces noyau Linux en une seule passe sans troncature.
   - **`data` $\rightarrow$ `Gemma-4 26B (MoE)`** : Latence ultra-faible et extraction JSON Pydantic déterministe pour le triage rapide des schémas tabulaires (Pandera) et des dérives de covariables (Evidently).
-  - **`model` $\rightarrow$ `Llama 3.3 70B`** : Rigueur statistique d'un modèle lourd de 70 milliards de paramètres pour différencier une vraie dérive de concept ($P(Y \mid X)$) d'un bruit passager d'entrées ($P(X)$) sur les classes rares (tués et blessés graves BAAC).
-  - **`chat` $\rightarrow$ `DeepSeek-Chat`** : Streaming conversationnel instantané sans délai de réflexion `<think>` (TTFT sub-seconde) pour une assistance fluide de l'opérateur SRE sur `/chat`.
+  - **`model` $\rightarrow$ `Nemotron-3 Super (120B)`** : Rigueur statistique d'un modèle lourd de 120 milliards de paramètres pour différencier une vraie dérive de concept ($P(Y \mid X)$) d'un bruit passager d'entrées ($P(X)$) sur les classes rares (tués et blessés graves BAAC).
+  - **`chat` $\rightarrow$ `Gemma-4 31B`** : Streaming conversationnel multimodal instantané (TTFT sub-seconde) pour une assistance fluide de l'opérateur SRE sur `/chat`.
 - **Métriques FinOps Granulaires** : Prometheus isole la consommation de tokens et la latence par rôle : `agentic_ops_llm_requests_total{role="infra", provider="openrouter", model="gemma-4-31b-it", status="success"}`.
 - **Topologie Live** : Les rôles actifs et leurs modèles résolus sont consultables en temps réel via `GET /api/llm/status` sous la clé `roles_topology`.
 

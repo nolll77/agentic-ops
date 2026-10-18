@@ -47,8 +47,8 @@ endpoints:
       apiKey: "${OPENROUTER_API_KEY}"
       baseURL: "https://openrouter.ai/api/v1"
       models:
-        default: ["deepseek/deepseek-r1:free"]
+        default: ["google/gemma-4-31b-it:free", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", "google/gemma-4-26b-a4b-it:free"]
         fetch: true
       titleConvo: true
-      titleModel: "deepseek/deepseek-chat:free"
+      titleModel: "google/gemma-4-31b-it:free"
       modelDisplayLabel: "OpenRouter AI Hub"
