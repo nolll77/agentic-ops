@@ -571,6 +571,14 @@ def _get_offline_sre_answer(message: str) -> str | None:
             "ou lors d'une défaillance réseau / partition Tailscale, le `PolicyEngine` applique par défaut le statut `DENY`.\n\n"
             "Aucune action mutante ne peut être exécutée sans autorisation déterministe préalable."
         )
+    if any(k in msg for k in ["cac", "pull", "100.117.99.62", "lecture seule", "read-only", "vps"]):
+        return (
+            "**[Mode Dégradé SRE — Base Déterministe In-Memory]**\n\n"
+            "La collecte de télémétrie vers le cluster cible `jakatt/cac_mlops` (`100.117.99.62`) est **strictement en lecture seule** (100% Read-Only) pour 3 raisons fondamentales :\n\n"
+            "• **Principe du Moindre Privilège & Zero-Trust** : le Control Plane n'interroge que des requêtes HTTP GET non-mutantes sur les 5 endpoints d'observabilité (`/metrics`, `/health`, etc.).\n"
+            "• **Isolation stricte contre les pannes en cascade** : aucune action physique (mutation, redémarrage, rollback) ne peut être injectée directement sur la prod sans passer par le `PolicyEngine` et le quorum d'approbation Slack HITL.\n"
+            "• **Fail-Safe & Résilience** : si le VPS cible est éteint ou inaccessible, le collecteur `CacPullCollector` renvoie un statut dégradé `REMOTE_TARGET_OFFLINE` sans impacter la stabilité du cluster."
+        )
     return None
 
 

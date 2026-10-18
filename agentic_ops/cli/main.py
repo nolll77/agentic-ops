@@ -1532,7 +1532,7 @@ MAS_INSPECTOR_HTML = r"""
       </div>
 
       <div class="mas-pills-bar">
-        <button class="mas-pill-btn active" id="mas-filter-all" onclick="filterMas('all', this)">Tous les Acteurs (11)</button>
+        <button class="mas-pill-btn active" id="mas-filter-all" onclick="filterMas('all', this)">Tous les Agents (11)</button>
         <button class="mas-pill-btn" id="mas-filter-cog" onclick="filterMas('cognitive', this)">🧠 Cerveaux Cognitifs (5 LLMs)</button>
         <button class="mas-pill-btn" id="mas-filter-det" onclick="filterMas('deterministic', this)">🛡️ Actionneurs & Garde-Fous (6 Déterministes)</button>
         <span style="flex:1"></span>
@@ -3044,7 +3044,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <span id="chat-theme-text">Clair</span>
       </button>
       <div class="nav-links">
-        <a href="/console">🖥️ Console</a>
+        <a href="/console" target="_blank">🖥️ Console</a>
         <a href="/docs" target="_blank">Swagger (/docs)</a>
         <a href="/mcp/manifest" target="_blank">MCP Manifest</a>
       </div>
