@@ -2953,10 +2953,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
         return;
       }
 
-      container.innerHTML = filtered.map(p => {
+      container.innerHTML = filtered.map((p, idx) => {
         const cat = getPromptCategory(p.name);
         const escapedTemplate = escapeHtml(p.template);
-        const jsonSafeTemplate = JSON.stringify(p.template);
         return `
           <div class="prompt-card">
             <div class="prompt-card-top">
@@ -2965,12 +2964,22 @@ CHAT_HTML = r"""<!DOCTYPE html>
             <div class="prompt-card-desc">${escapeHtml(p.description)}</div>
             <div class="prompt-card-template">${escapedTemplate}</div>
             <div class="prompt-card-actions">
-              <button class="btn-prompt-insert" onclick='insertPrompt(${jsonSafeTemplate})'>✎ Insérer dans le Chat</button>
-              <button class="btn-prompt-run" onclick='runPrompt(${jsonSafeTemplate})'>↵ Exécuter Directement</button>
+              <button class="btn-prompt-insert" data-pname="${escapeHtml(p.name)}" onclick="onInsertPromptClick('${escapeHtml(p.name)}')">✎ Insérer dans le Chat</button>
+              <button class="btn-prompt-run" data-pname="${escapeHtml(p.name)}" onclick="onRunPromptClick('${escapeHtml(p.name)}')">↵ Exécuter Directement</button>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    function onInsertPromptClick(pName) {
+      const p = allPrompts.find(item => item.name === pName);
+      if (p) insertPrompt(p.template);
+    }
+
+    function onRunPromptClick(pName) {
+      const p = allPrompts.find(item => item.name === pName);
+      if (p) runPrompt(p.template);
     }
 
     function insertPrompt(text) {
