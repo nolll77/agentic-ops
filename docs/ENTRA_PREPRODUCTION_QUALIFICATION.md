@@ -1,7 +1,8 @@
 # Qualification Entra et préproduction
 
-**Statut au 2026-10-19 :** code local implémenté et testé; tenant Entra,
-publication de l'image et qualification sur cluster **non réalisés**.
+**Statut au 2026-10-19 :** code local implémenté et testé. Un build Docker
+local et un déploiement éphémère sur kind sans tenant Entra ont été exercés;
+aucune image n'a été publiée et aucun cluster cible n'a été qualifié.
 
 Ce document sépare les livrables logiciels des opérations qui nécessitent un
 tenant, un registre d'images et un cluster sous la responsabilité de l'équipe.
@@ -22,13 +23,34 @@ La réussite de la CI ne vaut pas validation en préproduction ou en production.
 - Worker d'approbation durable, déployable en sidecar opt-in. Il exécute
   uniquement en simulation et ne reprend pas encore l'épisode suspendu de
   l'orchestrateur.
-- Chart Helm version `0.1.1`, image configurée `nolll77/agentic-ops:v0.1.3`,
+- Chart Helm version `0.1.2`, image configurée `nolll77/agentic-ops:v0.1.3`,
   ports/sondes alignés sur `8001`, PVC pour l'état persistant et garde de
-  réplica pour le profil SQLite.
+  réplica pour le profil SQLite. Le chart exige désormais une référence
+  `crypto.signingSecretName` (même clé persistante dans l'API et les workers),
+  `grafanaWebhook.secretName` quand le worker d'alertes est activé, et
+  `apiAuth.secretName` lorsque Entra n'est pas configuré.
 
-La suite locale a été vérifiée à **193 tests réussis et 3 ignorés** avant les
-dernières modifications de documentation/chart; le rendu Helm n'a pas été
-exécuté, Helm n'étant pas installé dans l'environnement de développement.
+La suite locale avait été vérifiée à **193 tests réussis et 3 ignorés** avant
+les dernières modifications. Depuis, un build Docker local a réussi. Le chart
+a passé `helm lint`, puis a été installé dans un cluster kind jetable sans
+tenant Entra. Après configuration de Secrets locaux, un webhook Grafana a
+traversé l'API et le worker; l'alerte a été classée `DATA-042` et a produit
+l'épisode simulé `EP-0001`. `/healthz` et `/ready` ont répondu 200. Après un
+redémarrage du pod, l'état `COMPLETED` et l'épisode sont restés lisibles sur le
+PVC.
+
+Environnement de l'essai : macOS 12.3.1, Docker Engine 24.0.6, Helm 4.3.1,
+kind 0.33.0 avec un nœud Kubernetes `kindest/node:v1.37.0`. Le chart a été
+rendu avec Entra et SCIM désactivés, l'approval worker désactivé, un seul
+réplica, et les références aux Secrets runtime fournies par valeurs Helm.
+Le secret de signature, la clé API et le secret webhook ont été générés pour
+l'essai dans le cluster local, jamais inscrits dans le dépôt.
+
+Cette expérience démontre un parcours local et la persistance après
+redémarrage du pod uniquement. Elle ne teste pas la restauration d'une
+sauvegarde, la perte du volume/nœud, un cluster distant, une identité Entra ou
+la publication de l'image. Le cluster kind a été supprimé après les essais;
+l'image reste construite localement.
 
 ## Travaux restants avant une qualification préproduction
 
@@ -95,6 +117,16 @@ docker buildx build \
   préproduction; valider le résultat avec les contrôles Kubernetes retenus.
 - [ ] Choisir une StorageClass et confirmer que le PVC est `Bound`, sauvegardé
   selon la politique retenue et attachable au pod cible.
+- [ ] Créer un Secret Kubernetes hors dépôt contenant un `LEDGER_SECRET_KEY`
+  persistant et configurer `crypto.signingSecretName` et
+  `crypto.signingSecretKey`. La même valeur doit être injectée dans l'API et
+  les workers; une clé éphémère ne permet pas de vérifier les preuves après
+  redémarrage.
+- [ ] En mode sans tenant Entra, créer un Secret contenant un
+  `ADMIN_API_KEY` aléatoire d'au moins 32 caractères et le référencer par
+  `apiAuth.secretName` / `apiAuth.secretKey`. Pour ingérer les alertes, créer
+  un Secret avec `GRAFANA_WEBHOOK_SECRET` d'au moins 32 caractères et le
+  référencer par `grafanaWebhook.secretName` / `grafanaWebhook.secretKey`.
 - [ ] Déployer avec `replicaCount=1`, `persistence.enabled=true`,
   `identity.scimEnabled=true` et `approvalWorker.enabled=true`. Configurer
   `identity.entraTenantId`, `identity.entraApiAudience`,
@@ -109,7 +141,10 @@ Exemple de commandes de vérification et déploiement, à exécuter depuis un
 runner approuvé après création d'un fichier de valeurs protégé hors dépôt :
 
 ```sh
-helm lint helm/agentic-ops
+helm lint helm/agentic-ops \
+  --set crypto.signingSecretName=agentic-ops-runtime \
+  --set apiAuth.secretName=agentic-ops-runtime \
+  --set grafanaWebhook.secretName=agentic-ops-runtime
 helm template agentic-ops helm/agentic-ops \
   --namespace agentic-ops-preprod \
   --values /chemin/protege/agentic-ops-preprod-values.yaml

@@ -1,6 +1,15 @@
 {{- if and .Values.persistence.enabled (ne (int .Values.replicaCount) 1) }}
 {{- fail "persistence.enabled uses local SQLite files; replicaCount must remain 1 until a shared transactional adapter is qualified" }}
 {{- end }}
+{{- if empty .Values.crypto.signingSecretName }}
+{{- fail "crypto.signingSecretName must reference a pre-created Secret containing a persistent LEDGER_SECRET_KEY shared by the API and workers" }}
+{{- end }}
+{{- if and (not .Values.identity.entraTenantId) (empty .Values.apiAuth.secretName) }}
+{{- fail "apiAuth.secretName must reference a pre-created Secret containing ADMIN_API_KEY when Entra is disabled" }}
+{{- end }}
+{{- if and .Values.alertWorker.enabled (empty .Values.grafanaWebhook.secretName) }}
+{{- fail "grafanaWebhook.secretName must reference a pre-created Secret containing GRAFANA_WEBHOOK_SECRET when alertWorker is enabled" }}
+{{- end }}
 {{- if and .Values.approvalWorker.enabled (not .Values.persistence.enabled) }}
 {{- fail "approvalWorker.enabled requires persistence.enabled for the durable approval outbox" }}
 {{- end }}
@@ -69,6 +78,39 @@ spec:
               value: {{ .Values.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: LEDGER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.crypto.signingSecretName | quote }}
+                  key: {{ .Values.crypto.signingSecretKey | quote }}
+            {{- if not .Values.identity.entraTenantId }}
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiAuth.secretName | quote }}
+                  key: {{ .Values.apiAuth.secretKey | quote }}
+            {{- if .Values.apiAuth.previousSecretKey }}
+            - name: ADMIN_API_KEY_PREVIOUS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiAuth.secretName | quote }}
+                  key: {{ .Values.apiAuth.previousSecretKey | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.grafanaWebhook.secretName }}
+            - name: GRAFANA_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafanaWebhook.secretName | quote }}
+                  key: {{ .Values.grafanaWebhook.secretKey | quote }}
+            {{- if .Values.grafanaWebhook.previousSecretKey }}
+            - name: GRAFANA_WEBHOOK_SECRET_PREVIOUS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.grafanaWebhook.secretName | quote }}
+                  key: {{ .Values.grafanaWebhook.previousSecretKey | quote }}
+            {{- end }}
+            {{- end }}
             - name: ALERT_OUTBOX_DB_PATH
               value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/alerts.db{{ else }}"state/alerts.db"{{ end }}
             - name: APPROVAL_DB_PATH
@@ -123,6 +165,11 @@ spec:
               value: {{ .Values.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: LEDGER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.crypto.signingSecretName | quote }}
+                  key: {{ .Values.crypto.signingSecretKey | quote }}
             - name: ALERT_WORKER_ID
               valueFrom:
                 fieldRef:
@@ -152,6 +199,11 @@ spec:
           env:
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: LEDGER_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.crypto.signingSecretName | quote }}
+                  key: {{ .Values.crypto.signingSecretKey | quote }}
             - name: APPROVAL_WORKER_ID
               valueFrom:
                 fieldRef:
