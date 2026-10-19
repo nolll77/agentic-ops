@@ -2436,6 +2436,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
       --accent-amber: #fbbf24;
       --accent-rose: #fb7185;
       --user-bg: #1e293b;
+      --user-text: #f8fafc;
       --bot-bg: #0a1124;
       --code-bg: #020617;
       --modal-bg: #0f172a;
@@ -2449,15 +2450,16 @@ CHAT_HTML = r"""<!DOCTYPE html>
       --border: #e2e8f0;
       --border-accent: #cbd5e1;
       --text: #0f172a;
-      --muted: #64748b;
+      --muted: #475569;
       --accent: #059669;
       --accent-blue: #0284c7;
       --accent-purple: #7e22ce;
       --accent-amber: #d97706;
       --accent-rose: #e11d48;
-      --user-bg: #e2e8f0;
+      --user-bg: #ede9fe;
+      --user-text: #1e1b4b;
       --bot-bg: #ffffff;
-      --code-bg: #f1f5f9;
+      --code-bg: #f8fafc;
       --modal-bg: #ffffff;
       --modal-header: #f8fafc;
       --card-bg: #ffffff;
@@ -2641,8 +2643,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
     }
     .msg-wrapper.user .msg-bubble {
       background: var(--user-bg);
-      border: 1px solid #334155;
-      color: #f8fafc;
+      border: 1px solid var(--border-accent);
+      color: var(--user-text);
       border-bottom-right-radius: 3px;
     }
     .msg-wrapper.bot .msg-bubble {
@@ -2712,7 +2714,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .chip-btn {
       background: var(--card);
       border: 1px solid var(--border-accent);
-      color: #cbd5e1;
+      color: var(--text);
       padding: 6px 13px;
       border-radius: 9999px;
       font-size: 12px;
@@ -2721,20 +2723,51 @@ CHAT_HTML = r"""<!DOCTYPE html>
       transition: all 0.15s;
     }
     .chip-btn:hover {
-      background: #1e293b;
+      background: var(--card-hover);
       border-color: var(--accent);
+      color: var(--text);
+    }
+    .chip-mas {
+      background: #2e1065;
+      border-color: #7e22ce;
+      color: #e9d5ff;
+      font-weight: 600;
+    }
+    .chip-mas:hover {
+      background: #3b0764;
+      border-color: #a855f7;
       color: #fff;
     }
     .chip-catalog {
-      background: #2e1065 !important;
-      border-color: #7e22ce !important;
-      color: #e9d5ff !important;
+      background: #172554;
+      border-color: #2563eb;
+      color: #bfdbfe;
       font-weight: 600;
     }
     .chip-catalog:hover {
-      background: #3b0764 !important;
-      border-color: #a855f7 !important;
-      color: #fff !important;
+      background: #1e3a8a;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    html[data-theme="light"] .chip-mas {
+      background: #f3e8ff;
+      border-color: #c084fc;
+      color: #6b21a8;
+    }
+    html[data-theme="light"] .chip-mas:hover {
+      background: #e9d5ff;
+      border-color: #9333ea;
+      color: #581c87;
+    }
+    html[data-theme="light"] .chip-catalog {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+    }
+    html[data-theme="light"] .chip-catalog:hover {
+      background: #dbeafe;
+      border-color: #3b82f6;
+      color: #1e40af;
     }
     
     .input-box {
@@ -3186,6 +3219,147 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-left-color: #059669;
       color: #065f46;
     }
+
+    /* COMPREHENSIVE LIGHT THEME OVERRIDES */
+    html[data-theme="light"] .badge-llm {
+      background: #dcfce7;
+      color: #15803d;
+      border-color: #86efac;
+    }
+    html[data-theme="light"] .btn-catalog-toggle {
+      background: #ede9fe;
+      border-color: #c4b5fd;
+      color: #5b21b6;
+    }
+    html[data-theme="light"] .btn-catalog-toggle:hover {
+      background: #ddd6fe;
+      border-color: #8b5cf6;
+      color: #4c1d95;
+    }
+    html[data-theme="light"] .msg-wrapper.user .msg-bubble {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #0f172a;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    html[data-theme="light"] .msg-wrapper.bot .msg-bubble {
+      background: #ffffff;
+      border-color: #e2e8f0;
+      border-left: 3px solid #059669;
+      color: #0f172a;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+    html[data-theme="light"] .msg-bubble pre {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .msg-bubble code {
+      background: #f1f5f9;
+      color: #0284c7;
+    }
+    html[data-theme="light"] .meta-card {
+      border-top-color: #e2e8f0;
+    }
+    html[data-theme="light"] .meta-pill {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #475569;
+    }
+    html[data-theme="light"] .input-box {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+    html[data-theme="light"] .input-box textarea {
+      color: #0f172a;
+    }
+    html[data-theme="light"] .input-box textarea::placeholder {
+      color: #94a3b8;
+    }
+    html[data-theme="light"] .btn-clear {
+      border-color: #cbd5e1;
+      color: #64748b;
+    }
+    html[data-theme="light"] .btn-clear:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .btn-send:disabled {
+      background: #e2e8f0;
+      color: #94a3b8;
+      border: 1px solid #cbd5e1;
+    }
+    html[data-theme="light"] .catalog-modal-box {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+    }
+    html[data-theme="light"] .catalog-modal-header {
+      background: #f8fafc;
+      border-bottom-color: #e2e8f0;
+    }
+    html[data-theme="light"] .catalog-modal-title h2 {
+      color: #0f172a;
+    }
+    html[data-theme="light"] .catalog-search-bar {
+      border-bottom-color: #e2e8f0;
+      background: #ffffff;
+    }
+    html[data-theme="light"] .catalog-search-bar input {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .catalog-categories {
+      background: #f8fafc;
+      border-bottom-color: #e2e8f0;
+    }
+    html[data-theme="light"] .cat-pill {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
+    html[data-theme="light"] .cat-pill:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .cat-pill.active {
+      background: #059669;
+      border-color: #047857;
+      color: #ffffff;
+    }
+    html[data-theme="light"] .prompt-card {
+      background: #ffffff;
+      border-color: #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    html[data-theme="light"] .prompt-card:hover {
+      border-color: #0284c7;
+      background: #f8fafc;
+    }
+    html[data-theme="light"] .prompt-card-desc {
+      color: #334155;
+    }
+    html[data-theme="light"] .prompt-card-template {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #334155;
+    }
+    html[data-theme="light"] .btn-prompt-insert {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    html[data-theme="light"] .btn-prompt-insert:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .prompt-id-badge.cat-I { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+    html[data-theme="light"] .prompt-id-badge.cat-II { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+    html[data-theme="light"] .prompt-id-badge.cat-III { background: #fef3c7; color: #b45309; border-color: #fde68a; }
+    html[data-theme="light"] .prompt-id-badge.cat-IV { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
+    html[data-theme="light"] .prompt-id-badge.cat-V { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
   </style>
 </head>
 <body>
@@ -3233,7 +3407,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="chips-bar">
-      <button class="chip-btn" onclick="openMasModal()" style="background:#2e1065;border-color:#7e22ce;color:#e9d5ff;font-weight:600;">🤖 Topologie MAS & LLMs Live</button>
+      <button class="chip-btn chip-mas" onclick="openMasModal()">🤖 Topologie MAS & LLMs Live</button>
       <button class="chip-btn chip-catalog" onclick="toggleCatalog(true)">📚 Catalogue des 20 Prompts MCP...</button>
       <button class="chip-btn" onclick="sendPrompt('Quel est le rôle du circuit breaker en cas de saturation de requêtes ?')">⚡ Circuit Breaker</button>
       <button class="chip-btn" onclick="sendPrompt('Explique comment fonctionne le quorum Slack HITL à 2 approbateurs (2-man rule).')">👥 Quorum HITL Slack</button>
