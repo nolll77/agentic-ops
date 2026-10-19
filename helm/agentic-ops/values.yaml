@@ -64,7 +64,7 @@ identity:
   scimBearerSecretKey: SCIM_BEARER_TOKEN
 
 image:
-  repository: nolll77/agentic-ops
+  repository: ghcr.io/nolll77/agentic-ops
   pullPolicy: IfNotPresent
   # Publish the matching application image before deploying this chart version.
   tag: "v0.1.3"
