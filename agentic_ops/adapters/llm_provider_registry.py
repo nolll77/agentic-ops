@@ -464,6 +464,20 @@ class LLMProviderRegistry:
                 cfg = LLMProviderRegistry.resolve_role_config("chat")
             t0 = time.monotonic()
 
+            if not cfg.api_key_present and cfg.provider in ("openrouter", "openai", "anthropic", "gemini", "mistral"):
+                offline_answer = _get_offline_sre_answer(message)
+                if offline_answer:
+                    return {
+                        "status": "ok",
+                        "answer": offline_answer,
+                        "action_type": "KNOWLEDGE_LOOKUP",
+                        "confidence_score": 1.0,
+                        "rationale": "Réponse déterministe servie depuis la base de connaissances SRE intégrée (mode dégradé Zero-Token).",
+                        "provider": "agentic_ops_builtin",
+                        "model": "deterministic_sre_knowledge_base",
+                        "latency_ms": round((time.monotonic() - t0) * 1000, 1),
+                    }
+
             system_prompt = (
                 "Tu es l'assistant cognitif SRE et MLOps d'Agentic-Ops Control Plane. "
                 "Tu analyses les pannes d'infrastructure et de données (dérives Evidently, saturation Redis, "
@@ -471,6 +485,21 @@ class LLMProviderRegistry:
                 "Tu respectes strictement le principe de moindre privilège et de gouvernance déterministe. "
                 "Réponds en français avec précision technique, concision et rigueur d'ingénieur SRE."
             )
+
+            # RAG Déterministe In-Memory (Grounding contextuel de la Taxonomie 435 & Scénarios)
+            try:
+                from agentic_ops.core.deterministic_rag import DeterministicRAGEngine
+                rag_context = DeterministicRAGEngine.get_instance().retrieve_grounding_context(message)
+                if rag_context:
+                    system_prompt += (
+                        "\n\n[CONTEXTE DE RÉFÉRENCE MLOPS & SRE (RAG DÉTERMINISTE LOCAL - ZERO-TOKEN)]\n"
+                        "Utilise impérativement les métadonnées officielles ci-dessous pour répondre avec une précision absolue "
+                        "(cite l'identifiant exact, le score RPN, l'impact SLO, la détection et les garde-fous) :\n"
+                        f"{rag_context}\n"
+                        "[FIN DU CONTEXTE DE RÉFÉRENCE]"
+                    )
+            except Exception as rag_err:
+                logger.debug("Deterministic RAG context retrieval skipped: %s", rag_err)
 
             # Si l'utilisateur pose une question libre
             user_content = message
@@ -529,6 +558,15 @@ class LLMProviderRegistry:
 
 
 def _get_offline_sre_answer(message: str) -> str | None:
+    # 1. Vérification prioritaire via le RAG Déterministe (Taxonomie 435 pannes & 36 Scénarios de simulation)
+    try:
+        from agentic_ops.core.deterministic_rag import DeterministicRAGEngine
+        rag_offline = DeterministicRAGEngine.get_instance().get_offline_sre_response(message)
+        if rag_offline:
+            return rag_offline
+    except Exception as rag_err:
+        logger.debug("Deterministic RAG offline lookup skipped: %s", rag_err)
+
     msg = message.lower()
     if any(k in msg for k in ["circuit breaker", "saturation", "quota", "coupe-circuit"]):
         return (
