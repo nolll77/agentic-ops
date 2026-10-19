@@ -1826,9 +1826,11 @@ function renderMasUI() {
         <div class="mas-prop-val">${activeItem.worm_ledger ? '✅ Signé cryptographiquement (Merkle SHA-256)' : '🛡️ Non-mutant (Lecture ou contrôle passif)'}</div>
       </div>
     </div>
-    <div class="mas-prop-box" style="margin-bottom:12px;">
       <div class="mas-prop-label">Métrique Prometheus FinOps Dédiée</div>
       <div class="mas-prop-val" style="color:#fbbf24;"><code>${activeItem.promql_metric}</code></div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:5px;line-height:1.4;">
+        💡 <em>À coller dans l'explorateur <strong>Prometheus (:9090)</strong> ou un dashboard <strong>Grafana (:3000)</strong> pour tracer le débit de requêtes, le volume de tokens et la saturation d'inférence de cet agent en direct.</em>
+      </div>
     </div>
     <div class="mas-prop-box" style="margin-bottom:14px;">
       <div class="mas-prop-label">Garantie de Repli / Résilience</div>
@@ -3063,6 +3065,127 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .btn-prompt-run:hover {
       background: #10b981;
     }
+
+    /* QUICK NOTICE MODAL STYLES */
+    .qn-modal-box {
+      max-width: 860px;
+    }
+    .qn-content-scroll {
+      padding: 20px 24px;
+      overflow-y: auto;
+      max-height: calc(85vh - 75px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .qn-section-card {
+      background: #0b1329;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 16px 18px;
+      transition: border-color 0.15s;
+    }
+    .qn-section-card:hover {
+      border-color: #6366f1;
+    }
+    .qn-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e0e7ff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .qn-section-desc {
+      font-size: 12.5px;
+      color: #94a3b8;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
+    .qn-samples-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .qn-sample-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #020617;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+      gap: 10px;
+    }
+    .qn-sample-text {
+      flex: 1;
+      font-style: italic;
+    }
+    .qn-sample-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .qn-sample-btn:hover {
+      background: #4f46e5;
+      border-color: #6366f1;
+      color: #fff;
+    }
+    .qn-tip-box {
+      background: #06241b;
+      border-left: 3px solid #10b981;
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #d1fae5;
+    }
+    html[data-theme="light"] .qn-section-card {
+      background: #ffffff;
+      border-color: #e2e8f0;
+    }
+    html[data-theme="light"] .qn-section-card:hover {
+      border-color: #6366f1;
+    }
+    html[data-theme="light"] .qn-section-title {
+      color: #1e1b4b;
+    }
+    html[data-theme="light"] .qn-section-desc {
+      color: #475569;
+    }
+    html[data-theme="light"] .qn-sample-item {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      color: #1e293b;
+    }
+    html[data-theme="light"] .qn-sample-btn {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #334155;
+    }
+    html[data-theme="light"] .qn-sample-btn:hover {
+      background: #4f46e5;
+      border-color: #4f46e5;
+      color: #fff;
+    }
+    html[data-theme="light"] .qn-tip-box {
+      background: #ecfdf5;
+      border-left-color: #059669;
+      color: #065f46;
+    }
   </style>
 </head>
 <body>
@@ -3081,13 +3204,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <span class="badge-dot"></span>
         <span>Loading LLM Provider...</span>
       </div>
-      <button class="btn-catalog-toggle" onclick="openMasModal()" style="background:#3b0764;border-color:#7c3aed;color:#e9d5ff;" title="Inspecter l'architecture MAS et les LLMs actifs">
-        <span>🤖</span>
-        <span>Topologie MAS</span>
-      </button>
-      <button class="btn-catalog-toggle" onclick="toggleCatalog(true)" title="Explorer les 20 Prompts Cognitifs MCP">
-        <span>📚</span>
-        <span>20 Prompts MCP</span>
+      <button class="btn-catalog-toggle" onclick="toggleQuickNotice(true)" style="background:#1e1b4b;border-color:#6366f1;color:#e0e7ff;" title="Afficher le guide rapide des 5 domaines d'investigation">
+        <span>💡</span>
+        <span>Guide & Sujets</span>
       </button>
       <button class="btn-theme-toggle" id="chat-theme-btn" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
         <span id="chat-theme-icon">☀️</span>
@@ -3164,6 +3283,125 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <div style="text-align:center;color:var(--muted);padding:40px;">Chargement du catalogue MCP...</div>
       </div>
     </div>
+  <!-- QUICK NOTICE MODAL -->
+  <div class="catalog-modal-overlay" id="quick-notice-modal" onclick="onQuickNoticeOverlayClick(event)">
+    <div class="catalog-modal-box qn-modal-box">
+      <div class="catalog-modal-header">
+        <div class="catalog-modal-title">
+          <h2>💡 Guide de Conversation SRE & MLOps</h2>
+          <p>Exemples de requêtes et domaines d'investigation pris en charge par l'assistant cognitif.</p>
+        </div>
+        <button class="btn-close-modal" onclick="toggleQuickNotice(false)" title="Fermer (Échap)">✕</button>
+      </div>
+
+      <div class="qn-content-scroll">
+        <div class="qn-tip-box">
+          <strong>⚡ Mode Dégradé Zero-Token Inclus :</strong> Même sans clé OpenRouter ou en cas de coupure réseau, la base SRE locale répond instantanément aux concepts clés (Circuit Breaker, WORM Ledger, dérive Evidently, Quorum Slack, CAC Pull passif).
+        </div>
+
+        <!-- 1. Diagnostic Alertes -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">📉 1. Diagnostic d'Alertes & Dérives MLOps (Evidently, MLflow, Pandera)</div>
+          <div class="qn-section-desc">Soumettez des symptômes de dégradation de données ou de modèle pour comprendre les flux d'arbitrage.</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"On a une dérive détectée par Evidently sur la distribution des vitesses, quelle est la procédure ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Pourquoi le réentraînement automatique est-il interdit si Pandera détecte des valeurs nulles anormales ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Explique-moi la différence de traitement entre une dérive de covariables et une dérive de concept."</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelle métrique MLflow déclenche une alerte de performance critique sur le classifieur BAAC ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. Politiques de Gouvernance -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">⚖️ 2. Politiques de Gouvernance & Veto Déterministe (PolicyEngine & Zero-Trust)</div>
+          <div class="qn-section-desc">Interrogez les règles d'intégrité, le principe Fail-Closed et les bornes de blast radius.</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Si un agent LLM est sûr à 99% qu'il faut redémarrer un pod, pourquoi le PolicyEngine peut-il mettre son veto ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"C'est quoi la règle R-001 anti-thrashing (tempête de redémarrages) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Qu'est-ce qui se passe si le réseau tombe ou si une politique est introuvable (Fail-Closed) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelles actions nécessitent obligatoirement une approbation humaine Slack HITL ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 3. Résilience FinOps -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">⚡ 3. Résilience FinOps & Sécurité du Cluster (Circuit Breaker & WORM Ledger)</div>
+          <div class="qn-section-desc">Vérifiez la protection contre l'épuisement de quotas et la non-répudiation forensique.</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment fonctionne le Circuit Breaker en cas d'erreur 429 ou de tempête de requêtes sur OpenRouter ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Pourquoi le coupe-circuit force-t-il l'action CREATE_ISSUE à 0 token plutôt que d'appeler un LLM de secours ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment le WORM Trust Ledger garantit-il qu'aucune action d'agent ne peut être falsifiée post-mortem ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment vérifier l'intégrité de la chaîne de blocs avec la commande audit ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 4. Télémétrie Distante -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">🛡️ 4. Télémétrie Distante & Architecture Réseau (Tailscale & jakatt/cac_mlops)</div>
+          <div class="qn-section-desc">Comprenez l'ingestion passive des 5 endpoints de télémétrie du cluster distant.</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Pourquoi le pull CAC vers 100.117.99.62 est-il strictement en lecture seule ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment le Control Plane gère-t-il l'état si le serveur distant est éteint (REMOTE_TARGET_OFFLINE) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quels sont les 5 endpoints d'observabilité surveillés à travers le proxy SOCKS5 WireGuard ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 5. 20 Prompts Cognitifs MCP -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">📚 5. Les 20 Prompts Cognitifs MCP Prêts à l'Emploi</div>
+          <div class="qn-section-desc">Accédez directement au catalogue complet des audits structurés prêts à l'emploi.</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
+            <button class="qn-sample-btn" onclick="toggleQuickNotice(false); toggleCatalog(true);" style="background:#059669;color:#fff;border-color:#10b981;font-weight:600;padding:6px 14px;">📚 Ouvrir le Catalogue des 20 Prompts MCP</button>
+            <span style="font-size:11.5px;color:var(--muted);">Également accessible via le bouton sous le chat.</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -3185,6 +3423,37 @@ CHAT_HTML = r"""<!DOCTYPE html>
       }
     }
 
+    function toggleQuickNotice(open) {
+      const modal = document.getElementById('quick-notice-modal');
+      if (modal) {
+        if (open) {
+          modal.classList.add('open');
+        } else {
+          modal.classList.remove('open');
+        }
+      }
+    }
+
+    function onQuickNoticeOverlayClick(e) {
+      if (e.target.id === 'quick-notice-modal') {
+        toggleQuickNotice(false);
+      }
+    }
+
+    function applyQuickNoticePrompt(btn) {
+      const parent = btn.closest('.qn-sample-item');
+      if (!parent) return;
+      const textElem = parent.querySelector('.qn-sample-text');
+      if (!textElem) return;
+      let text = textElem.textContent.trim();
+      // Enlever d'éventuels guillemets englobants
+      if (text.startsWith('"') && text.endsWith('"')) {
+        text = text.slice(1, -1);
+      }
+      toggleQuickNotice(false);
+      sendPrompt(text);
+    }
+
     function onOverlayClick(e) {
       if (e.target.id === 'catalog-modal') {
         toggleCatalog(false);
@@ -3194,6 +3463,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         toggleCatalog(false);
+        toggleQuickNotice(false);
       }
     });
 
