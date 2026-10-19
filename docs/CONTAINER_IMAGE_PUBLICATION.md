@@ -1,8 +1,8 @@
 # Publication de l'image sur GitHub Container Registry
 
 L'image de ce dépôt est destinée à GitHub Container Registry (GHCR), sous
-`ghcr.io/nolll77/agentic-ops`. La publication de l'image est indépendante de
-la publication du paquet Python sur PyPI.
+`ghcr.io/nolll77/agentic-ops`. Le workflow de release publie aussi le paquet
+Python sur PyPI; les deux artefacts restent des distributions distinctes.
 
 ## Contenu et vérifications de sécurité
 
@@ -19,41 +19,67 @@ elles ne constituent pas une certification exhaustive du contenu du code ou
 des preuves d'exemple suivies par Git. Examiner les contenus embarqués avant
 toute publication publique.
 
-## Publication automatique par GitHub Actions
+## Publication coordonnée par GitHub Actions
 
-Le workflow `.github/workflows/publish-container.yml` construit des images
-`linux/amd64` et `linux/arm64` quand une release GitHub est publiée. Il utilise
-`GITHUB_TOKEN` avec `packages: write`; aucun mot de passe Docker Hub ni PAT
-n'est requis.
+Le workflow `.github/workflows/publish.yml` publie PyPI et GHCR dans la même
+chaîne de release. Il installe le projet et exécute la suite de tests, vérifie
+les versions puis construit les distributions Python à partir du tag. Après
+publication sur PyPI, et **seulement si cette étape réussit**, il construit et
+publie l'image `linux/amd64` et `linux/arm64` sur GHCR à partir du même tag
+source. Il utilise `GITHUB_TOKEN` avec `packages: write`; aucun mot de passe
+Docker Hub ni PAT n'est requis.
 
-1. Pousser ce workflow dans la branche par défaut du dépôt GitHub.
-2. Dans **Actions > Publish container image > Run workflow**, choisir la
-   branche par défaut et fournir le tag `v0.1.3`; ou publier une release
-   GitHub associée au tag `v0.1.3`. L'une ou l'autre méthode lance la
-   construction multi-architecture et l'envoi de l'image. Une exécution
-   manuelle n'ajoute pas le tag `latest`.
-3. Dans GitHub, ouvrir le package `agentic-ops` sous **Packages** et, si
+1. Mettre à jour `project.version` dans `pyproject.toml` et `version` /
+   `appVersion` dans le chart Helm à `X.Y.Z`, ainsi que `image.tag` dans
+   `helm/agentic-ops/values.yaml` à `vX.Y.Z`. Pousser et vérifier les
+   changements sur `main`.
+2. Créer un tag/release GitHub `vX.Y.Z` correspondant exactement à la version
+   du paquet, par exemple `pyproject.toml` version `0.1.4` et tag `v0.1.4`.
+   La publication de la release démarre la chaîne. Un tag seul sans release
+   publiée ne la démarre pas.
+3. Le workflow vérifie que le tag sémantique correspond à `pyproject.toml` et
+   aux versions/tag configurés dans le chart Helm, construit et publie le
+   paquet PyPI, puis publie les images GHCR taguée `vX.Y.Z` et `latest`. Si
+   PyPI échoue, GHCR ne publie pas.
+4. Dans GitHub, ouvrir le package `agentic-ops` sous **Packages** et, si
    l'image doit être téléchargeable anonymement, régler sa visibilité à
    **Public**. GHCR peut créer le package en privé lors du premier push; la
    visibilité publique doit être activée explicitement par un propriétaire.
-4. Consulter le workflow et vérifier le tag ainsi que les architectures
+5. Consulter le workflow et vérifier le tag ainsi que les architectures
    publiées. Le chart Helm utilise `ghcr.io/nolll77/agentic-ops:v0.1.3`.
 
-La release PyPI est un workflow distinct; publier une version PyPI ne lance pas
-la publication du conteneur.
+La publication n'est pas une transaction atomique entre deux registres : si
+PyPI réussit et GHCR échoue, PyPI reste publié. Depuis l'exécution GitHub
+Actions, utiliser **Re-run failed jobs** pour retenter le job GHCR sans tenter
+de publier une seconde fois la même version PyPI.
+
+Cette chaîne publie des artefacts, mais ne déploie pas automatiquement sur un
+cluster Kubernetes. Un déploiement GitOps/Helm et son approbation restent une
+opération distincte.
+
+Le Dockerfile installe le projet depuis le checkout de la release avec
+`uv pip install -e .`; il ne télécharge pas le paquet depuis PyPI. Les deux
+artefacts sont donc construits depuis le même commit/tag, plutôt que de
+reconstruire l'image à partir d'un téléchargement PyPI.
+
+L'environnement GitHub `pypi` doit rester configuré comme Trusted Publisher
+PyPI pour le workflow `publish.yml`. Le compte doit également autoriser ce
+workflow à publier des packages sur GHCR.
 
 ## Publication réalisée
 
-Le 2026-10-19, le workflow GitHub Actions a publié
+Le 2026-10-19, avant la coordination des workflows, l'ancien workflow GHCR a publié
 `ghcr.io/nolll77/agentic-ops:v0.1.3` (run
 [39246908384](https://github.com/nolll77/agentic-ops/actions/runs/39246908384)).
 Le manifeste OCI, lisible sans authentification, référence `linux/amd64` et
 `linux/arm64`; son digest est
 `sha256:05a2f876cbe7d70bc60791e64660ad3ac427bf7a3e9cd39e7cfe6841b08ddc3a`.
 
-## Publication manuelle locale (facultative)
+## Publication manuelle locale (exception)
 
-Pour publier depuis un poste, créer un Personal Access Token GitHub Classic
+Cette procédure contourne la chaîne séquentielle PyPI → GHCR et ne doit être
+utilisée que pour un cas exceptionnel. Pour publier depuis un poste, créer un
+Personal Access Token GitHub Classic
 avec `write:packages`, puis saisir le token à l'invite de `docker login`. Ne
 mettre dans une commande, un fichier suivi par Git ou un message.
 
