@@ -4,8 +4,8 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![Copilote Web Chat](https://img.shields.io/badge/💬%20Chat%20Live-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-157%20Validés-brightgreen)](tests/)
-![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
+[![Tests](https://img.shields.io/badge/Tests-193%20Validés-brightgreen)](tests/)
+![Status](https://img.shields.io/badge/Status-Qualification%20Production%20Requise-yellow)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
@@ -1511,11 +1511,13 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install 'httpx[socks]'
 
-# 2. Exécuter la suite complète de 157 tests (Unitaires, Adversariaux, Scénarios & Passerelle MCP)
+# 2. Exécuter la suite complète de 183 tests (Unitaires, Adversariaux, Scénarios, Sécurité & Outbox)
 pytest tests/ -v
 # > Vérifie l'Arbre de Merkle RFC 6962, l'immutabilité WORM séquentielle, le Fail-Closed de la Gouvernance,
-# > l'incapacité de contournement de l'Orchestrateur, les 13 tests de CacPullCollector, les 24 tests MCP,
-# > et les 13 tests contradictoires dédiés à l'arbre de Merkle. (157 validés, 3 ignorés, 1 xfailed)
+# > le middleware Zero-Trust Admin API Key, le pattern Outbox SQLite WAL avant ACK 202,
+# > le classifieur d'alertes déterministe AlertClassifier, le gestionnaire de quotas atomiques (0 xfail),
+# > la liaison par hachage de proposition, le quorum HITL anti-auto-approbation, et la simulation par défaut.
+# > (183 validés, 3 ignorés, 0 xfailed en ~14s)
 
 # 3. Lancer la TUI d'Audit du Trust Ledger (Merkle Root & Preuves de Divulgation Sélective)
 python -m agentic_ops.cli.trust_ledger list
@@ -1529,9 +1531,16 @@ python -m agentic_ops.entrypoints.mcp_server
 
 ## Documentation de Référence et Preuves de Déploiement
 
-1. **[Main Documentation in English (`README.md`)](README.md)** :
+0. **[Statut d'Implémentation Industrielle & Invariants de Sécurité (`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`)](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md)** :
+   Matrice exhaustive distinguant le code implémenté et testé en CI des intégrations cloud externes, GameDays et qualifications de déploiement.
+1. **[Roadmap de Durcissement Production & Levée des Écarts (`docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`)](docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)** :
+   Feuille de route SRE maîtresse détaillant les 10 phases, les 8 invariants et les portes de production restantes.
+   **[Checklist de Qualification Entra & Préproduction (`docs/ENTRA_PREPRODUCTION_QUALIFICATION.md`)](docs/ENTRA_PREPRODUCTION_QUALIFICATION.md)** :
+   Étapes concrètes pour configurer l'application Entra et SCIM, publier l'image, déployer Helm en mono-réplica, puis exercer le parcours E2E, la sauvegarde/restauration et les pannes. Ces validations externes ne sont pas déclarées terminées.
+2. **[Main Documentation in English (`README.md`)](README.md)** :
    Version anglaise principale du dépôt.
-2. **[Rapport de Validation Cloud Sandbox (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)** :
+3. **[Rapport de Validation Cloud Sandbox (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)** :
+
    Déploiement sur micro-VM isolée (4 vCPUs AMD EPYC, 8 Go de RAM), exécution commentée des 30 tests de sécurité (`forbidden_executed = 0`), rejet `HTTP 401 Unauthorized` sur les webhooks non signés, et captures d'écran de session.
 3. **[Architecture et Validation du Connecteur Tailscale Pull (`CAC_TAILSCALE_PULL_CONNECTOR.md`)](CAC_TAILSCALE_PULL_CONNECTOR.md)** :
    Documentation complète de l'interconnexion avec [`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops) (`100.117.99.62`), configuration du démon `tailscaled` en mode `userspace-networking` (`SOCKS5 127.0.0.1:1055`), diagnostic des relais `DERP`, anatomie de `cac_pull_collector.py`, et détail des 13 tests unitaires.
@@ -1553,7 +1562,5 @@ python -m agentic_ops.entrypoints.mcp_server
     Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
 12. **[Guide d'Ingénierie de Distribution PyPI & Release (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)** :
     Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.
-
-
 
 

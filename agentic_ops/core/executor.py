@@ -6,6 +6,7 @@ from threading import Lock
 from typing import Any
 
 from agentic_ops.core.contracts import ActionProposal, ExecutionResult
+from agentic_ops.core.executor_gateway import live_execution_block_reason
 
 logger = logging.getLogger("Executor")
 
@@ -19,6 +20,9 @@ DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "demo-sandbox")
 ALLOWED_K8S_DEPLOYMENTS = ["fastapi-model-demo", "worker-demo"]
 
 def create_real_github_issue(action: ActionProposal) -> ExecutionResult:
+    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    if blocked:
+        return ExecutionResult(status="FAILED", executor="github", details=f"Exécution bloquée: {blocked}.")
     token = os.environ.get("GITHUB_TOKEN")
     repo = os.environ.get("GITHUB_REPO", "nolll77/mlops-target-infrastructure")
     
@@ -45,6 +49,9 @@ def create_real_github_issue(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="github", details=f"Échec API GitHub: {e}")
 
 def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
+    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    if blocked:
+        return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Exécution bloquée: {blocked}.")
     try:
         from kubernetes import client, config
         # En cluster, config.load_incluster_config()
@@ -80,6 +87,9 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
 
 
 def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
+    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    if blocked:
+        return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Exécution bloquée: {blocked}.")
     # Récupération de l'URL cible depuis les variables de la Sandbox
     prefect_url = os.environ.get("TARGET_PREFECT_URL", "http://100.117.99.62:4200")
     # L'ID du déploiement Prefect pour le pipeline d'entraînement
@@ -98,6 +108,9 @@ def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Échec réseau Tailscale ou API Prefect: {e}")
 
 def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
+    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    if blocked:
+        return ExecutionResult(status="FAILED", executor="mlflow.promote", details=f"Exécution bloquée: {blocked}.")
     mlflow_url = os.environ.get("TARGET_MLFLOW_URL", "http://100.117.99.62:5001")
     url = f"{mlflow_url}/api/2.0/mlflow/registered-models/alias"
     
@@ -116,13 +129,29 @@ def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="mlflow.promote", details=f"Échec API MLflow: {e}")
 
 def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
+    if action.type.value == "investigate":
+        return ExecutionResult(
+            status="SIMULATED",
+            executor="local_simulated.investigation",
+            details="Investigation enregistrée; aucune action externe exécutée.",
+        )
+
+    if not SIMULATION_MODE:
+        blocked = live_execution_block_reason(action, SIMULATION_MODE)
+        if blocked:
+            return ExecutionResult(
+                status="FAILED",
+                executor="executor_gateway",
+                details=f"Exécution physique refusée par défaut: {blocked}.",
+            )
+
     # 1. GitHub Issue
     if action.type.value == "create_issue":
         if SIMULATION_MODE:
             with _issue_counter_lock:
                 n = next(_issue_counter)
             return ExecutionResult(
-                status="SUCCESS",
+                status="SIMULATED",
                 executor="local_simulated.create_issue",
                 result_ref=f"local://issues/{n}",
                 details=f"Issue simulée créée pour {action.risk_id}"
@@ -168,6 +197,12 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
         return ExecutionResult(status="SIMULATED", executor="local_simulated.promote_model", details="Promotion réussie.")
 
     if action.type.value == "rollback":
+        if SIMULATION_MODE:
+            return ExecutionResult(
+                status="SIMULATED",
+                executor="local_simulated.rollback_model",
+                details="Rollback simulé : aucun changement de registre effectué.",
+            )
         if registry:
             success = registry.rollback_model(action.parameters.get("version"))
             if not success:

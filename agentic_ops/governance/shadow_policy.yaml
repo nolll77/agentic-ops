@@ -5,6 +5,7 @@ levels:
   L2: {effect: require_approval, approvals: 1}
   L3: {effect: require_approval, approvals: 2}
 actions:
+  investigate:    {level: L1, blast_radius_max: 1}
   create_issue:    {level: L1, blast_radius_max: 2}
   restart_pod:     {level: L2, blast_radius_max: 2, rate_limit: "1/hour"}
   scale_up:        {level: L2, blast_radius_max: 3, rate_limit: "2/hour"}

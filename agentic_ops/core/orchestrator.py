@@ -5,6 +5,7 @@ Evidence Store systématiques. Zéro import de provider concret.
 """
 
 from __future__ import annotations
+import hashlib
 from agentic_ops.adapters.llm_protocol import LLMPort
 
 
@@ -47,12 +48,14 @@ class Orchestrator:
         registry: Any = None,
         llm: LLMPort = None,
         llm_by_role: dict[str, LLMPort] | None = None,
+        inventory: Any = None,
     ):
         self.observability = observability
         self.policy_engine = policy_engine
         self.evidence_store = evidence_store
         self.environment = environment
         self.registry = registry
+        self.inventory = inventory
         self.llm = llm
         self.llm_by_role = llm_by_role or {}
 
@@ -87,6 +90,8 @@ class Orchestrator:
         signal_id: str = "data_drift",
         forced_action: ActionType | None = None,
         detection_window: str = "2026-09-30",
+        *,
+        idempotency_key: str | None = None,
     ) -> Episode:
         sm = StateMachine(initial="DETECTED")
         signal = self.observability.get_signal(signal_id)
@@ -96,7 +101,14 @@ class Orchestrator:
         service = signal.metadata.get("service", "unknown") if signal.metadata else "unknown"
         fingerprint = compute_semantic_fingerprint(tenant, self.environment, service, risk_id)
         
-        lock_owner = acquire_idempotency_lock(fingerprint, ttl_seconds=3600)
+        if idempotency_key is None:
+            lock_owner = acquire_idempotency_lock(fingerprint, ttl_seconds=3600)
+        else:
+            existing = self.evidence_store.find_episode_by_signal_id(signal_id)
+            if existing is not None:
+                return Episode.model_validate(existing)
+            lock_owner = idempotency_key
+            fingerprint = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
         if not lock_owner:
             print(f"[IDEMPOTENCE] Rejet: Incident {fingerprint[:8]} est déjà pris en charge (Lock Redis).")
             # En prod, on retournerait un objet Episode pointant vers l'existant.
@@ -123,8 +135,9 @@ class Orchestrator:
                 confidence=1.0,
                 findings=[Finding(description="LLM Circuit Breaker activé. Mode dégradé.")]
             )
-            forced_action = ActionType.CREATE_ISSUE
-            print("[CIRCUIT BREAKER] Mode dégradé forcé : CREATE_ISSUE")
+            if forced_action is None:
+                forced_action = ActionType.CREATE_ISSUE
+            print(f"[CIRCUIT BREAKER] Mode dégradé forcé : {forced_action.value}")
         else:
             # DIAGNOSED
             diagnosis = specialist.diagnose(risk_id, signal)
@@ -136,7 +149,7 @@ class Orchestrator:
         if forced_action is not None:
             action_type = forced_action
             action = ActionProposal(
-                type=action_type, target="unknown",
+                type=action_type, target=signal.metadata.get("target", "unknown"),
                 risk_id=risk_id,
                 requested_by=specialist.name,
                 reversible=action_type
@@ -176,6 +189,7 @@ class Orchestrator:
             signal=signal,
             episode=ep_mock,
             observability=self.observability,
+            inventory=self.inventory,
         )
         print(
             f"[POLICY] {decision.decision.value} "

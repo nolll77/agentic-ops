@@ -1,5 +1,10 @@
+from datetime import datetime, timezone
+from types import SimpleNamespace
+
 import pytest
 from hypothesis import given, strategies as st
+from agentic_ops.core.atomic_quota import AtomicQuotaManager
+from agentic_ops.core.policy import PolicyEngine
 from agentic_ops.core.policy_engine import evaluate
 from .conftest import facts, ctx, prop
 
@@ -31,6 +36,32 @@ def test_unknown_action_denied(bundle, action):
 @pytest.mark.parametrize("target", ["ghost", "prod-db", "baac-x; scale 0", "../../etc", ""])
 def test_bad_target_denied(bundle, target):
     assert evaluate(bundle, prop("restart_pod", target=target), ctx(facts(infra=2))).effect == "DENY"
+
+def test_policy_engine_without_inventory_fails_closed(bundle, tmp_path):
+    engine = PolicyEngine(
+        bundle,
+        quota_manager=AtomicQuotaManager(str(tmp_path / "quotas.sqlite3")),
+    )
+    proposal = SimpleNamespace(
+        type=SimpleNamespace(value="create_issue"),
+        target="mlops-incidents",
+        risk_id="DATA-042",
+        declared_blast_radius=None,
+        declared_reversible=None,
+    )
+    episode = SimpleNamespace(policy_version=None, facts=None, shadow_divergence=None)
+    signal = SimpleNamespace(observed_at=datetime.now(timezone.utc))
+    observability = SimpleNamespace(get_events=lambda: [])
+
+    decision = engine.decide(
+        proposal,
+        signal,
+        episode,
+        observability=observability,
+    )
+
+    assert decision.decision.value == "DENY"
+    assert decision.matched_rule == "INV-001"
 
 def test_rate_limit(bundle):
     assert evaluate(bundle, prop("restart_pod"), ctx(facts(infra=2), recent=1)).rule_ids[0] == "RATE-001"

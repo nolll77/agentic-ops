@@ -28,3 +28,49 @@ def test_simulated_issue_references_are_unique_under_threads():
         results = list(pool.map(lambda _: real_exec.execute(make_action("create_issue")), range(count)))
     refs = [r.result_ref for r in results]
     assert len(set(refs)) == count
+
+def test_live_execution_fails_closed_without_explicit_gateway_configuration(monkeypatch):
+    real_exec = get_real_execute()
+    monkeypatch.setattr(real_exec, "SIMULATION_MODE", False)
+    monkeypatch.delenv("ALLOW_LIVE_EXECUTION", raising=False)
+    result = real_exec.execute(make_action(ActionType.SCALE_TO_ZERO))
+    assert result.status == "FAILED"
+    assert result.executor == "executor_gateway"
+    assert "not been explicitly enabled" in result.details
+
+def test_active_kill_switch_blocks_live_mutation_before_network(monkeypatch, tmp_path):
+    real_exec = get_real_execute()
+    from agentic_ops.core import executor_gateway
+    monkeypatch.setattr(executor_gateway, "QUALIFIED_LIVE_ACTIONS", frozenset({"scale_to_zero"}))
+    monkeypatch.setattr(real_exec, "SIMULATION_MODE", False)
+    monkeypatch.setenv("ALLOW_LIVE_EXECUTION", "true")
+    monkeypatch.setenv("LIVE_EXECUTION_ACK", "I_UNDERSTAND_LIVE_MUTATIONS")
+    monkeypatch.setenv("EXECUTION_PROFILE", "staging")
+    monkeypatch.setenv("LIVE_EXECUTION_ACTIONS", "scale_to_zero")
+    monkeypatch.setenv("LIVE_EXECUTION_TARGETS", "demo-target")
+    switch = tmp_path / "kill-switch"
+    switch.touch()
+    monkeypatch.setenv("KILL_SWITCH_FILE", str(switch))
+
+    result = real_exec.execute(make_action(ActionType.SCALE_TO_ZERO))
+    assert result.status == "FAILED"
+    assert "kill-switch is active" in result.details
+
+def test_no_action_is_live_qualified_by_default(monkeypatch):
+    from agentic_ops.core.executor_gateway import live_execution_block_reason
+    monkeypatch.setenv("ALLOW_LIVE_EXECUTION", "true")
+    monkeypatch.setenv("LIVE_EXECUTION_ACK", "I_UNDERSTAND_LIVE_MUTATIONS")
+    monkeypatch.setenv("EXECUTION_PROFILE", "staging")
+    monkeypatch.setenv("LIVE_EXECUTION_ACTIONS", "scale_to_zero")
+    monkeypatch.setenv("LIVE_EXECUTION_TARGETS", "demo-target")
+    assert "no live adapter is qualified" in live_execution_block_reason(
+        make_action(ActionType.SCALE_TO_ZERO), simulation_mode=False
+    )
+
+def test_simulation_never_mutates_model_registry():
+    real_exec = get_real_execute()
+    from unittest.mock import Mock
+    registry = Mock()
+    result = real_exec.execute(make_action(ActionType.ROLLBACK), registry=registry)
+    assert result.status == "SIMULATED"
+    registry.rollback_model.assert_not_called()

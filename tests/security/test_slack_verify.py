@@ -72,19 +72,22 @@ def test_verify_slack_valid_signature_succeeds():
     verify_slack(b"payload=ok", str(ts), valid_sig, secrets=secrets, now=now)
 
 
-def test_slack_interactive_loads_real_episode_from_approval_repo():
+def test_slack_interactive_loads_real_episode_from_approval_repo(monkeypatch, tmp_path):
     """Verify that /slack/interactive reads real pending proposals from SQLite rather than returning 404."""
     import json
     import urllib.parse
     from fastapi.testclient import TestClient
     from agentic_ops.cli.main import app
-    from agentic_ops.core.approvals import FrozenProposal
+    from agentic_ops.core.approvals import ApprovalRepo, FrozenProposal
 
     client = TestClient(app)
 
     # Configure a test secret in app.state.hitl
     test_secret = "test_slack_signing_secret_32bytes"
-    app.state.hitl.secrets = [test_secret]
+    monkeypatch.setattr(app.state.hitl, "secrets", [test_secret])
+    test_repo = ApprovalRepo(str(tmp_path / "approvals.db"), time.time)
+    monkeypatch.setattr(app.state.hitl, "repo", test_repo)
+    monkeypatch.setattr(app.state.hitl.approvers, "group_of", lambda user, level: "SRE")
 
     import uuid
     dynamic_ep = f"EP-TEST-SLACK-{uuid.uuid4().hex[:8]}"
@@ -97,8 +100,9 @@ def test_slack_interactive_loads_real_episode_from_approval_repo():
         risk_id="RISK-42",
         policy_version="1.0",
         required=1,
+        requester_id="U_REQUESTER",
     )
-    req_hash = app.state.hitl.repo.open_request(proposal, ttl_s=600)
+    req_hash = test_repo.open_request(proposal, ttl_s=600)
 
     # Build Slack Block Kit interaction payload
     slack_payload = {
@@ -124,4 +128,7 @@ def test_slack_interactive_loads_real_episode_from_approval_repo():
     resp = client.post("/slack/interactive", content=raw_body, headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert "approuvé" in data.get("status", "") or "enregistrée" in data.get("status", "")
+    assert "durablement mise en file" in data.get("status", "")
+    claim = test_repo.claim_execution("test-worker")
+    assert claim is not None
+    assert claim.proposal.episode_id == dynamic_ep

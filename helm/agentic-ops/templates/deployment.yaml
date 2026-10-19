@@ -1,3 +1,21 @@
+{{- if and .Values.persistence.enabled (ne (int .Values.replicaCount) 1) }}
+{{- fail "persistence.enabled uses local SQLite files; replicaCount must remain 1 until a shared transactional adapter is qualified" }}
+{{- end }}
+{{- if and .Values.approvalWorker.enabled (not .Values.persistence.enabled) }}
+{{- fail "approvalWorker.enabled requires persistence.enabled for the durable approval outbox" }}
+{{- end }}
+{{- if and .Values.identity.scimEnabled (not .Values.persistence.enabled) }}
+{{- fail "identity.scimEnabled requires persistence.enabled for the durable SCIM directory" }}
+{{- end }}
+{{- if and .Values.approvalWorker.enabled (not .Values.identity.scimEnabled) (empty .Values.approvalWorker.approversSecretName) }}
+{{- fail "approvalWorker.enabled requires approvalWorker.approversSecretName containing SLACK_APPROVERS_JSON" }}
+{{- end }}
+{{- if and .Values.identity.scimEnabled (empty .Values.identity.scimBearerSecretName) }}
+{{- fail "identity.scimEnabled requires identity.scimBearerSecretName containing SCIM_BEARER_TOKEN" }}
+{{- end }}
+{{- if or (and .Values.identity.entraTenantId (not .Values.identity.entraApiAudience)) (and .Values.identity.entraApiAudience (not .Values.identity.entraTenantId)) }}
+{{- fail "Entra OIDC requires both identity.entraTenantId and identity.entraApiAudience" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,14 +36,29 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      terminationGracePeriodSeconds: 30
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: agentic-state
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-{{ .Chart.Name }}-state
+        {{- if and .Values.approvalWorker.enabled (not .Values.identity.scimEnabled) }}
+        - name: approvers-config
+          secret:
+            secretName: {{ .Values.approvalWorker.approversSecretName | quote }}
+            items:
+              - key: {{ .Values.approvalWorker.approversSecretKey | quote }}
+                path: approvers.json
+        {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8000
+              containerPort: 8001
               protocol: TCP
           livenessProbe:
             {{- toYaml .Values.probes.liveness | nindent 12 }}
@@ -36,5 +69,111 @@ spec:
               value: {{ .Values.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: ALERT_OUTBOX_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/alerts.db{{ else }}"state/alerts.db"{{ end }}
+            - name: APPROVAL_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/approvals.db{{ else }}"/tmp/state/approvals.db"{{ end }}
+            - name: POLICY_QUOTA_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/policy_quotas.db{{ else }}"state/policy_quotas.sqlite3"{{ end }}
+            - name: EVIDENCE_STORE_DIR
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/episodes{{ else }}"state/episodes"{{ end }}
+            - name: ALERT_CLASSIFICATION_MAP
+              value: /app/agentic_ops/governance/alert_classification.yaml
+            - name: SCIM_ENABLED
+              value: {{ .Values.identity.scimEnabled | quote }}
+            - name: SCIM_DB_PATH
+              value: {{ .Values.persistence.mountPath }}/approvals.db
+            {{- if .Values.identity.scimEnabled }}
+            - name: SCIM_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.identity.scimBearerSecretName | quote }}
+                  key: {{ .Values.identity.scimBearerSecretKey | quote }}
+            {{- end }}
+            {{- if and .Values.identity.entraTenantId .Values.identity.entraApiAudience }}
+            - name: ENTRA_TENANT_ID
+              value: {{ .Values.identity.entraTenantId | quote }}
+            - name: ENTRA_API_AUDIENCE
+              value: {{ .Values.identity.entraApiAudience | quote }}
+            - name: ENTRA_REQUIRED_ROLE
+              value: {{ .Values.identity.entraRequiredRole | quote }}
+            {{- end }}
+            {{- if and .Values.approvalWorker.enabled (not .Values.identity.scimEnabled) }}
+            - name: SLACK_APPROVERS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.approvalWorker.approversSecretName | quote }}
+                  key: {{ .Values.approvalWorker.approversSecretKey | quote }}
+            {{- end }}
+            {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: agentic-state
+              mountPath: {{ .Values.persistence.mountPath | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.alertWorker.enabled }}
+        - name: alert-triage-worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["agentic-alert-worker"]
+          args: ["--poll-interval-seconds", {{ .Values.alertWorker.pollIntervalSeconds | quote }}]
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.env.ENVIRONMENT | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: ALERT_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ALERT_OUTBOX_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/alerts.db{{ else }}"state/alerts.db"{{ end }}
+            - name: POLICY_QUOTA_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/policy_quotas.db{{ else }}"state/policy_quotas.sqlite3"{{ end }}
+            - name: EVIDENCE_STORE_DIR
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/episodes{{ else }}"state/episodes"{{ end }}
+            - name: ALERT_CLASSIFICATION_MAP
+              value: /app/agentic_ops/governance/alert_classification.yaml
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: agentic-state
+              mountPath: {{ .Values.persistence.mountPath | quote }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.alertWorker.resources | nindent 12 }}
+        {{- end }}
+        {{- if .Values.approvalWorker.enabled }}
+        - name: approval-execution-worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["agentic-approval-worker"]
+          args: ["--poll-interval-seconds", {{ .Values.approvalWorker.pollIntervalSeconds | quote }}]
+          env:
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: APPROVAL_WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: APPROVAL_DB_PATH
+              value: {{ .Values.persistence.mountPath }}/approvals.db
+            - name: SCIM_ENABLED
+              value: {{ .Values.identity.scimEnabled | quote }}
+            - name: SCIM_DB_PATH
+              value: {{ .Values.persistence.mountPath }}/approvals.db
+            {{- if not .Values.identity.scimEnabled }}
+            - name: SLACK_APPROVERS_FILE
+              value: /var/run/agentic-ops/approvers/approvers.json
+            {{- end }}
+          volumeMounts:
+            - name: agentic-state
+              mountPath: {{ .Values.persistence.mountPath | quote }}
+            {{- if not .Values.identity.scimEnabled }}
+            - name: approvers-config
+              mountPath: /var/run/agentic-ops/approvers
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.approvalWorker.resources | nindent 12 }}
+        {{- end }}

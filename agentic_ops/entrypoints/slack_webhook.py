@@ -1,6 +1,6 @@
 import json, logging
 from urllib.parse import parse_qs
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from agentic_ops.core.approvals import Result
 from .slack_verify import Reject, verify_slack
@@ -8,17 +8,19 @@ from .slack_verify import Reject, verify_slack
 log = logging.getLogger("slack_webhook")
 router = APIRouter()
 
-_HTTP = {Result.RECORDED: (200, "approbation enregistrée"), Result.CLAIMED: (200, "approuvé, exécution lancée"),
+_HTTP = {Result.RECORDED: (200, "approbation enregistrée"), Result.CLAIMED: (200, "quorum atteint, exécution durablement mise en file"),
          Result.DENIED: (200, "refusé"), Result.DUPLICATE: (200, "déjà compté"),
          Result.EXPIRED: (410, "demande expirée"), Result.HASH_MISMATCH: (409, "action différente de celle demandée"),
          Result.DIVERGED: (409, "l'épisode a changé depuis la demande"), Result.CLOSED: (409, "demande déjà clôturée"),
-         Result.UNKNOWN: (404, "demande inconnue")}
+         Result.UNKNOWN: (404, "demande inconnue"), Result.SELF_APPROVAL: (403, "auto-approbation interdite"),
+         Result.UNAUTHORIZED: (403, "rôle non autorisé"),
+         Result.INVALID_DECISION: (400, "décision invalide")}
 
 def get_deps(request: Request):
     return request.app.state.hitl
 
 @router.post("/slack/interactive")
-async def interactive(request: Request, background: BackgroundTasks, d=Depends(get_deps)):
+async def interactive(request: Request, d=Depends(get_deps)):
     body = await request.body()
     try:
         verify_slack(body, request.headers.get("X-Slack-Request-Timestamp"),
@@ -47,13 +49,11 @@ async def interactive(request: Request, background: BackgroundTasks, d=Depends(g
     if group is None:
         log.warning("approbateur non autorisé: %s (épisode %s)", user, episode_id)
         return JSONResponse({"error": "non autorisé"}, status_code=403)
-
-    result, claim = d.repo.decide(episode_id, user, group, decision, claimed_hash,
-                                  current_hash=d.orchestrator.current_proposal_hash(ep))
+    result, _ = d.repo.decide(episode_id, user, group, decision, claimed_hash,
+                              current_hash=d.orchestrator.current_proposal_hash(ep),
+                              eligible_group_for=lambda approver: d.approvers.group_of(approver, level))
     code, msg = _HTTP.get(result, (500, "erreur inconnue"))
     if result is Result.CLAIMED:
-        background.add_task(d.orchestrator.resume_from_claim, claim)
-    elif result in (Result.DENIED, Result.EXPIRED, Result.DIVERGED):
-        background.add_task(d.orchestrator.close_episode, episode_id, result.value)
+        log.info("approval %s reached quorum; execution claim persisted in outbox", episode_id)
     log.info("approval %s user=%s result=%s", episode_id, user, result.value)
     return JSONResponse({"status": msg}, status_code=code)

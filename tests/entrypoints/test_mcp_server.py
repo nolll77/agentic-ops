@@ -19,7 +19,10 @@ from agentic_ops.entrypoints.mcp_server import (
 )
 
 
-client = TestClient(app)
+client = TestClient(
+    app,
+    headers={"X-API-Key": "test-admin-key-" + "a" * 32},
+)
 
 
 def test_mcp_initialize_handshake():

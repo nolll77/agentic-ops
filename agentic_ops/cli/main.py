@@ -17,13 +17,16 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from agentic_ops.entrypoints.slack_webhook import router as slack_router
 from agentic_ops.entrypoints.mcp_server import router as mcp_router
 from agentic_ops.entrypoints.grafana_webhook import router as grafana_router
+from agentic_ops.entrypoints.entra_scim import router as entra_scim_router
+from agentic_ops.entrypoints.auth_middleware import AdminAPIKeyMiddleware
 from agentic_ops.core.approvals import ApprovalRepo
+from agentic_ops.core.entra_scim import SCIMDirectory, scim_database_path, scim_enabled
 from agentic_ops.adapters.cac_pull_collector import CacPullCollector
 
 app = FastAPI(
     title="Agentic-Ops Control Plane",
     description=(
-        "**Agentic-Ops** is an enterprise-grade, deterministic **MLOps & SRE Governance Control Plane**.\n\n"
+        "**Agentic-Ops** is a cloud-agnostic MLOps/SRE control-plane prototype. Production capabilities depend on qualified adapters and deployment profiles.\n\n"
         "### Key Capabilities & Endpoints:\n"
         "- **🧠 Multi-Agent System (MAS)**: 5 Specialized Cognitive LLM brains (Remediation, Infra, Data, Model, Chat) "
         "and 6 Zero-Token Deterministic Actuators (`/api/mas/topology`, `/api/llm/status`, `/api/llm/probe`).\n"
@@ -37,13 +40,18 @@ app = FastAPI(
     version="0.1.3",
 )
 
-# CORS enabled so a Vercel frontend or external dashboard can wake the container via fetch()
+app.add_middleware(AdminAPIKeyMiddleware)
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Grafana-Token"],
 )
 
 # HITL (Human-In-The-Loop) state initialization for /slack/interactive
@@ -52,6 +60,10 @@ if db_path != ":memory:":
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
 clock = time.time
 repo = ApprovalRepo(db_path, clock)
+scim_directory = (
+    SCIMDirectory(scim_database_path(), clock) if scim_enabled() else None
+)
+app.state.scim_directory = scim_directory
 
 # FAIL-CLOSED: In production, never fall back to a hardcoded predictable secret.
 # If unset, secrets list is empty so verify_slack() rejects all incoming calls with Reject(500, "secret absent").
@@ -60,14 +72,12 @@ hitl_secrets = [slack_secret] if slack_secret else []
 
 def _load_hitl_episode(ep_id: str):
     """Loads the frozen proposal from the ApprovalRepo SQLite database."""
-    c = repo._conn()
+    c = app.state.hitl.repo._conn()
     try:
         row = c.execute("SELECT proposal FROM requests WHERE episode_id=?", (ep_id,)).fetchone()
         if not row:
             return None
         return json.loads(row["proposal"])
-    except Exception:
-        return None
     finally:
         c.close()
 
@@ -77,15 +87,33 @@ def _current_proposal_hash(ep):
         return ""
     if isinstance(ep, dict):
         canon = json.dumps(ep, sort_keys=True, separators=(",", ":"), default=list)
-        return hashlib.sha256(canon.encode()).hexdigest()[:24]
+        return hashlib.sha256(canon.encode()).hexdigest()
     return getattr(ep, "digest", lambda: "")()
 
-def _resume_from_claim(claim):
-    ep_id = getattr(claim, "episode_id", str(claim))
-    logging.getLogger("HITL").info("[HITL] Claim approved for episode %s. Resuming execution.", ep_id)
-
-def _close_episode(ep_id, val):
-    repo.finish(ep_id, val)
+def _approver_group(user, level):
+    if scim_enabled():
+        if app.state.scim_directory is None:
+            return None
+        return app.state.scim_directory.group_for_external_id(user, level)
+    raw = os.environ.get("SLACK_APPROVERS_JSON", "")
+    if not raw:
+        return None
+    try:
+        mapping = json.loads(raw)
+    except json.JSONDecodeError:
+        logging.getLogger("HITL").error("SLACK_APPROVERS_JSON is invalid; denying approver")
+        return None
+    if not isinstance(mapping, dict):
+        logging.getLogger("HITL").error("SLACK_APPROVERS_JSON must be a user-to-groups object")
+        return None
+    user_groups = mapping.get(user, [])
+    if not isinstance(user_groups, list):
+        return None
+    eligible = {
+        "L2": {"SRE", "SRE_LEAD"},
+        "L3": {"SRE", "DATA_STEWARD", "SECOPS"},
+    }.get(level, set())
+    return next((group for group in user_groups if group in eligible), None)
 
 app.state.hitl = SimpleNamespace(
     secrets=hitl_secrets,
@@ -94,11 +122,13 @@ app.state.hitl = SimpleNamespace(
     orchestrator=SimpleNamespace(
         load_episode=_load_hitl_episode,
         current_proposal_hash=_current_proposal_hash,
-        resume_from_claim=_resume_from_claim,
-        close_episode=_close_episode,
     ),
-    policy=SimpleNamespace(level_of=lambda ep: "L2"),
-    approvers=SimpleNamespace(group_of=lambda user, level: "admin"),
+    policy=SimpleNamespace(
+        level_of=lambda ep: "L3"
+        if ep.get("required", 1) > 1 or len(ep.get("required_groups", [])) > 1
+        else "L2"
+    ),
+    approvers=SimpleNamespace(group_of=_approver_group),
 )
 
 
@@ -4419,6 +4449,7 @@ def web_chat():
 app.include_router(slack_router)
 app.include_router(mcp_router)
 app.include_router(grafana_router)
+app.include_router(entra_scim_router)
 
 
 def start_server():
@@ -4432,4 +4463,3 @@ def start_server():
         timeout_keep_alive=15,
         workers=1,
     )
-
