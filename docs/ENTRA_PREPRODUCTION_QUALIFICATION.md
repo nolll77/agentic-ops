@@ -23,7 +23,7 @@ La réussite de la CI ne vaut pas validation en préproduction ou en production.
 - Worker d'approbation durable, déployable en sidecar opt-in. Il exécute
   uniquement en simulation et ne reprend pas encore l'épisode suspendu de
   l'orchestrateur.
-- Chart Helm version `0.1.2`, image configurée `nolll77/agentic-ops:v0.1.3`,
+- Chart Helm version `0.1.3`, image configurée `ghcr.io/nolll77/agentic-ops:v0.1.3`,
   ports/sondes alignés sur `8001`, PVC pour l'état persistant et garde de
   réplica pour le profil SQLite. Le chart exige désormais une référence
   `crypto.signingSecretName` (même clé persistante dans l'API et les workers),
@@ -97,17 +97,14 @@ l'image reste construite localement.
 
 ### 3. Publier l'image et déployer le chart
 
-La publication n'est **pas** faite par ce dépôt de documentation. Après revue
-et fusion du changement applicatif, construire et publier l'image attendue dans
-le registre convenu. Exemple à adapter aux contrôles de signature et au
-processus de release de l'équipe :
-
-```sh
-docker buildx build \
-  --platform linux/amd64 \
-  --tag nolll77/agentic-ops:v0.1.3 \
-  --push .
-```
+La publication d'image est séparée de PyPI. Ce dépôt utilise GHCR sous
+`ghcr.io/nolll77/agentic-ops`; le workflow
+`.github/workflows/publish-container.yml` publie les images amd64 et arm64 à
+la publication d'une release, ou via **Actions > Publish container image >
+Run workflow** avec un tag fourni. Pour le premier push, vérifier également
+que le package GHCR est rendu public si les téléchargements anonymes sont
+souhaités. Le tag attendu par ce chart est
+`ghcr.io/nolll77/agentic-ops:v0.1.3`.
 
 - [ ] Vérifier dans le registre que le tag `v0.1.3` existe, relever le digest
   immuable, analyser l'image et vérifier sa provenance/signature selon la

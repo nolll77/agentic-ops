@@ -12,6 +12,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     AGENTIC_OPS_ENV=production \
     PORT=8001 \
     APPROVAL_DB_PATH=/tmp/state/approvals.db \
+    ALERT_OUTBOX_DB_PATH=/tmp/state/alerts.db \
+    POLICY_QUOTA_DB_PATH=/tmp/state/policy_quotas.sqlite3 \
+    EVIDENCE_STORE_DIR=/tmp/state/episodes \
     TS_SOCKET=/tmp/tailscaled.sock \
     TS_STATE=/tmp/tailscaled.state
 
@@ -29,23 +32,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml README.md start_sandbox.sh ./
 COPY scripts/ ./scripts/
 COPY agentic_ops/ ./agentic_ops/
-COPY tests/ ./tests/
-COPY docs/ ./docs/
-COPY reports/ ./reports/
-COPY state/ ./state/
 
 # Installation via l'installateur sécurisé 'uv' (incluant httpx[socks], pytest, hypothesis, fakeredis)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     /root/.local/bin/uv pip install --system --no-cache -e . && \
     /root/.local/bin/uv pip install --system --no-cache 'httpx[socks]' pytest pytest-mock hypothesis fakeredis && \
-    mkdir -p /app/reports /tmp/state && \
-    chmod -R 777 /app/reports /app/state /tmp/state
+    mkdir -p /tmp/state/episodes && \
+    chmod -R 700 /tmp/state
 
 # Règle du moindre privilège : utilisateur sans privilèges root
 RUN useradd -m -u 10001 agentic_user && \
     chmod +x /app/scripts/entrypoint.sh /app/start_sandbox.sh && \
-    mkdir -p /tmp/state && \
-    chown -R agentic_user:agentic_user /app /tmp/state
+    chown -R root:root /app && \
+    chown -R agentic_user:agentic_user /tmp/state
 
 USER agentic_user
 
