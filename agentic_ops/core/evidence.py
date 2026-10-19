@@ -187,7 +187,13 @@ class EvidenceStore:
 
     def get_merkle_proof(self, episode_id: str) -> Optional[Dict[str, Any]]:
         """
-        Generates an O(log N) Merkle Audit Proof of inclusion for a given episode.
+        Generates an O(log N)-size Merkle Audit Proof of inclusion for a given episode.
+
+        Complexity Profile:
+        - Ledger scan & tree construction: O(N) time and memory.
+        - Output proof packet size: O(log N) hashes.
+        - Third-party proof verification: O(log N) time and memory.
+
         Allows third-party auditors to verify that `episode_id` is sealed in the ledger
         without revealing any other episode.
         Includes the canonical episode payload to cryptographically bind:
@@ -234,6 +240,7 @@ class EvidenceStore:
         Does not require reading or loading the local ledger.
         Strictly binds episode_id and episode content to leaf_hash before
         verifying the Merkle inclusion path.
+        Returns False if canonical_payload or raw_episode is missing.
         """
         leaf_hash = proof_packet.get("leaf_hash", "")
         proof = proof_packet.get("audit_path", [])
@@ -252,7 +259,7 @@ class EvidenceStore:
             if c_ep.get("episode_id") != claimed_episode_id:
                 return False
             payload_to_check = get_canonical_json(c_ep)
-        elif "canonical_payload" in proof_packet:
+        elif "canonical_payload" in proof_packet and proof_packet["canonical_payload"]:
             payload_str = proof_packet["canonical_payload"]
             try:
                 parsed = json.loads(payload_str)
@@ -262,10 +269,13 @@ class EvidenceStore:
                 return False
             payload_to_check = payload_str
 
-        if payload_to_check is not None:
-            computed_leaf_hash = hash_leaf(payload_to_check)
-            if computed_leaf_hash.lower() != leaf_hash.lower():
-                return False  # Payload does not match leaf_hash!
+        # Enforce Cryptographic Payload Binding: a proof without payload is invalid
+        if payload_to_check is None:
+            return False
+
+        computed_leaf_hash = hash_leaf(payload_to_check)
+        if computed_leaf_hash.lower() != leaf_hash.lower():
+            return False  # Payload does not match leaf_hash!
 
         # 2. O(log N) Merkle path verification
         return MerkleTree.verify_audit_proof(leaf_hash, proof, expected_root)

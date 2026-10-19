@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 
 def hash_leaf(data: Union[bytes, str, Dict[str, Any]]) -> str:
@@ -67,45 +67,62 @@ def largest_power_of_two_less_than(n: int) -> int:
     return k
 
 
-def compute_rfc6962_mth(leaf_hashes: List[str]) -> str:
+def compute_rfc6962_mth(
+    leaf_hashes: Sequence[str],
+    start: int = 0,
+    end: Optional[int] = None,
+) -> str:
     """
-    Computes RFC 6962 Merkle Tree Hash (MTH) recursively:
+    Computes RFC 6962 Merkle Tree Hash (MTH) recursively in O(N) time and O(log N) stack depth:
     - MTH({}) = SHA-256("")
     - MTH({d_0}) = leaf_hash
     - For n > 1: k = largest power of two < n
       MTH(D[n]) = SHA-256(0x01 || MTH(D[0:k]) || MTH(D[k:n]))
+
+    Operates on index bounds [start:end] to avoid list slicing allocations.
     """
-    n = len(leaf_hashes)
+    if end is None:
+        end = len(leaf_hashes)
+    n = end - start
     if n == 0:
         return hashlib.sha256(b"").hexdigest()
     if n == 1:
-        return leaf_hashes[0]
+        return leaf_hashes[start]
     k = largest_power_of_two_less_than(n)
-    left_mth = compute_rfc6962_mth(leaf_hashes[:k])
-    right_mth = compute_rfc6962_mth(leaf_hashes[k:])
+    left_mth = compute_rfc6962_mth(leaf_hashes, start, start + k)
+    right_mth = compute_rfc6962_mth(leaf_hashes, start + k, end)
     return hash_children(left_mth, right_mth)
 
 
-def compute_rfc6962_audit_path(m: int, leaf_hashes: List[str]) -> List[Dict[str, str]]:
+def compute_rfc6962_audit_path(
+    m: int,
+    leaf_hashes: Sequence[str],
+    start: int = 0,
+    end: Optional[int] = None,
+) -> List[Dict[str, str]]:
     """
     Computes RFC 6962 Section 2.1.1 audit path for leaf at index m:
     - If n <= 1: empty path
     - For n > 1:
       If m < k: recursive path in D[0:k] with sibling MTH(D[k:n]) on the right
       If m >= k: recursive path in D[k:n] with sibling MTH(D[0:k]) on the left
+
+    Operates on index bounds [start:end] to avoid list slicing allocations.
     """
-    n = len(leaf_hashes)
+    if end is None:
+        end = len(leaf_hashes)
+    n = end - start
     if n <= 1:
         return []
     if m < 0 or m >= n:
         raise IndexError(f"Leaf index {m} out of bounds (total leaves: {n})")
     k = largest_power_of_two_less_than(n)
     if m < k:
-        right_sibling = compute_rfc6962_mth(leaf_hashes[k:])
-        return compute_rfc6962_audit_path(m, leaf_hashes[:k]) + [{"position": "right", "hash": right_sibling}]
+        right_sibling = compute_rfc6962_mth(leaf_hashes, start + k, end)
+        return compute_rfc6962_audit_path(m, leaf_hashes, start, start + k) + [{"position": "right", "hash": right_sibling}]
     else:
-        left_sibling = compute_rfc6962_mth(leaf_hashes[:k])
-        return compute_rfc6962_audit_path(m - k, leaf_hashes[k:]) + [{"position": "left", "hash": left_sibling}]
+        left_sibling = compute_rfc6962_mth(leaf_hashes, start, start + k)
+        return compute_rfc6962_audit_path(m - k, leaf_hashes, start + k, end) + [{"position": "left", "hash": left_sibling}]
 
 
 class MerkleTree:

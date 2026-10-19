@@ -326,7 +326,7 @@ The modal employs a 2-column responsive layout: the left sidebar provides catego
 |                                    |                                                             |
 |  [ ] SlackWebhookAgent             |  4. SECURITY, BLAST RADIUS & FINOPS OBSERVABILITY           |
 |      0-Token HMAC Gate             |     - Authorized Blast Radius: 0 to 5 (PolicyEngine veto)   |
-|                                    |     - WORM Ledger: Merkle cryptographically sealed (SHA256) |
+|                                    |     - WORM Ledger: Cryptographically sealed (SHA256 + RFC 6962)|
 |  [ ] 8 AgentTools                  |     - PromQL Metric: agentic_ops_llm_requests_total{role=""} |
 |      0-Token Sensory Probes        |     - Failure Domain: Trips CircuitBreaker on 429/timeout   |
 |                                    |                                                             |
@@ -356,7 +356,7 @@ Each component card rendered in the inspector details 5 engineering dimensions:
    - Tool Calling whitelist (restricted tool inventory).
 4. **Security, Blast Radius & FinOps Observability**:
    - Maximum permitted Blast Radius ($0$ for observation, up to $5$ for remediation).
-   - WORM Trust Ledger status (tamper-evident Merkle tree logging).
+   - WORM Trust Ledger status (tamper-evident linear chain & RFC 6962 Merkle tree logging).
    - Prometheus PromQL metric selector for real-time cost and volume tracking.
    - Failure domain behavior (circuit breaker trip, fail-closed lock, or automatic failover).
 5. **Interactive Live Controls**:

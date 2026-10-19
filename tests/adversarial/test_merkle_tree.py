@@ -204,3 +204,12 @@ def test_merkle_proof_binding_tampering(tmp_path):
     fake_raw_ep["details"]["val"] = 0.99
     assert EvidenceStore.verify_merkle_proof(proof_packet, raw_episode=fake_raw_ep) is False
 
+    # 4. Stripping canonical_payload completely (must fail, payload binding is mandatory)
+    stripped_packet = {k: v for k, v in proof_packet.items() if k != "canonical_payload"}
+    assert EvidenceStore.verify_merkle_proof(stripped_packet) is False
+
+    # 5. Empty canonical_payload (must fail)
+    empty_payload_packet = dict(proof_packet)
+    empty_payload_packet["canonical_payload"] = ""
+    assert EvidenceStore.verify_merkle_proof(empty_payload_packet) is False
+
