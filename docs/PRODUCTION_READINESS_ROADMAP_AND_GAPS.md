@@ -24,7 +24,7 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 | **1. Ingestion d'Alertes** | Adaptateur HTTP `POST /webhook/alerts` validant le JSON et comptant les alertes (`202 Accepted`). | Aucune transmission asynchrone vers l'orchestrateur (pas de boucle fermée). | File d'attente découplée (Redis Streams / Kafka), mapping d'alertes vers la taxonomie et réveil automatique de la FSM. | **P0** (`Redis Streams`, `Celery`/`arq`) |
 | **2. Exécution des Actions** | `_resume_from_claim` se borne à journaliser l'approbation (`logging.info`). Mode simulation par défaut. | L'agent n'exécute aucune action sur l'infrastructure cible lors de l'approbation humaine. | Workers d'exécution asynchrones branchés sur Kubernetes API / Argo Workflows / MLflow avec rollback et validation canary. | **P0** (`kubernetes-client`, `temporal.io` ou `arq`) |
 | **3. Authentification & Sécurité d'Accès** | Endpoints de diagnostic (`/api/diagnostics/{command}`) et MCP (`/mcp`) publics sans jeton. | Le verrou `_diagnostic_lock` protège de l'OOM cgroup (512 MiB), pas des accès non autorisés. | Authentification mutuelle TLS (mTLS) ou API Keys JWT avec rotation, rate-limiting distribué Redis par IP. | **P0** (`fastapi-limiter`, `Authlib`, `mTLS`) |
-| **4. Immuabilité du Registre (WORM)** | Journal append-only local (`state/ledger.jsonl`) chaîné par HMAC-SHA512. | Fichier local sur disque éphémère/monté ; vulnérable si l'hôte est compromis (pas de WORM matériel). | Stockage objet cloud immuable (AWS S3 Object Lock en Compliance Mode / GCS Bucket Lock) avec KMS cloud matériel (HSM). | **P1** (`boto3` S3 Object Lock, `AWS KMS` Ed25519) |
+| **4. Registre d'Audit & Arbre de Merkle** | Chaîne linéaire de hachage séquentielle (`state/ledger.jsonl`) scellée par HMAC-SHA512. | Pas de véritable structure d'Arbre de Merkle (impossibilité d'émettre des preuves d'inclusion logarithmiques $\mathcal{O}(\log N)$ sans divulguer l'historique complet). Fichier local sans WORM matériel cloud. | Implémentation d'un Arbre de Merkle binaire / Sparse Merkle Tree (SMT) avec extraction de Merkle Root d'époque, preuves cryptographiques d'inclusion (Audit Path $\mathcal{O}(\log N)$), ancrage RFC 3161 et stockage AWS S3 Object Lock (Compliance Mode). | **P1** (`pycryptodome`, Merkle Tree engine, `boto3` S3 Object Lock, RFC 3161 TSA) |
 | **5. Identité & RBAC des Approbateurs** | Résolution d'approbateur statique via stub `group_of=lambda user, level: "admin"`. | Tout utilisateur Slack ayant accès au canal peut approuver n'importe quelle action critique. | Intégration SSO/OIDC/SCIM (Okta, Azure AD), séparation des devoirs (*Separation of Duties*) et quorum multi-signatures. | **P1** (`OIDC`, Slack SCIM API, Quorum M-of-N) |
 | **6. Budget de Latence & Collecte Distante** | Paramètre `timeout: float` borné entre `0.5s` et `10.0s` par sous-requête HTTP individuelle. | La collecte séquentielle de multiples métriques peut dépasser 10s au total. | Collecte concurrente via `asyncio.gather` avec budget global strict (`context.deadline` / Annulation cooperative). | **P1** (`asyncio.gather`, `httpx` async timeouts) |
 | **7. Validation End-to-End** | 144 tests unitaires et d'intégration tournant sur des mocks et `TestClient`. | Pas de validation de bout en bout sur un vrai cluster de production. | Suite E2E sur cluster éphémère (K3s / Kind via Testcontainers) testant l'intégralité du cycle alerte → Slack → pod restart. | **P2** (`testcontainers-python`, `kind`) |
@@ -76,17 +76,30 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 ---
 
-### Chantier 4 : Vrai Stockage WORM Matériel Cloud & Gestion KMS Externe
-* **Problème actuel** :
-  Le journal `state/ledger.jsonl` est un fichier local sur le disque du conteneur. Même s'il est protégé par un chaînage de hash SHA-512 et une signature HMAC, quiconque dispose d'un accès root ou d'une clé compromise peut réécrire l'historique localement.
-* **Architecture cible pour être "un vrai"** :
-  1. **Stockage Cloud Immuable Certifié (WORM)** :
-     - Déport du journal vers un bucket **AWS S3 avec Object Lock activé en Compliance Mode** (durée de rétention non modifiable même par le compte root AWS) ou **Google Cloud Storage Bucket Lock**.
-     - Chaque bloc d'audit validé est écrit sous forme d'objet immuable avec hachage SHA-256 transmis dans l'en-tête HTTP `x-amz-checksum-sha256`.
-  2. **Gestion de Clés via HSM Managé (Cloud KMS)** :
-     - Remplacement de la clé HMAC symétrique partagée par une paire de clés asymétriques **Ed25519 ou ECDSA P-256 stockée dans un HSM certifié FIPS 140-2 Level 3** (AWS KMS / GCP Cloud KMS).
-     - La clé privée ne quitte jamais le matériel HSM : le conteneur soumet le payload à l'API KMS pour signature. La clé publique est librement diffusable pour permettre un audit d'intégrité par n'importe quel auditeur tiers indépendant.
-  3. **Fail-Closed d'Infrastructure** : Si l'API KMS est indisponible, toute transaction mutative est suspendue en *Fail-Closed* absolu (aucune signature locale de secours).
+### Chantier 4 : Vrai Registre WORM Matériel Cloud & Architecture en Arbre de Merkle (Merkle Tree Cryptographique)
+* **Problème actuel & Limites de la Chaîne Linéaire** :
+  1. **Complexité de Vérification Linéaire $\mathcal{O}(N)$** : Actuellement, le Trust Ledger est une chaîne séquentielle de hachage ($H_i = \text{Hash}(H_{i-1} + \text{canonical}(P_i))$). Pour prouver à un auditeur qu'un incident $E_k$ n'a pas été altéré dans un historique de $N$ épisodes, il faut obligatoirement recalculer et rejouer l'intégralité des $N$ hachages depuis le bloc genesis.
+  2. **Absence de Divulgation Sélective (*No Selective Disclosure*)** : Pour vérifier la chaîne, l'auditeur externe doit avoir accès à l'intégralité des épisodes précédents. Cela interdit de fournir une preuve à un tiers sur un incident précis sans lui exposer les métadonnées et données confidentielles des autres incidents.
+  3. **Absence de Racine Compacte Unique** : Impossible de condenser l'état de 10 000 incidents en une empreinte immuable unique de 32 octets pouvant être ancrée publiquement.
+  4. **Stockage Local Vulnérable** : Le fichier `state/ledger.jsonl` réside sur le disque de l'hôte sans verrouillage matériel WORM.
+
+* **Architecture Cible pour être "un vrai"** :
+  1. **Structure de Données en Arbre de Merkle Binaire (`MerkleTreeEngine`)** :
+     - **Feuilles de l'Arbre** : Chaque épisode validé forme une feuille : $L_i = \text{SHA-256}(\text{canonical\_json}(E_i))$.
+     - **Arborescence Cryptographique** : Les feuilles sont combinées deux à deux jusqu'au sommet :
+       $$\text{Node}_{\text{parent}} = \text{SHA-256}(\text{Node}_{\text{left}} \mathbin{\Vert} \text{Node}_{\text{right}})$$
+     - **Merkle Root d'Époque ($\text{Root}_{\text{epoch}}$)** : À chaque clôture d'époque (ex: toutes les 100 décisions ou chaque heure), une racine unique de 32 octets est consolidée, représentant l'intégrité absolue de l'ensemble du lot.
+  2. **Preuves d'Inclusion Logarithmiques en $\mathcal{O}(\log N)$ (*Audit Path / Merkle Proof*)** :
+     - Pour prouver à un régulateur (ex: conformité EU AI Act) qu'un épisode critique $E_k$ a été scellé sans lui divulguer le contenu des $N-1$ autres épisodes, le système génère un certificat d'audit compact contenant uniquement l'épisode $E_k$ et sa branche de hachages frères :
+       $$\text{Proof}(E_k) = \{H_{\text{sibling}, 1}, H_{\text{sibling}, 2}, \dots, H_{\text{sibling}, \lceil \log_2 N \rceil}\}$$
+     - L'auditeur recalcule la racine en seulement $\lceil \log_2 N \rceil$ opérations de hachage (ex: 14 opérations pour 10 000 incidents au lieu de 10 000) et compare le résultat à la racine certifiée.
+  3. **Ancrage Externe & Horodatage Légal (RFC 3161 TSA & Transparency Logs)** :
+     - Chaque racine $\text{Root}_{\text{epoch}}$ est soumise à une Autorité d'Horodatage certifiée (Timestamping Authority selon la norme RFC 3161) fournissant un jeton cryptographique horodaté infalsifiable prouvant que l'état existait à cette seconde précise.
+     - Publication optionnelle de la racine dans un registre de transparence public immuable (ex: Rekor / Sigstore).
+  4. **Stockage Cloud Immuable Certifié (WORM Object Lock)** :
+     - Déport des épisodes scellés et de leurs arbres de Merkle vers un bucket **AWS S3 avec Object Lock activé en Compliance Mode** (durée de rétention légale non modifiable même par le compte root AWS) ou **Google Cloud Storage Bucket Lock**.
+     - Signature asymétrique de la Merkle Root via **AWS KMS / GCP Cloud KMS avec paire de clés Ed25519 ou ECDSA P-256 stockée dans un HSM certifié FIPS 140-2 Level 3**.
+
 
 ---
 
