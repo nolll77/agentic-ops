@@ -219,18 +219,20 @@ def tailscale_status():
 
     has_persisted_state = bool(backend_state == "Running" and os.path.exists(ts_state_path))
     self_node = status_data.get("Self") or {}
-    raw_ips = self_node.get("TailscaleIPs", [])
-    masked_ips = [
-        re.sub(r"^(\d+\.\d+)\.\d+\.\d+$", r"\1.***.***", ip)
-        for ip in raw_ips
-    ]
+    masked_ips = []
+    for ip in raw_ips:
+        if "." in ip:
+            masked_ips.append(re.sub(r"^(\d+\.\d+)\.\d+\.\d+$", r"\1.***.***", ip))
+        elif ":" in ip:
+            parts = ip.split(":")
+            masked_ips.append(parts[0] + ":" + parts[1] + ":****:****")
+        else:
+            masked_ips.append("[REDACTED_IP]")
+
+    # Auth URL is strictly private to prevent rogue node claims; consult private Render logs
     safe_auth_url = None
     if backend_state != "Running" and auth_url:
-        safe_auth_url = (
-            auth_url
-            if os.environ.get("EXPOSE_TAILSCALE_AUTH_URL", "0") == "1"
-            else "[REDACTED_FOR_SECURITY - Consult private Render deployment logs or set TS_AUTHKEY]"
-        )
+        safe_auth_url = "[REDACTED_FOR_SECURITY - Consult private Render deployment logs or set TS_AUTHKEY]"
 
     return {
         "backend_state": backend_state,

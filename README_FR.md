@@ -36,7 +36,7 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
    - 💬 **Copilote Web Chat SRE en direct (`/chat`)** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Manifeste `MCP` (`Model Context Protocol`) en direct (`/mcp/manifest`)** : **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Guide complet : **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
-   - **Statut du Tunnel Maillé Tailscale (`100.85.198.81`)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
+   - **Statut du Tunnel Maillé Tailscale (`100.85.***.***` anonymisé)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 
 > [!TIP]
@@ -404,7 +404,7 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
 | **Exécuteur de Commandes de Diagnostic** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Exécute une commande de diagnostic autorisée dans le conteneur (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Sonde de Vie `Keep-Alive` (`Liveness Probe`)** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Route ultra-légère renvoyant `{"status": "ok"}`. Interrogée toutes les `10 minutes` par `cron-job.org` pour empêcher la mise en veille au bout de `15 minutes` d'inactivité du plan gratuit. |
 | **Sonde de Disponibilité des Démons (`Readiness`)** | **[`https://agentic-ops-5ebv.onrender.com/ready`](https://agentic-ops-5ebv.onrender.com/ready)** | `GET` | Vérifie que les deux démons internes (`redis_local_6379: true` et `tailscale_socks5_1055: true`) sont bien en écoute dans le conteneur. |
-| **Statut Maillé `Tailscale` & Lien Manuel de Secours** | **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** | `GET` | Interroge `tailscale --socket=/tmp/tailscaled.sock status --json`. Renvoie `"backend_state": "Running"`, `"tailscale_ips": ["100.85.198.81", ...]`, `"hostname": "agentic-ops-render"`, `"has_persisted_state": true`, ou un lien cliquable `"auth_url"` (`https://login.tailscale.com/a/...`) si une ré-authentification manuelle est un jour nécessaire. |
+| **Statut Maillé `Tailscale` Sécurisé** | **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** | `GET` | Interroge `tailscale --socket=/tmp/tailscaled.sock status --json`. Renvoie `"backend_state": "Running"`, `"tailscale_ips": ["100.85.***.***", ...]`, `"hostname": "agentic-ops-render"`, `"has_persisted_state": true`. Pour des raisons strictes de sécurité DevSecOps, `ts_state_b64` est retiré et `"auth_url"` est masqué (consultable uniquement dans les logs privés de déploiement Render ou via clé `TS_AUTHKEY`). |
 | **Collecte Pull `CAC MLOps` à la Demande** | **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)** | `GET` | Déclenche immédiatement une collecte en lecture seule (`CacPullCollector.collect_all()`, timeout par défaut de `3.5s` par service) sur les 5 endpoints de `jakatt/cac_mlops` à travers le tunnel `Tailscale SOCKS5` (`127.0.0.1:1055`). |
 | **Webhook Interactif `Slack HITL`** | `https://agentic-ops-5ebv.onrender.com/slack/interactive` | `POST` | Reçoit les clics sur les boutons `Slack Block Kit` signés (`HMAC-SHA256` + anti-rejeu `5 min` + verrou atomique `SQLite BEGIN IMMEDIATE`). |
 | **Planificateur `Keep-Alive` Externe (`cron-job.org`)** | **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** | `GET` (`Toutes les 10m`) | Tâche planifiée (`Agentic-Ops Keep-Alive`) appelant `https://agentic-ops-5ebv.onrender.com/healthz` toutes les `10 minutes` pour maintenir le conteneur et son tunnel `Tailscale` chauds 24h/24. |
@@ -423,7 +423,7 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
 4. **Démon `Tailscale` en Espace Utilisateur & Persistance Sécurisée (`TS_AUTHKEY` vs Injection Sécurisée)** :
    Lance `tailscaled --tun=userspace-networking --socks5-server=127.0.0.1:1055 --state=/tmp/tailscaled.state --socket=/tmp/tailscaled.sock` (sans aucun privilège `root`, `CAP_NET_ADMIN` ni `/dev/net/tun`).
    - **Mode Recommandé — `TS_AUTHKEY` (Clé Headless Réutilisable)** : Définir `TS_AUTHKEY=tskey-auth-...` dans les variables d'environnement de `Render` authentifie `tailscale up --authkey` au démarrage sans intervention humaine.
-   - **Mode Éphémère — `auth_url`** : Si aucune clé n'est configurée, `/api/tailscale/status` fournit l'URL d'autorisation interactive officielle de Tailscale. L'état cryptographique privé de la machine demeure confiné au conteneur local et n'est jamais exposé sur le réseau public HTTP.
+   - **Mode Éphémère — `auth_url`** : Si aucune clé n'est configurée, l'URL d'autorisation interactive de Tailscale est consignée dans les logs privés de Render (`/tmp/tailscale_up.log`) et masquée sur l'API publique pour empêcher toute revendication malveillante du nœud. L'état cryptographique privé de la machine demeure confiné au conteneur local et n'est jamais exposé sur le réseau public HTTP.
 5. **Exécution Non-Bloquante de `tailscale up` & Démarrage Immédiat de `FastAPI`** :
    `tailscale up` est lancé de manière asynchrone en arrière-plan (`nohup tailscale --socket="$TS_SOCKET" up ... &`) pour que `exec agentic-start` (`uvicorn` sur `0.0.0.0:8001`) ouvre le port HTTP immédiatement et valide le `Health Check` de `Render` sans jamais bloquer le déploiement.
 
@@ -444,16 +444,16 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
      # 1. Réveiller le conteneur et vérifier Redis local (:6379) & Tailscale SOCKS5 (:1055)
      curl -s https://agentic-ops-5ebv.onrender.com/ | python3 -m json.tool
 
-     # 2. Vérifier la connexion au réseau maillé Tailscale (IP 100.85.198.81, BackendState: Running)
+     # 2. Vérifier la connexion au réseau maillé Tailscale (IP anonymisée 100.85.***.***, BackendState: Running)
      curl -s https://agentic-ops-5ebv.onrender.com/api/tailscale/status | python3 -m json.tool
 
      # 3. Déclencher une collecte Read-Only en direct vers jakatt/cac_mlops (100.117.99.62)
      curl -s "https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5" | python3 -m json.tool
      ```
    - **Authentification Interactive `Tailscale` (Si le nœud requiert une reconnexion)** :
-     1. Ouvrez **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** dans votre navigateur.
-     2. Si `"backend_state"` vaut `"NeedsLogin"`, la route génère automatiquement un nouveau lien `"auth_url": "https://login.tailscale.com/a/..."`. Ouvrez ce lien dans votre navigateur et cliquez sur **`Connect`**.
-     3. Dès validation, le nœud passe en état `"Running"` et son statut est confirmé via `"has_persisted_state": true`.
+     1. Si `"backend_state"` vaut `"NeedsLogin"`, consultez les logs privés de déploiement de Render (`/logs`) ou configurez `TS_AUTHKEY` dans les variables d'environnement.
+     2. Suivez l'URL de connexion officielle `https://login.tailscale.com/a/...` affichée dans vos logs privés et cliquez sur **`Connect`**.
+     3. Dès validation, le nœud passe en état `"Running"` et son statut est confirmé via `"has_persisted_state": true` sur **[`/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**.
 
 #### 4. Terminal Web Interactif (`/console`) & Exécution en 1 Clic de Toutes les Commandes `Docker Cloud Sandbox`
 

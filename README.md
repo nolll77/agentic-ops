@@ -36,7 +36,7 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
    - 💬 **Live Interactive Web Chat Copilot (`/chat`)**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Live `MCP` (`Model Context Protocol`) Manifest (`/mcp/manifest`)**: **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Full guide: **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
-   - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
+   - **Live Tailscale Mesh Status (`100.85.***.***` anonymized)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 
 > [!TIP]
@@ -404,7 +404,7 @@ To allow `Agentic-Ops` to run continuously on a free-tier PaaS (`Render`, `Huggi
 | **Whitelisted Diagnostic Runner** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Executes a whitelisted diagnostic command inside the container (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Keep-Alive Liveness Probe** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Lightweight health check returning `{"status": "ok"}`. Polled every `10 minutes` by `cron-job.org` to prevent the `15-minute` free-tier inactivity spin-down. |
 | **Daemon Readiness Probe** | **[`https://agentic-ops-5ebv.onrender.com/ready`](https://agentic-ops-5ebv.onrender.com/ready)** | `GET` | Verifies that both internal daemons (`redis_local_6379: true` and `tailscale_socks5_1055: true`) are listening inside the container. |
-| **Tailscale Mesh Status & Manual Fallback Auth** | **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** | `GET` | Queries `tailscale --socket=/tmp/tailscaled.sock status --json`. Returns `"backend_state": "Running"`, `"tailscale_ips": ["100.85.198.81", ...]`, `"hostname": "agentic-ops-render"`, `"has_persisted_state": true`, or a live clickable `"auth_url"` (`https://login.tailscale.com/a/...`) if manual re-authentication is ever required. |
+| **Secured `Tailscale` Mesh Status** | **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** | `GET` | Queries `tailscale --socket=/tmp/tailscaled.sock status --json`. Returns `"backend_state": "Running"`, `"tailscale_ips": ["100.85.***.***", ...]`, `"hostname": "agentic-ops-render"`, `"has_persisted_state": true`. For DevSecOps reasons, `ts_state_b64` is removed and `"auth_url"` is redacted (consult private Render logs or set `TS_AUTHKEY`). |
 | **On-Demand `CAC MLOps` Pull Snapshot** | **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)** | `GET` | Triggers an immediate read-only collection (`CacPullCollector.collect_all()`, default `3.5s` per-service timeout) across all 5 `jakatt/cac_mlops` endpoints over the `Tailscale SOCKS5` tunnel (`127.0.0.1:1055`). |
 | **Slack HITL Interactive Webhook** | `https://agentic-ops-5ebv.onrender.com/slack/interactive` | `POST` | Receives signed `Slack Block Kit` button callbacks (`HMAC-SHA256` + `5 min` anti-replay + `SQLite BEGIN IMMEDIATE` atomic lock). |
 | **External Keep-Alive Scheduler (`cron-job.org`)** | **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** | `GET` (`Every 10m`) | Scheduled job (`Agentic-Ops Keep-Alive`) pinging `https://agentic-ops-5ebv.onrender.com/healthz` every `10 minutes` so the container and its `Tailscale` tunnel remain warm 24/7. |
@@ -423,7 +423,7 @@ Every time the container starts (whether on a fresh deployment or waking up from
 4. **Userspace `Tailscale` Daemon & Secure Persistence (`TS_AUTHKEY` vs. Secure Injection)**:
    Starts `tailscaled --tun=userspace-networking --socks5-server=127.0.0.1:1055 --state=/tmp/tailscaled.state --socket=/tmp/tailscaled.sock` (requiring zero root `CAP_NET_ADMIN` or `/dev/net/tun` privileges).
    - **Recommended Mode — `TS_AUTHKEY` (Tailnet Admin Reusable Key)**: Setting `TS_AUTHKEY=tskey-auth-...` in `Render`'s environment variables authenticates `tailscale up --authkey` automatically at boot without human intervention.
-   - **Ephemeral Mode — `auth_url`**: If no key is set, `/api/tailscale/status` provides the official Tailscale interactive authorization URL. The node's private cryptographic state remains confined to local storage and is never exposed over public HTTP.
+   - **Ephemeral Mode — `auth_url`**: If no key is set, Tailscale's interactive authorization URL is redirected strictly to Render's private deployment logs (`/tmp/tailscale_up.log`) and redacted on the public API to prevent unauthorized node registration. The node's private cryptographic state remains confined to local storage and is never exposed over public HTTP.
 5. **Non-Blocking Background `tailscale up` & Immediate `FastAPI` Startup**:
    `tailscale up` is launched asynchronously in the background (`nohup tailscale --socket="$TS_SOCKET" up ... &`) so that `exec agentic-start` (`uvicorn` on `0.0.0.0:8001`) binds immediately and passes `Render`'s health check without ever blocking on network handshakes.
 
@@ -444,16 +444,16 @@ Every time the container starts (whether on a fresh deployment or waking up from
      # 1. Wake the container and verify local Redis (:6379) & Tailscale SOCKS5 (:1055)
      curl -s https://agentic-ops-5ebv.onrender.com/ | python3 -m json.tool
 
-     # 2. Verify Tailscale mesh connection (IP 100.85.198.81, BackendState: Running)
+     # 2. Verify Tailscale mesh connection (anonymized IP 100.85.***.***, BackendState: Running)
      curl -s https://agentic-ops-5ebv.onrender.com/api/tailscale/status | python3 -m json.tool
 
      # 3. Trigger a live read-only pull from jakatt/cac_mlops (100.117.99.62)
      curl -s "https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5" | python3 -m json.tool
      ```
    - **Interactive `Tailscale` Authentication (If the node requires reconnection)**:
-     1. Open **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)** in your browser.
-     2. If `"backend_state"` is `"NeedsLogin"`, the endpoint automatically generates a fresh `"auth_url": "https://login.tailscale.com/a/..."`. Open that URL in your browser and click **`Connect`**.
-     3. Upon validation, the node transitions to `"Running"` and its status is confirmed via `"has_persisted_state": true`.
+     1. If `"backend_state"` is `"NeedsLogin"`, inspect Render's private deployment logs (`/logs`) or configure `TS_AUTHKEY` in environment variables.
+     2. Follow the official login URL `https://login.tailscale.com/a/...` displayed in your private logs and click **`Connect`**.
+     3. Upon validation, the node transitions to `"Running"` and its status is confirmed via `"has_persisted_state": true` on **[`/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**.
 
 #### 4. Interactive Web Terminal (`/console`) & 1-Click Execution of All Docker Cloud Sandbox Commands
 
