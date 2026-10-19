@@ -3,7 +3,8 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
-[![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
+[![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
+[![Tests](https://img.shields.io/badge/Tests-157%20Passed-brightgreen)](tests/)
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
@@ -13,7 +14,8 @@
 
 **Agentic-Ops** is an enterprise-grade *MLOps Control Plane* designed to orchestrate AI Agents (LLMs) in resolving production incidents (`Data Drift`, `Model Staleness`, `OOMKilled Pods`).
 
-Unlike traditional agentic frameworks (`LangChain`, `AutoGen`) that prioritize unchecked autonomy, `Agentic-Ops` is engineered around core **SRE (Site Reliability Engineering)** pillars: Determinism, Observability, Distributed Security (`Fail-Closed`), and asynchronous `Human-in-the-Loop (HITL)` governance.
+Unlike traditional agentic frameworks (`LangChain`, `AutoGen`) that prioritize unchecked autonomy, `Agentic-Ops` is engineered around core **SRE (Site Reliability Engineering)** pillars: Determinism, Observability, Distributed Security (`Fail-Closed`), Asynchronous `Human-in-the-Loop (HITL)` Governance, and **Cryptographic Immutability (`RFC 6962 Binary Merkle Tree` with $\mathcal{O}(\log N)$ Selective Disclosure Audit Proofs for EU AI Act compliance)**.
+
 
 ---
 
@@ -128,7 +130,7 @@ The system is built on a **Hexagonal Architecture** coupled with a strict **Fini
 
 1. **Orchestrator (FSM)**: Coordinates the strict lifecycle of an incident (`DETECTED` -> `INVESTIGATING` -> `DIAGNOSED` -> `PLANNED` -> `AWAITING_APPROVAL` / `EXECUTING` -> `RESOLVED` / `DENIED`).
 2. **Policy Engine**: The governance brain. Evaluates every proposed action against a declarative YAML manifest (`autonomy_policy.yaml`) to determine the permitted level of autonomy.
-3. **Trust Ledger (Evidence Store)**: Immutable cryptographic registry (`WORM`). Every decision generates a canonical hash chained to the previous block (`Merkle` chain).
+3. **Trust Ledger (Evidence Store)**: Dual-tier immutable cryptographic registry (`WORM`). Combines an append-only linear hash chain (`previous_hash` + `HMAC-SHA512`) with an **RFC 6962 Binary Merkle Tree** providing 32-byte Merkle root condensation and $\mathcal{O}(\log N)$ Selective Disclosure Audit Proofs for EU AI Act compliance.
 4. **Executor & Model Registry (Simulated / Adapter)**: Executes approved actions and strictly governs model lifecycle transitions (`ModelRegistryStatusEnum`, `ModelDeploymentStatusEnum`).
 5. **Agent Tools (Sandboxing)**: Tools exposed to LLMs, confined at the OS process level with an enforced hardware/OS timeout.
 
@@ -145,7 +147,8 @@ agentic-ops-core/
 │   │   ├── orchestrator.py       # Main FSM. Physically halts on REQUIRE_APPROVAL, handles resumption (resume_episode).
 │   │   ├── policy.py             # Governance engine (Pydantic), evaluates permission manifests.
 │   │   ├── executor.py           # Last-mile actuator. Mutates the Model Registry. Returns FAILED on business rule rejection.
-│   │   ├── evidence.py           # WORM Trust Ledger. Canonical JSON serialization, block chaining (previous_hash).
+│   │   ├── merkle.py             # RFC 6962 Binary Merkle Tree. Domain separators (0x00/0x01), O(log N) audit proofs, second-preimage attack resistance.
+│   │   ├── evidence.py           # WORM Trust Ledger. Canonical JSON serialization, block chaining (previous_hash), Merkle tree integration.
 │   │   ├── distributed.py        # Idempotency and Rate Limiting via Redis (Atomic pipelines & distributed locks).
 │   │   └── circuit_breaker.py    # FinOps protection against Monitoring Storms (automatic degraded mode fallback).
 │   ├── adapters/
@@ -155,26 +158,36 @@ agentic-ops-core/
 │   │   ├── autonomy_policy.yaml  # Strict production MLOps manifest (approval requirements).
 │   │   └── shadow_policy.yaml    # Security policy A/B testing (divergence analysis).
 │   ├── cli/
-│   │   └── main.py               # FastAPI server exposing /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
+│   │   ├── main.py               # FastAPI server exposing /, /healthz, /ready, /api/tailscale/status, /api/cac/snapshot, /slack/interactive.
+│   │   └── trust_ledger.py       # Trust Ledger CLI: list, inspect, merkle-root, and merkle-proof <episode_id>.
 │   └── entrypoints/
 │       ├── mcp_server.py         # Model Context Protocol (MCP) Governance Gateway (8 Tools, 5 Resources, 20 Prompts).
 │       └── slack_webhook.py      # HITL: Human approval ingestion (HMAC-SHA256 verification, 5m anti-replay window).
 ├── scripts/
-│   └── entrypoint.sh             # Zero-Click Auto-Wake boot script (Redis :6379 + Tailscale SOCKS5 :1055 + TS_STATE_B64 + FastAPI).
+│   └── entrypoint.sh             # Zero-Click Auto-Wake boot script (CSPRNG session key + Redis :6379 + Tailscale :1055 + FastAPI).
 ├── docs/
-│   ├── MCP_SERVER_GUIDE.md       # Complete MCP Server guide, STDIO/HTTP connection configs, and 20 Starter Prompts.
+│   ├── WORM_TRUST_LEDGER_GUIDE.md           # Comprehensive WORM Trust Ledger & RFC 6962 Binary Merkle Tree guide.
+│   ├── PRODUCTION_READINESS_ROADMAP_AND_GAPS.md # 7-Pillar enterprise production hardening roadmap.
+│   ├── MCP_SERVER_GUIDE.md                  # Complete MCP Server guide, STDIO/HTTP connection configs, and 20 Starter Prompts.
 │   ├── mlops_failure_modes_taxonomy.md      # 435 MLOps failure modes ontology across 10 dimensions.
 │   └── mlops_simulation_scenarios_registry.md # MLOps crisis simulation scenario registry.
 ├── tests/
 │   ├── adapters/
-│   │   └── test_cac_pull_collector.py # 13 unit tests (JSON parsing, offline resilience, strict read-only enforcement).
+│   │   ├── test_cac_pull_collector.py # 13 unit tests (JSON parsing, offline resilience, strict read-only enforcement).
+│   │   └── test_llm_provider_registry.py # 16 tests for multi-LLM providers, failover chains, and API key masking.
 │   ├── entrypoints/
-│   │   └── test_mcp_server.py         # 12 unit & E2E tests for the MCP Governance Gateway (/console reader, WORM, Policy).
-│   ├── integration/
-│   │   └── test_registry_e2e.py       # Formal E2E proof of Orchestrator blocking without human intervention.
-│   └── security/
-│       ├── test_trust_ledger.py       # Tamper-evident detection on the WORM blockchain.
-│       └── test_executor.py           # Security invariant tests (OS-level process isolation & sandboxing).
+│   │   ├── test_mcp_server.py         # 24 unit & E2E tests for the MCP Governance Gateway.
+│   │   ├── test_tailscale_endpoint.py # 4 tests for mesh status and PII redaction.
+│   │   └── test_chat_endpoint.py      # 10 tests for live SSE streaming and copilot endpoints.
+│   ├── adversarial/
+│   │   ├── test_merkle_tree.py        # 13 tests for RFC 6962 Merkle Tree, odd/even leaves, O(log N) proofs & tamper resistance.
+│   │   ├── test_evidence_integrity.py # 4 tests for WORM linear hash chain tampering and production fail-closed.
+│   │   ├── test_prompt_hygiene.py     # Prompt injection fencing (<untrusted_telemetry>).
+│   │   └── test_idempotency_and_rate.py # Redis distributed locks & token-bucket rate limiting.
+│   ├── policy/
+│   │   └── test_policy_engine.py      # Autonomy matrix and YAML rule verification.
+│   └── scenarios/
+│       └── test_scenarios.py          # 10 production incident cascades (SC-101 to SC-005, 0 forbidden executed).
 ├── Dockerfile                         # Production Auto-Wake container image (Render / Koyeb / Self-Hosted, Port 8001).
 ├── Dockerfile.hf                      # Hugging Face Spaces Auto-Wake container image (Port 7860, non-root UID 1000).
 ├── DOCKER_SANDBOX_VALIDATION.md       # Deployment and validation report on Docker Cloud Sandbox.
@@ -534,6 +547,35 @@ Trust Ledger - Audit Trail
 | **`EP-0002`** | `DATA-042` (`LIVE`) — *Candidate Model Promotion Request* | `data_specialist` | `deploy_prod` (*Promote candidate model to `@Production` in `MLflow`*) | **`REQUIRE_APPROVAL`** (`Halted in AWAITING_APPROVAL`) | **Physical Halt + Interactive `Slack HITL` Escalation (`execution: None`)**. The agent proposed promoting a newly trained `lgbm_accidents` candidate version to `@Production` on the target MLOps platform. Intercepted by [`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml) (`REQUIRE_APPROVAL`): the orchestrator persists the episode in `SQLite WAL` (`/tmp/state/approvals.db`) and waits for a signed human approval before calling `Executor` to update `MLflow`. |
 | **`EP-0001`** | `DATA-042` (`LIVE`) — *Initial Feature Drift Detection* | `data_specialist` | `create_issue` (*Open an MLOps incident ticket*) | **`ALLOW`** (`status: SUCCESS`) | **Genesis Block of the `WORM` Chain (`previous_hash: GENESIS`)**. First live autonomous remediation: opens a diagnostic issue documenting the `DATA-042` drift anomaly on `jakatt/cac_mlops` while keeping production inference 100% untouched. |
 
+##### Cryptographic RFC 6962 Binary Merkle Tree Verification & $\mathcal{O}(\log N)$ Selective Disclosure
+
+Beyond the sequential linear hash chain, `Agentic-Ops` implements a formal **RFC 6962 Binary Merkle Tree** ([`agentic_ops/core/merkle.py`](agentic_ops/core/merkle.py)) with domain separation prefixes (`0x00` for leaves, `0x01` for internal nodes) protecting against second-preimage collision attacks.
+
+This architecture enables **Selective Disclosure under the EU AI Act (Article 12)**: an auditor can verify that any specific incident episode was sealed without the organization needing to disclose any other confidential episode.
+
+```bash
+# 1. Compute and display the global 32-byte Merkle Root
+$ uv run python -m agentic_ops.cli.trust_ledger merkle-root
+=== Binary Merkle Tree Cryptographique (RFC 6962) ===
+Nombre d'épisodes scellés : 8
+Merkle Root (SHA-256)      : f3e72fddffce225ed02e7afc58892f970a8ff9b6ca7662daefedba8302bef54e
+Profondeur de l'arbre      : 4 niveaux (O(log N) = 3 étapes)
+Second-preimage resistant : Domain Separators 0x00 (feuilles) / 0x01 (nœuds parents)
+
+# 2. Extract and verify the O(log N) inclusion proof for an episode
+$ uv run python -m agentic_ops.cli.trust_ledger merkle-proof EP-0001
+=== Preuve d'Inclusion Merkle (Audit Proof) : EP-0001 ===
+Position dans l'arbre : Feuille index 0 / 8
+Leaf Hash (RFC 6962)  : a6bffcb84e4992311828368a47fefd4d1c123343952bd2354517d1c5c97f487d
+Merkle Root Attendue  : f3e72fddffce225ed02e7afc58892f970a8ff9b6ca7662daefedba8302bef54e
+Audit Path            : 3 étapes logarithmiques
+  [1] Sibling (right) : 6357c0642a0b4051d764fb5a936f9d83435fcb834b87eefb6070270a97e33f04
+  [2] Sibling (right) : 94b83c0479ae726c1c0f5e4ad9e14b32b77a774a8c4d2af0685f446f4e2e148c
+  [3] Sibling (right) : b6038ce4b3b198f2a8fb7b9ab5d85b0deb67b018371824eb80ec2e3831e2394e
+
+Vérification O(log N) : VALIDE (Mathématiquement intègre & inclus dans le Merkle Root)
+```
+
 ---
 
 ## Core Features & Security Hardening (Red-Teaming)
@@ -545,10 +587,13 @@ This repository underwent an offensive architectural audit (*Red-Teaming*) and w
 - **Asynchronous Rehydration (HITL)**: Human approval triggers `orchestrator.resume_episode()`, which cryptographically validates the approver, resumes the state machine, and dispatches the order to the Executor.
 - **Model Registry Gatekeeping**: The Executor drives the Model Registry directly. The registry rejects invalid promotions (e.g., F1 < 0.85 or incompatible schema), forcing the Executor to return a detectable `FAILED` status (rather than a fake `SIMULATED` status). Only one model version can be `ACTIVE` at any given time.
 
-### 2. Cryptographic Traceability (WORM Trust Ledger)
-- **Block Chaining (Previous Hash)**: The `EvidenceStore` assigns a `previous_hash` to every episode, guaranteeing strict chronological ordering.
-- **Canonicalization**: Full state (Pydantic `mode='json'`) is encoded via `get_canonical_json` and hashed with `SHA-256`.
-- **Tamper-Evident Verification**: Any attempt to manually alter a stored WORM file (`state_trace` = `APPROVE`) invalidates the cryptographic signature inside `verify_episode()`. Overwriting an existing episode ID locally is strictly forbidden.
+### 2. Cryptographic Traceability (WORM Trust Ledger & RFC 6962 Merkle Tree)
+- **Dual-Tier Cryptographic Immutability**: Combines a real-time append-only linear hash chain (`previous_hash` + `HMAC-SHA512`) with an RFC 6962 Binary Merkle Tree for batch condensation and $\mathcal{O}(\log N)$ audit proofs.
+- **Second-Preimage Attack Resistance**: Enforces RFC 6962 domain separation bytes (`0x00` for leaves, `0x01` for internal nodes) preventing node-leaf confusion attacks.
+- **Selective Disclosure Proofs $\mathcal{O}(\log N)$**: Enables proving to a regulator (EU AI Act Article 12) that a specific decision was sealed in the ledger without disclosing proprietary inference data or telemetry from any other incident.
+- **Deterministic Canonicalization**: Full state (Pydantic `mode='json'`) is encoded via RFC 8785 canonical JSON (`get_canonical_json`) with whitespace stripped and keys sorted.
+- **Tamper-Evident Verification**: Any attempt to manually alter a stored WORM file invalidates both the HMAC-SHA512 signature in `verify_chain()` and the logarithmic Merkle inclusion path in `verify_merkle_proof()`. Overwriting an existing episode ID is strictly blocked.
+
 
 ### 3. Distributed Security & Concurrency (Redis)
 - **Atomic Rate Limiting**: Caps destructive actions via atomic Redis pipelines (`INCR` + `EXPIRE`). Eliminates race conditions across multi-replica deployments.
@@ -1466,14 +1511,18 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install 'httpx[socks]'
 
-# 2. Run the E2E Security, Scenarios, CAC Connector & MCP Gateway Test Suite (127 tests)
+# 2. Run the Full Suite of Unit, Adversarial, Scenario & MCP Gateway Tests (157 tests)
 pytest tests/ -v
-# > Verifies WORM immutability, Fail-Closed governance,
-# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, and 24 MCP Gateway tests.
+# > Verifies RFC 6962 Binary Merkle Tree, WORM linear chain immutability, Fail-Closed governance,
+# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, 24 MCP Gateway tests,
+# > and 13 dedicated adversarial Merkle tree tests. (157 passed, 3 skipped, 1 xfailed)
 
-# 3. Launch the Trust Ledger Audit CLI or the STDIO MCP Server
+# 3. Launch the Trust Ledger Audit CLI (Merkle Root & Selective Disclosure Proofs)
 python -m agentic_ops.cli.trust_ledger list
+python -m agentic_ops.cli.trust_ledger merkle-root
+python -m agentic_ops.cli.trust_ledger merkle-proof EP-0001
 python -m agentic_ops.entrypoints.mcp_server
+
 ```
 
 ---
