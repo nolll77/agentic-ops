@@ -159,10 +159,9 @@ def ready():
 def tailscale_status():
     """
     Returns the live Tailscale daemon status, the fresh interactive AuthURL
-    (if NeedsLogin), and the base64-encoded state (TS_STATE_B64) once authenticated
-    so non-admin members can persist their session in Render Environment Variables.
+    (if NeedsLogin), and connectivity metrics. Node private keys and states
+    are strictly isolated and never exposed over HTTP.
     """
-    import base64
     import json
 
     ts_socket = os.environ.get("TS_SOCKET", "/tmp/tailscaled.sock")
@@ -213,26 +212,19 @@ def tailscale_status():
         except Exception:
             pass
 
-    ts_state_b64 = None
-    if backend_state == "Running" and os.path.exists(ts_state_path):
-        try:
-            with open(ts_state_path, "rb") as f:
-                ts_state_b64 = base64.b64encode(f.read()).decode("ascii")
-        except Exception:
-            ts_state_b64 = None
-
+    has_persisted_state = bool(backend_state == "Running" and os.path.exists(ts_state_path))
     self_node = status_data.get("Self") or {}
     return {
         "backend_state": backend_state,
         "auth_url": auth_url or None,
         "tailscale_ips": self_node.get("TailscaleIPs", []),
         "hostname": self_node.get("HostName"),
-        "ts_state_b64": ts_state_b64,
+        "has_persisted_state": has_persisted_state,
         "instructions": (
             "1. Open auth_url in your browser to authorize this container. "
-            "2. Refresh this page once connected to copy ts_state_b64 into Render Environment Variables as TS_STATE_B64."
+            "2. To persist credentials across container sleep cycles, configure TS_AUTHKEY in Render Environment Variables."
             if backend_state != "Running"
-            else "Connected to Tailscale! Copy ts_state_b64 into Render Environment Variables (Key: TS_STATE_B64) to persist across container sleep cycles."
+            else "Connected to Tailscale! Machine is active on the mesh network."
         ),
     }
 
