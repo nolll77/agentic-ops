@@ -193,8 +193,8 @@ pas un objectif de service ni une prédiction pour le cluster cible.
 
 ## Statut vérifié du dépôt
 
-La release `v0.1.4` a été publiée sur PyPI et GHCR; la candidate `v0.1.5`
-améliore la gestion d'authentification des interfaces Render. L'automatisation
+Les releases `v0.1.4` et `v0.1.5` ont été publiées sur PyPI et GHCR;
+`v0.1.5` améliore la gestion d'authentification des interfaces Render. L'automatisation
 coordonne PyPI puis GHCR. Un
 parcours local Docker/kind sans tenant Entra a
 déjà traité une alerte en simulation et conservé son état après redémarrage

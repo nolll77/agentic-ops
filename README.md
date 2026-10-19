@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
-[![GHCR](https://img.shields.io/badge/GHCR-v0.1.4-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
+[![GHCR](https://img.shields.io/badge/GHCR-v0.1.5-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-213%20Passed-brightgreen)](tests/)
@@ -19,11 +19,11 @@ Unlike frameworks that prioritize agent autonomy, it explores SRE-inspired contr
 
 ## Current release and honest qualification status
 
-- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); the currently published public multi-architecture container is [`ghcr.io/nolll77/agentic-ops:v0.1.4`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); the currently published public multi-architecture container is [`ghcr.io/nolll77/agentic-ops:v0.1.5`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
 - A local Docker/kind exercise validated an alert webhook through the worker to a simulated investigation episode, and confirmed that its state survived a pod restart on the same PVC. This is local single-node evidence, not a backup-restore or cluster-loss test.
 - Release automation tests and version-checks a GitHub release, publishes Python distributions to PyPI, then publishes the matching AMD64/ARM64 container to GHCR. See [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
 - Release `v0.1.4` adds a fail-closed local inventory, SQLite backup/restore commands, and a synthetic load/crash-recovery benchmark. These tools do not themselves qualify a production deployment.
-- The `v0.1.5` candidate improves protected console/LLM-probe authentication UX. Render must still have a private `ADMIN_API_KEY` configured for these protected actions.
+- Release `v0.1.5` improves protected console/LLM-probe authentication UX. Render must still have a private `ADMIN_API_KEY` configured for these protected actions.
 - Production qualification is **not claimed**. Entra/SCIM, multi-node HA, deployment-target backup restoration, recovery objectives, synchronization of local inventory with a live source, and action-by-action live execution remain unqualified.
 - The detailed repository-to-production mapping, missing target-specific values, owners, validation evidence, and promotion gates are documented in [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Render console/chat probe setup and the exact `ADMIN_API_KEY` prerequisite are documented in [`docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md`](docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md).

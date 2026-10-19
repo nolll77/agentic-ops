@@ -81,8 +81,10 @@ outils de snapshot SQLite et le benchmark synthétique décrits dans
 [`INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](./INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 Les jobs de build, PyPI et GHCR ont réussi dans le
 [run de publication `39254442273`](https://github.com/nolll77/agentic-ops/actions/runs/39254442273).
-La candidate `v0.1.5` corrige l'interface d'authentification de la console et
-des sondes LLM; elle ne provisionne pas les secrets Render.
+La release `v0.1.5` corrige l'interface d'authentification de la console et
+des sondes LLM; elle ne provisionne pas les secrets Render. Le workflow a
+réussi pour les trois jobs (tests/build, PyPI, GHCR) dans le
+[run `39256020816`](https://github.com/nolll77/agentic-ops/actions/runs/39256020816).
 
 ## Publication manuelle locale (exception)
 
