@@ -12,6 +12,10 @@ deployment qualification.
 For the concrete Entra tenant, image publication, single-replica deployment,
 restore, and failure-exercise checklist, see
 [`ENTRA_PREPRODUCTION_QUALIFICATION.md`](./ENTRA_PREPRODUCTION_QUALIFICATION.md).
+For the November 2026 local-only campaign, including refusal reconciliation,
+worker failure exercises, isolated restore, inventory lifecycle, and benchmark
+evidence, see
+[`SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md`](./SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md).
 
 ## Status vocabulary
 

@@ -245,6 +245,11 @@ pas un objectif de service ni une prédiction pour le cluster cible.
   vraie séparation des tâches, une revue à plusieurs et une couverture
   d'astreinte.
 
+Le plan local détaillé pour novembre 2026, qui distingue les exercices
+réalisables sans infrastructure de ceux qui restent dépendants d'une cible ou
+d'un stockage externe, est dans
+[`SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md`](./SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md).
+
 ## Statut vérifié du dépôt
 
 Les releases `v0.1.4` et `v0.1.5` ont été publiées sur PyPI et GHCR;
