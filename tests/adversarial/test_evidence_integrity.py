@@ -47,3 +47,21 @@ def test_ledger_tamper_chain_detected(evidence_store):
         f.write(lines[1])
         
     assert evidence_store.verify_chain() is False
+
+
+def test_crypto_fail_closed_in_production_without_key(monkeypatch):
+    """Enforces strict Fail-Closed in production environment if no cryptographic key is supplied."""
+    import importlib
+    import agentic_ops.core.crypto as crypto_mod
+
+    monkeypatch.setenv("AGENTIC_OPS_ENV", "production")
+    monkeypatch.delenv("LEDGER_SECRET_KEY", raising=False)
+    monkeypatch.delenv("EVIDENCE_STORE_HMAC_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match=r"\[FAIL-CLOSED\]"):
+        importlib.reload(crypto_mod)
+
+    # Cleanup reload back to normal
+    monkeypatch.delenv("AGENTIC_OPS_ENV", raising=False)
+    importlib.reload(crypto_mod)
+
