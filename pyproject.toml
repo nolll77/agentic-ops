@@ -1,6 +1,6 @@
 [project]
 name = "agentic-ops"
-version = "0.1.5"
+version = "0.1.6"
 description = "A generic, plug-and-play Agentic Control Plane for MLOps Governance"
 readme = "README.md"
 license = { text = "MIT" }

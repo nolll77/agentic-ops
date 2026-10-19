@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import statistics
 import subprocess
 import sys
@@ -112,14 +113,113 @@ os._exit(23)
         }
 
 
+def run_benchmark_matrix(
+    counts: list[int],
+    *,
+    min_processing_records_per_second: float | None = None,
+    max_worker_latency_ms_p95: float | None = None,
+) -> dict[str, object]:
+    if not counts or any(count < 1 for count in counts):
+        raise ValueError("counts must contain positive values")
+    if len(set(counts)) != len(counts):
+        raise ValueError("counts must not contain duplicates")
+    if (
+        min_processing_records_per_second is not None
+        and (
+            not math.isfinite(min_processing_records_per_second)
+            or min_processing_records_per_second <= 0
+        )
+    ):
+        raise ValueError("minimum processing throughput must be positive")
+    if max_worker_latency_ms_p95 is not None and (
+        not math.isfinite(max_worker_latency_ms_p95)
+        or max_worker_latency_ms_p95 <= 0
+    ):
+        raise ValueError("maximum p95 worker latency must be positive")
+
+    results = [run_benchmark(count) for count in counts]
+    baseline = float(results[0]["processing_records_per_second"])
+    for result in results:
+        throughput = float(result["processing_records_per_second"])
+        result["processing_throughput_vs_first_pct"] = round(
+            throughput / baseline * 100, 2
+        )
+
+    thresholds: dict[str, float] = {}
+    if min_processing_records_per_second is not None:
+        thresholds["min_processing_records_per_second"] = (
+            min_processing_records_per_second
+        )
+    if max_worker_latency_ms_p95 is not None:
+        thresholds["max_worker_latency_ms_p95"] = max_worker_latency_ms_p95
+
+    passed = all(
+        (
+            min_processing_records_per_second is None
+            or float(result["processing_records_per_second"])
+            >= min_processing_records_per_second
+        )
+        and (
+            max_worker_latency_ms_p95 is None
+            or float(result["worker_latency_ms_p95"])
+            <= max_worker_latency_ms_p95
+        )
+        for result in results
+    )
+    return {"results": results, "thresholds": thresholds, "passed": passed}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Measure local SQLite alert-outbox throughput and worker latency."
     )
     parser.add_argument("--count", type=int, default=500, help="unique alerts to enqueue (default: 500)")
+    parser.add_argument(
+        "--sizes",
+        help="comma-separated alert counts for a load matrix (for example: 100,500,1000)",
+    )
+    parser.add_argument(
+        "--min-processing-records-per-second",
+        type=float,
+        help="optional local acceptance threshold; fails if any run is slower",
+    )
+    parser.add_argument(
+        "--max-worker-latency-ms-p95",
+        type=float,
+        help="optional local acceptance threshold; fails if any run exceeds it",
+    )
     args = parser.parse_args(argv)
+    if args.sizes is not None:
+        try:
+            counts = [int(value.strip()) for value in args.sizes.split(",")]
+        except ValueError:
+            parser.error("--sizes must be comma-separated positive integers")
+        try:
+            result = run_benchmark_matrix(
+                counts,
+                min_processing_records_per_second=args.min_processing_records_per_second,
+                max_worker_latency_ms_p95=args.max_worker_latency_ms_p95,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["passed"] else 1
     if args.count < 1:
         parser.error("--count must be positive")
+    if (
+        args.min_processing_records_per_second is not None
+        or args.max_worker_latency_ms_p95 is not None
+    ):
+        try:
+            result = run_benchmark_matrix(
+                [args.count],
+                min_processing_records_per_second=args.min_processing_records_per_second,
+                max_worker_latency_ms_p95=args.max_worker_latency_ms_p95,
+            )
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result["passed"] else 1
     print(json.dumps(run_benchmark(args.count), sort_keys=True))
     return 0
 

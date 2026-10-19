@@ -145,3 +145,41 @@ def test_configured_missing_inventory_is_an_explicit_error(tmp_path):
         inventory_from_environment(
             {"AGENTIC_OPS_INVENTORY_PATH": str(tmp_path / "missing.yaml")}
         )
+
+
+def test_inventory_reloading_after_file_change_replaces_allowlist_and_version(tmp_path):
+    path = tmp_path / "inventory.yaml"
+    first_time = datetime.now(timezone.utc)
+    path.write_text(
+        f"""schema_version: 1
+generated_at: {first_time.isoformat()}
+max_age_seconds: 3600
+targets:
+  service/old:
+    replicas: 1
+    criticality: low
+""",
+        encoding="utf-8",
+    )
+    first = LocalInventory.load(path)
+    assert first.describe("service/old") is not None
+
+    second_time = datetime.now(timezone.utc)
+    path.write_text(
+        f"""schema_version: 1
+generated_at: {second_time.isoformat()}
+max_age_seconds: 3600
+targets:
+  service/new:
+    replicas: 2
+    criticality: high
+""",
+        encoding="utf-8",
+    )
+    second = LocalInventory.load(path)
+
+    assert second.version != first.version
+    assert first.describe("service/old") is None
+    assert first.failure_reason == "local inventory changed since it was loaded"
+    assert second.describe("service/old") is None
+    assert second.describe("service/new").replicas == 2

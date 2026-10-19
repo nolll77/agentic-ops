@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
-[![GHCR](https://img.shields.io/badge/GHCR-v0.1.5-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
+[![GHCR](https://img.shields.io/badge/GHCR-v0.1.6-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-213%20Passed-brightgreen)](tests/)
@@ -19,11 +19,12 @@ Unlike frameworks that prioritize agent autonomy, it explores SRE-inspired contr
 
 ## Current release and honest qualification status
 
-- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); the currently published public multi-architecture container is [`ghcr.io/nolll77/agentic-ops:v0.1.5`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); the current release candidate targets [`ghcr.io/nolll77/agentic-ops:v0.1.6`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
 - A local Docker/kind exercise validated an alert webhook through the worker to a simulated investigation episode, and confirmed that its state survived a pod restart on the same PVC. This is local single-node evidence, not a backup-restore or cluster-loss test.
 - Release automation tests and version-checks a GitHub release, publishes Python distributions to PyPI, then publishes the matching AMD64/ARM64 container to GHCR. See [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
 - Release `v0.1.4` adds a fail-closed local inventory, SQLite backup/restore commands, and a synthetic load/crash-recovery benchmark. These tools do not themselves qualify a production deployment.
 - Release `v0.1.5` improves protected console/LLM-probe authentication UX. Render must still have a private `ADMIN_API_KEY` configured for these protected actions.
+- Release `v0.1.6` adds verified multi-database/evidence backup sets, a simulation-only approval continuation on the original episode, expanded worker crash and inventory lifecycle tests, and a size-matrix benchmark. It does not certify an off-host restore or enable live actions.
 - Production qualification is **not claimed**. Entra/SCIM, multi-node HA, deployment-target backup restoration, recovery objectives, synchronization of local inventory with a live source, and action-by-action live execution remain unqualified.
 - The detailed repository-to-production mapping, missing target-specific values, owners, validation evidence, and promotion gates are documented in [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Render console/chat probe setup and the exact `ADMIN_API_KEY` prerequisite are documented in [`docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md`](docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md).
@@ -159,7 +160,7 @@ The application architecture is reflected in this formal directory layout, where
 agentic-ops-core/
 ├── agentic_ops/
 │   ├── core/
-│   │   ├── orchestrator.py       # Main FSM. Physically halts on REQUIRE_APPROVAL, handles resumption (resume_episode).
+│   │   ├── orchestrator.py       # Main FSM; durable approval resumes the original episode in simulation only.
 │   │   ├── policy.py             # Governance engine (Pydantic), evaluates permission manifests.
 │   │   ├── executor.py           # Last-mile actuator. Mutates the Model Registry. Returns FAILED on business rule rejection.
 │   │   ├── merkle.py             # RFC 6962 Binary Merkle Tree. Domain separators (0x00/0x01), O(log N) audit proofs, second-preimage attack resistance.
@@ -315,11 +316,9 @@ The ASCII architecture diagram below illustrates all network connection points, 
 |                                                                                                       |
 |  1. [ slack_webhook.py ] -> Verifies HMAC-SHA256, anti-replay (< 5 min), YAML approver group,         |
 |                             and acquires an atomic SQLite lock (BEGIN IMMEDIATE) against double-click.|
-|  2. [ orchestrator.resume_episode() ] -> Unlocks the FSM (AWAITING_APPROVAL -> EXECUTING).            |
-|  3. [ Executor ] -> Sole module authorized to emit the validated write request.                       |
-|  4. [ WORM Trust Ledger (evidence.py) ] -> Seals the complete episode (CAC Snapshot + Decision +      |
-|                             Slack Approver Identity + Execution Result) with SHA-256 block chaining   |
-|                             (`previous_hash`) and `HMAC-SHA512` cryptographic signature.              |
+|  2. [ approval worker ] -> Revalidates quorum and resumes the original episode in simulation only.   |
+|  3. [ EvidenceStore ] -> Appends the simulated result to the original signed evidence chain.          |
+|  4. [ Live execution ] -> Disabled; no real target is changed by this approval path.                 |
 +=======================================================================================================+
 ```
 
@@ -376,10 +375,10 @@ When the on-call SRE clicks **`[ APPROVE ]`** in Slack, Slack's servers send a `
 4. **Atomic Transactional Lock (`SQLite BEGIN IMMEDIATE`)**: If two operators click the Slack button simultaneously (the *Double-Click* race condition), SQLite's immediate transaction lock guarantees that only the first click transitions the record from `PENDING -> APPROVED`, while the second is rejected.
 
 #### 6. Last-Mile Execution & `WORM` Sealing (`Trust Ledger`)
-Once approval is verified:
-- `orchestrator.resume_episode()` rehydrates the episode and transitions the FSM to `EXECUTING`.
-- The deterministic `Executor` module performs the authorized action (and only that action).
-- The entire episode (initial `CAC MLOps` snapshot, AI proposal, Slack approver identity, timestamps, and execution result) is serialized into canonical JSON, chained to the previous block (`previous_hash` `SHA-256`), and signed with `HMAC-SHA512` inside the immutable **`Trust Ledger` (`evidence.py`)**.
+Once the approval quorum is verified:
+- The durable approval worker revalidates current approver roles and only invokes the executor in simulation mode.
+- It appends the simulated `EXECUTING → RESOLVED` outcome to the original episode's signed evidence chain. Recovery after evidence append but before queue acknowledgement is idempotent.
+- No real infrastructure action is enabled by this path. Slack delivery, production identity, denial reconciliation and deployment-level recovery still require qualification; see [`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md).
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#0f172a', 'actorBorder': '#38bdf8', 'actorTextColor': '#f8fafc', 'actorLineColor': '#64748b', 'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc', 'noteBkgColor': '#1e1b4b', 'noteBorderColor': '#c084fc', 'noteTextColor': '#f3e8ff', 'activationBkgColor': '#334155', 'activationBorderColor': '#38bdf8'}}}%%
@@ -407,11 +406,12 @@ sequenceDiagram
     end
 
     rect rgb(6, 78, 59)
-    Note over Slack, Exec: Phase 3 : Signed Human Approval & WORM Sealing (Emerald Zone)
+    Note over Slack, Exec: Phase 3 : Signed Human Approval & Simulation Only
     Slack->>FSM: Click [APPROVE] -> POST /webhooks/slack (HMAC-SHA256 Signed)
     FSM->>FSM: Verifies HMAC-SHA256 + Anti-Replay (<5m) + BEGIN IMMEDIATE Lock
-    FSM->>Exec: resume_episode() -> Deterministic execution order
-    Exec->>Exec: Seals full cryptographic proof in Trust Ledger (SHA-256 + HMAC-SHA512)
+    FSM->>Exec: Approval worker simulates the action
+    Exec-->>FSM: SIMULATED result
+    FSM->>FSM: Appends result to the original signed evidence episode
     end
 ```
 
@@ -599,7 +599,7 @@ This repository underwent an offensive architectural audit (*Red-Teaming*) and w
 
 ### 1. E2E Governance & Model Registry
 - **Strict Enforcement (Non-Bypassable)**: The `Orchestrator` governs the MLOps lifecycle. If `PROMOTE_MODEL` is classified as `REQUIRE_APPROVAL`, the orchestrator physically halts. **No action is passed to the executor**.
-- **Asynchronous Rehydration (HITL)**: Human approval triggers `orchestrator.resume_episode()`, which cryptographically validates the approver, resumes the state machine, and dispatches the order to the Executor.
+- **Asynchronous Rehydration (HITL)**: The durable approval worker revalidates current roles, simulates the approved action and appends the result to the original episode. This does not enable live execution; denial reconciliation and deployment qualification remain open.
 - **Model Registry Gatekeeping**: The Executor drives the Model Registry directly. The registry rejects invalid promotions (e.g., F1 < 0.85 or incompatible schema), forcing the Executor to return a detectable `FAILED` status (rather than a fake `SIMULATED` status). Only one model version can be `ACTIVE` at any given time.
 
 ### 2. Cryptographic Traceability (WORM Trust Ledger & RFC 6962 Merkle Tree)
@@ -692,12 +692,11 @@ sequenceDiagram
     end
     
     rect rgb(6, 78, 59)
-    Note over Human, Exec: Phase 3 : Validation & Execution (Write - Emerald Zone)
+    Note over Human, Exec: Phase 3 : Validation & Simulation Only
     Human-->>FSM: Clicks [ APPROVE ] (Signed HMAC-SHA256)
-    FSM->>Exec: Formal deterministic order
-    Exec->>Platform: Mutating request (POST /deploy /retrain)
-    Platform-->>Exec: Operation succeeded
-    Exec-->>FSM: Sealing in WORM Trust Ledger
+    FSM->>Exec: Approval worker simulates the action
+    Exec-->>FSM: SIMULATED result
+    FSM->>FSM: Appends result to the original signed evidence episode
     end
 ```
 

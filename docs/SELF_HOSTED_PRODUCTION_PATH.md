@@ -22,11 +22,11 @@ demande et approuve une action. Garder l'exécution réelle désactivée.
 | Domaine | Peut être construit et vérifié seul | Limite à rendre explicite |
 |---|---|---|
 | Inventaire et politique | Le chargeur YAML local et l'allowlist exacte sont implémentés; l'absence, l'expiration et une cible inconnue sont refusées. | Le fichier reste maintenu manuellement; aucune découverte ni synchronisation avec une plateforme externe n'est fournie. |
-| Parcours d'alerte | Exercer webhook, déduplication, worker, investigation simulée et reprise après arrêt forcé des processus. Des faux émetteurs locaux peuvent remplacer Grafana. | La connexion à une instance Grafana et ses garanties d'authentification/réseau ne sont pas testées par un faux émetteur. |
+| Parcours d'alerte | Exercer webhook, déduplication, worker, investigation simulée, expiration de bail, erreur pendant le traitement et arrêt brutal après l'effet simulé mais avant acquittement. | La livraison est au moins une fois : l'effet externe doit être idempotent sur `tracking_id` ou réconciliable. Les tests locaux ne qualifient pas Grafana ni le stockage de production. |
 | Identité et approbation | Utiliser la clé API, une configuration locale d'opérateur et tester les refus, révocations de configuration et règles de quorum. | Sans fournisseur d'identité externe, il n'y a pas de SSO, de provisionnement de cycle de vie ni de preuve indépendante du rôle. Le quorum solo ne constitue pas une séparation des tâches. |
-| SQLite et reprise | Garder un seul réplica; `agentic-ops-db` snapshotte/restaure chaque base via l'API SQLite et vérifie `integrity_check`. La reprise après expiration du bail est testée après arrêt brutal d'un processus. | Les tests locaux ne remplacent pas une sauvegarde restaurée depuis le stockage réellement retenu. Le PVC n'est pas une sauvegarde; pas de HA. |
+| SQLite et reprise | Garder un seul réplica; `agentic-ops-db backup-set`, `verify-set` et `restore-set` regroupent les snapshots SQLite, le ledger et les preuves, contrôlent les hashes, `integrity_check` et la chaîne signée, puis restaurent vers une destination absente. | Quiescer les écrivains : les fichiers SQLite sont cohérents individuellement, pas atomiquement entre bases et preuves. La restauration locale ne qualifie pas le support off-host retenu. Le PVC n'est pas une sauvegarde; pas de HA. |
 | Sécurité opérationnelle | Générer et faire tourner les secrets localement; tester le kill switch applicatif, l'accès minimal et l'absence de secrets dans l'image, les logs et les manifests. | Le kill switch applicatif n'est pas un coupe-circuit indépendant de l'hôte; `chmod` et une chaîne de hash ne remplacent pas un stockage WORM indépendant. |
-| Exploitation | `agentic-ops-benchmark-alerts` mesure localement le débit SQLite de l'outbox et la latence du worker; répéter sur la machine et le profil de déploiement visés. | Le benchmark est un micro-test sans Grafana, réseau, LLM ou action externe; ses résultats ne sont pas des SLO et ne créent ni astreinte ni redondance humaine. |
+| Exploitation | `agentic-ops-benchmark-alerts --sizes 100,500,1000` mesure le débit et la latence sur plusieurs tailles; des seuils locaux de débit et de p95 peuvent faire échouer la commande. | Le benchmark est un micro-test sans Grafana, réseau, LLM ou action externe; ses résultats ne sont pas des SLO et ne créent ni astreinte ni redondance humaine. |
 
 ## Travaux encore à faire, sans Entra
 
@@ -34,11 +34,15 @@ Ces écarts sont des travaux du projet, pas des prérequis d'entreprise :
 
 - Créer, dater et maintenir l'inventaire local des cibles réellement visées.
   Le code charge un fichier exact et expire sa validité; il ne découvre pas
-  les systèmes et ne garantit pas que le fichier reflète leur état réel.
-- Exercer une sauvegarde complète des bases et du répertoire d'évidence après
-  arrêt des écrivains, restaurer depuis le support de sauvegarde choisi dans
-  un environnement isolé et mesurer le RPO/RTO. Les tests CI couvrent le
-  snapshot SQLite y compris l'état WAL, pas une sauvegarde du service déployé.
+  les systèmes et ne garantit pas que le fichier reflète leur état réel. Une
+  modification du fichier pendant l'exécution invalide immédiatement
+  l'inventaire chargé; un redémarrage/reload est nécessaire pour appliquer la
+  nouvelle liste.
+- Répéter sur le déploiement réel une sauvegarde complète après arrêt des
+  écrivains, copier le jeu de sauvegarde vers le support off-host retenu,
+  restaurer dans un environnement isolé et mesurer le RPO/RTO. Les tests CI
+  valident le jeu multi-bases et la restauration locale, pas le stockage
+  distant ni les horaires de sauvegarde en production.
 - Exécuter le benchmark sur la machine et le profil choisis, augmenter
   progressivement la charge, puis mesurer disponibilité et reprise après
   panne réelle du processus, du volume et de l'hôte. Le benchmark local inclut
@@ -46,9 +50,13 @@ Ces écarts sont des travaux du projet, pas des prérequis d'entreprise :
   disponibilité de l'API, le démarrage du pod ni la récupération d'un volume.
 - Améliorer métriques, tableaux de bord locaux, alertes et procédures de
   retour arrière pour le profil réellement visé.
-- Si le parcours d'approbation est retenu, relier la reprise du claim à
-  l'épisode persistant de l'orchestrateur. Le worker actuel reprend une action
-  en simulation; il ne reprend pas encore l'épisode suspendu.
+- Si le parcours d'approbation est retenu, qualifier le lien entre création de
+  la demande, approbation, reprise idempotente de l'épisode et acquittement du
+  worker sur le profil déployé. Le code ouvre une demande persistante pour un
+  épisode `AWAITING_APPROVAL`; le worker simule l'action et ajoute
+  `EXECUTING → RESOLVED` à l'épisode d'origine. Aucune action réelle n'est
+  activée, et la notification Slack ainsi que les garanties de disponibilité
+  de l'identité restent à qualifier.
 - Maintenir les actions mutatrices désactivées tant que les contrats
   d'exécution, vérification post-action, compensation et essais de panne n'ont
   pas été conçus et qualifiés.
@@ -67,20 +75,66 @@ Ces écarts sont des travaux du projet, pas des prérequis d'entreprise :
    d'expiration; monter le même fichier en lecture seule dans l'API et le
    worker. Tester un inventaire absent, périmé, mal formé et une cible
    inconnue; tous doivent refuser l'action.
-4. Exercer le parcours d'alerte puis interrompre API et worker à plusieurs
-   points : avant/après persistance, avec bail expiré, et après redémarrage.
-   Vérifier qu'une alerte n'est ni perdue ni traitée deux fois de façon
-   dangereuse.
-5. Sauvegarder les bases selon une méthode cohérente, restaurer sur un
-   environnement isolé, contrôler les intégrités SQLite et vérifier les
-   épisodes, statuts et preuves récupérés. Consigner le temps de restauration
-   et la perte maximale de données observée.
-6. Exécuter des essais de charge et d'épuisement des ressources, renouveler
+4. Exercer le parcours d'alerte avant claim, après claim, pendant le handler,
+   après son effet et avant acquittement. Confirmer la reprise du bail et
+   l'idempotence ou la réconciliation du consommateur avec `tracking_id`;
+   l'outbox garantit une livraison au moins une fois, pas un effet externe
+   exactement une fois.
+5. Quiescer tous les écrivains, lancer `agentic-ops-db backup-set` pour chaque
+   base et le répertoire des preuves, vérifier avec `verify-set`, copier le
+   jeu vers le stockage off-host, puis restaurer avec `restore-set` dans un
+   répertoire isolé. Vérifier les objets métier et la chaîne avec la même clé
+   de ledger; consigner durées de sauvegarde/restauration et RPO observé.
+6. Exécuter `agentic-ops-benchmark-alerts --sizes 100,500,1000`, augmenter les
+   tailles graduellement et fixer des seuils propres à la machine avec
+   `--min-processing-records-per-second` et `--max-worker-latency-ms-p95`.
+   Comparer les tendances; ces seuils ne sont pas des SLO universels.
+7. Exécuter des essais de charge et d'épuisement des ressources, renouveler
    chaque secret, exercer le kill switch pendant une requête et vérifier les
    logs, métriques et alertes de panne.
-7. Conserver résultats, versions, limites et procédures de retour arrière.
+8. Conserver résultats, versions, limites et procédures de retour arrière.
    Une modification du code, du stockage, de la charge ou de la machine peut
    invalider une partie de la qualification.
+
+### Commandes de répétition
+
+Arrêter ou quiescer l'API et tous les workers avant de créer le jeu. Les chemins
+ci-dessous sont des exemples à adapter au profil installé; la clé de ledger
+doit être identique à celle qui a signé les preuves et ne doit pas être
+enregistrée dans le dépôt :
+
+```sh
+uv run agentic-ops-db backup-set \
+  --database alerts=state/alerts.db \
+  --database approvals=state/approvals.db \
+  --database quotas=state/policy_quotas.sqlite3 \
+  --evidence-dir state/episodes \
+  --destination /mnt/backup/agentic-ops-drill-001
+uv run agentic-ops-db verify-set /mnt/backup/agentic-ops-drill-001
+uv run agentic-ops-db restore-set \
+  --source /mnt/backup/agentic-ops-drill-001 \
+  --destination /tmp/agentic-ops-restore-drill-001
+```
+
+Le jeu de sauvegarde est immuable côté outil : une destination existante est
+refusée. `verify-set` doit réussir avant et après copie vers le support
+off-host. `restore-set` refuse d'écraser son répertoire cible et revérifie les
+hashes, les bases et le ledger avant de retourner `integrity: ok`.
+
+Pour une première courbe de charge locale :
+
+```sh
+uv run agentic-ops-benchmark-alerts --sizes 100,500,1000
+uv run agentic-ops-benchmark-alerts --sizes 100,500,1000 \
+  --min-processing-records-per-second 20 \
+  --max-worker-latency-ms-p95 100
+```
+
+Les nombres de seuil ci-dessus ne sont que des exemples de forme. Choisir les
+seuils après une mesure de référence sur la machine cible; la matrice retourne
+les mesures de chaque taille, le débit relatif à la première taille et
+`passed`. Le benchmark n'exerce pas une charge concurrente, Grafana, le réseau
+ni une action externe et ne constitue donc pas un SLO.
 
 Ces essais sont réalisables sans tenant ni abonnement d'entreprise. Ils
 qualifient toutefois uniquement le profil personnel réellement exercé; un

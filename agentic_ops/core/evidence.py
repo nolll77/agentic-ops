@@ -47,6 +47,99 @@ class EvidenceStore:
                 return episode
         return None
 
+    def find_latest_episode(self, episode_id: str) -> Dict[str, Any] | None:
+        """Return the most recently appended ledger version of an episode."""
+        for episode in reversed(self.load_all_episodes()):
+            if episode.get("episode_id") == episode_id:
+                return episode
+        return None
+
+    def append_approval_result(
+        self,
+        proposal,
+        *,
+        decision: str,
+        result_status: str | None,
+        approvals: list[tuple[str, str]],
+    ) -> Dict[str, Any]:
+        """Append the approval outcome to its original suspended episode."""
+        if decision not in {"APPROVE", "DENY"}:
+            raise ValueError(f"unsupported approval decision {decision!r}")
+        if decision == "APPROVE" and result_status != "SIMULATED":
+            raise ValueError("approval continuation accepts simulated results only")
+        if decision == "DENY" and result_status is not None:
+            raise ValueError("denied approval cannot carry an execution result")
+        proposal_hash = proposal.digest()
+        episode, already_resumed = self.validate_pending_approval(proposal)
+        resume = episode.get("approval_resume")
+        if already_resumed:
+            if resume.get("decision") == decision and resume.get("result_status") == result_status:
+                return episode
+            raise RuntimeError("episode already has a conflicting approval outcome")
+
+        trace_key = "state_trace" if "state_trace" in episode else "state_machine_trace"
+        trace = episode[trace_key]
+        if decision == "APPROVE":
+            trace.extend(["EXECUTING", "RESOLVED"])
+            episode["execution"] = {
+                "status": "SIMULATED",
+                "executor": "approval_worker.simulation",
+                "result_ref": None,
+                "details": "Approved action simulated; no external effect was performed.",
+            }
+        else:
+            trace.append("DENIED")
+            episode["execution"] = None
+
+        episode["approval_resume"] = {
+            "proposal_hash": proposal_hash,
+            "decision": decision,
+            "result_status": result_status,
+            "approvals": [{"approver": user, "group": group} for user, group in approvals],
+        }
+        episode["human_approval"] = {
+            "required": True,
+            "approval_record": {
+                "decision": decision,
+                "approved_by": [user for user, _ in approvals],
+                "groups": [group for _, group in approvals],
+                "proposal_hash": proposal_hash,
+            },
+        }
+        self.save(episode)
+        return episode
+
+    def validate_pending_approval(self, proposal) -> tuple[Dict[str, Any], bool]:
+        """Verify the suspended episode and whether this exact claim already resumed."""
+        if not self.verify_chain():
+            raise RuntimeError("cannot resume an episode with an invalid evidence chain")
+        episode = self.find_latest_episode(proposal.episode_id)
+        if episode is None:
+            raise LookupError(f"approval episode {proposal.episode_id!r} is missing")
+        proposal_hash = proposal.digest()
+        resume = episode.get("approval_resume")
+        if isinstance(resume, dict) and resume.get("proposal_hash") == proposal_hash:
+            return episode, True
+
+        action = episode.get("action_proposal")
+        if not isinstance(action, dict):
+            raise ValueError("suspended episode has no action proposal")
+        action_type = action.get("type")
+        if hasattr(action_type, "value"):
+            action_type = action_type.value
+        if (
+            action_type != proposal.action
+            or action.get("target") != proposal.target
+            or action.get("risk_id") != proposal.risk_id
+        ):
+            raise RuntimeError("frozen approval proposal does not match the suspended episode")
+
+        trace_key = "state_trace" if "state_trace" in episode else "state_machine_trace"
+        trace = episode.get(trace_key)
+        if not isinstance(trace, list) or not trace or trace[-1] != "AWAITING_APPROVAL":
+            raise RuntimeError("episode is not suspended awaiting approval")
+        return episode, False
+
     def save(self, episode: Dict[str, Any]) -> str:
         # Load the last state from index to chain the blocks
         with open(self.index_file, "r") as f:
@@ -289,4 +382,3 @@ class EvidenceStore:
 
         # 2. O(log N) Merkle path verification
         return MerkleTree.verify_audit_proof(leaf_hash, proof, expected_root)
-

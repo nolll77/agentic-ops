@@ -93,15 +93,34 @@ class LocalInventory:
         max_age_seconds: int,
         version: str,
         clock: Callable[[], float] = time.time,
+        source_path: Path | None = None,
     ):
         self._targets = targets
         self.generated_at = generated_at.astimezone(timezone.utc)
         self.max_age_seconds = max_age_seconds
         self.version = version
         self._clock = clock
+        self._source_path = source_path
 
     @property
     def failure_reason(self) -> str | None:
+        if self._source_path is not None:
+            try:
+                raw = yaml.load(
+                    self._source_path.read_text(encoding="utf-8"),
+                    Loader=_UniqueKeySafeLoader,
+                )
+                _InventoryFile.model_validate(raw)
+                current_version = hashlib.sha256(
+                    json.dumps(
+                        raw, sort_keys=True, default=str, separators=(",", ":")
+                    ).encode()
+                ).hexdigest()
+            except (OSError, yaml.YAMLError, ValidationError, TypeError):
+                return "local inventory changed or became invalid"
+            if current_version != self.version:
+                return "local inventory changed since it was loaded"
+
         generated = self.generated_at.timestamp()
         now = self._clock()
         if generated > now + 60:
@@ -153,6 +172,7 @@ class LocalInventory:
                 json.dumps(raw, sort_keys=True, default=str, separators=(",", ":")).encode()
             ).hexdigest(),
             clock,
+            inventory_path,
         )
         if inventory.failure_reason:
             raise InventoryLoadError(

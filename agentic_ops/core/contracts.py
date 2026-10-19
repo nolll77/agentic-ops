@@ -54,6 +54,7 @@ class Decision(BaseModel):
     matched_rule: str
     shadow_decision: Optional[str] = None
     shadow_divergence: bool = False
+    approvals_required: int = Field(default=0, ge=0)
     reason_codes: List[str] = Field(default_factory=list)
 
 class Finding(BaseModel):
