@@ -7,6 +7,7 @@ WORM Trust Ledger sealing, 435 Failure Modes Taxonomy search, 5 Resources, and 2
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
 from agentic_ops.cli.main import app
@@ -89,7 +90,27 @@ def test_mcp_tool_read_console_diagnostic_with_and_without_guides():
     assert "[GUIDE:ROLE]" not in text_compact
 
 
-def test_mcp_tool_evaluate_governance_policy_deny_and_allow():
+def _configure_inventory(monkeypatch, tmp_path):
+    path = tmp_path / "inventory.yaml"
+    path.write_text(
+        f"""schema_version: 1
+generated_at: {datetime.now(timezone.utc).isoformat()}
+max_age_seconds: 3600
+targets:
+  mlops-incidents:
+    replicas: 1
+    criticality: low
+  baac_rf:
+    replicas: 1
+    criticality: low
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENTIC_OPS_INVENTORY_PATH", str(path))
+
+
+def test_mcp_tool_evaluate_governance_policy_deny_and_allow(monkeypatch, tmp_path):
+    _configure_inventory(monkeypatch, tmp_path)
     # Forbidden action: propose_retrain on DATA-042 -> DENY (R-001 / R-002)
     deny_resp = handle_mcp_jsonrpc(
         {
@@ -131,7 +152,36 @@ def test_mcp_tool_evaluate_governance_policy_deny_and_allow():
     assert allow_data["verdict"]["effect"] == "ALLOW"
 
 
+def test_mcp_inventory_is_not_user_supplied_and_missing_config_fails_closed(
+    monkeypatch,
+):
+    monkeypatch.delenv("AGENTIC_OPS_INVENTORY_PATH", raising=False)
+    response = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 61,
+            "method": "tools/call",
+            "params": {
+                "name": "evaluate_governance_policy",
+                "arguments": {
+                    "risk_id": "DATA-042",
+                    "action": "create_issue",
+                    "target": "mlops-incidents",
+                    "target_replicas": 1,
+                    "target_criticality": "low",
+                },
+            },
+        }
+    )
+    data = json.loads(response["result"]["content"][0]["text"])
+
+    assert data["verdict"]["effect"] == "DENY"
+    assert data["verdict"]["rule_ids"] == ["INV-001"]
+    assert "no authoritative local inventory is configured" in data["verdict"]["reasons"][0]
+
+
 def test_mcp_tool_seal_and_verify_worm_trust_ledger(tmp_path, monkeypatch):
+    _configure_inventory(monkeypatch, tmp_path)
     monkeypatch.setenv("EVIDENCE_STORE_DIR", str(tmp_path))
     seal_resp = handle_mcp_jsonrpc(
         {

@@ -181,6 +181,7 @@ class Orchestrator:
         # Temporary episode mock for policy_engine to inject attributes
         class EpMock:
             policy_version = None
+            inventory_version = None
             facts = None
             shadow_divergence = None
         ep_mock = EpMock()
@@ -228,6 +229,7 @@ class Orchestrator:
             policy_evaluation=decision,
             human_approval_required=human_approval_required,
             policy_version=ep_mock.policy_version,
+            inventory_version=ep_mock.inventory_version,
             facts=ep_mock.facts,
             shadow_divergence=ep_mock.shadow_divergence,
             execution=execution,

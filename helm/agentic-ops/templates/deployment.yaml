@@ -22,6 +22,12 @@
 {{- if and .Values.identity.scimEnabled (empty .Values.identity.scimBearerSecretName) }}
 {{- fail "identity.scimEnabled requires identity.scimBearerSecretName containing SCIM_BEARER_TOKEN" }}
 {{- end }}
+{{- if and .Values.inventory.enabled (or (empty .Values.inventory.generatedAt) (empty .Values.inventory.targets)) }}
+{{- fail "inventory.enabled requires inventory.generatedAt and at least one exact target in inventory.targets" }}
+{{- end }}
+{{- if and .Values.inventory.enabled (or (lt (int .Values.inventory.maxAgeSeconds) 1) (gt (int .Values.inventory.maxAgeSeconds) 2592000)) }}
+{{- fail "inventory.maxAgeSeconds must be between 1 and 2592000" }}
+{{- end }}
 {{- if or (and .Values.identity.entraTenantId (not .Values.identity.entraApiAudience)) (and .Values.identity.entraApiAudience (not .Values.identity.entraTenantId)) }}
 {{- fail "Entra OIDC requires both identity.entraTenantId and identity.entraApiAudience" }}
 {{- end }}
@@ -44,11 +50,16 @@ spec:
       labels:
         app.kubernetes.io/name: {{ .Chart.Name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- if .Values.inventory.enabled }}
+      annotations:
+        checksum/inventory: {{ include (print $.Template.BasePath "/inventory-configmap.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       terminationGracePeriodSeconds: 30
       serviceAccountName: {{ .Values.serviceAccount.name }}
-      {{- if .Values.persistence.enabled }}
+      {{- if or .Values.persistence.enabled .Values.inventory.enabled }}
       volumes:
+        {{- if .Values.persistence.enabled }}
         - name: agentic-state
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-{{ .Chart.Name }}-state
@@ -59,6 +70,12 @@ spec:
             items:
               - key: {{ .Values.approvalWorker.approversSecretKey | quote }}
                 path: approvers.json
+        {{- end }}
+        {{- end }}
+        {{- if .Values.inventory.enabled }}
+        - name: agentic-inventory
+          configMap:
+            name: {{ .Release.Name }}-{{ .Chart.Name }}-inventory
         {{- end }}
       {{- end }}
       containers:
@@ -78,6 +95,10 @@ spec:
               value: {{ .Values.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            {{- if .Values.inventory.enabled }}
+            - name: AGENTIC_OPS_INVENTORY_PATH
+              value: /etc/agentic-ops/inventory/inventory.yaml
+            {{- end }}
             - name: LEDGER_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -147,10 +168,17 @@ spec:
                   name: {{ .Values.approvalWorker.approversSecretName | quote }}
                   key: {{ .Values.approvalWorker.approversSecretKey | quote }}
             {{- end }}
-            {{- if .Values.persistence.enabled }}
+            {{- if or .Values.persistence.enabled .Values.inventory.enabled }}
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
             - name: agentic-state
               mountPath: {{ .Values.persistence.mountPath | quote }}
+            {{- end }}
+            {{- if .Values.inventory.enabled }}
+            - name: agentic-inventory
+              mountPath: /etc/agentic-ops/inventory
+              readOnly: true
+            {{- end }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -165,6 +193,10 @@ spec:
               value: {{ .Values.env.ENVIRONMENT | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
+            {{- if .Values.inventory.enabled }}
+            - name: AGENTIC_OPS_INVENTORY_PATH
+              value: /etc/agentic-ops/inventory/inventory.yaml
+            {{- end }}
             - name: LEDGER_SECRET_KEY
               valueFrom:
                 secretKeyRef:
@@ -182,10 +214,17 @@ spec:
               value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/episodes{{ else }}"state/episodes"{{ end }}
             - name: ALERT_CLASSIFICATION_MAP
               value: /app/agentic_ops/governance/alert_classification.yaml
-          {{- if .Values.persistence.enabled }}
+          {{- if or .Values.persistence.enabled .Values.inventory.enabled }}
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
             - name: agentic-state
               mountPath: {{ .Values.persistence.mountPath | quote }}
+            {{- end }}
+            {{- if .Values.inventory.enabled }}
+            - name: agentic-inventory
+              mountPath: /etc/agentic-ops/inventory
+              readOnly: true
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.alertWorker.resources | nindent 12 }}

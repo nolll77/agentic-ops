@@ -5,7 +5,7 @@
 [![GHCR](https://img.shields.io/badge/GHCR-v0.1.3-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![Copilote Web Chat](https://img.shields.io/badge/💬%20Chat%20Live-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-193%20Validés-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-212%20Validés-brightgreen)](tests/)
 ![Status](https://img.shields.io/badge/Status-Qualification%20Production%20Requise-yellow)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
@@ -19,10 +19,12 @@ Contrairement aux frameworks privilégiant l'autonomie des agents, il explore de
 
 ## Version actuelle et statut de qualification
 
-- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; l'image publique multiarchitecture est [`ghcr.io/nolll77/agentic-ops:v0.1.3`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; l'image publique multiarchitecture actuellement publiée est [`ghcr.io/nolll77/agentic-ops:v0.1.3`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
 - Un essai local Docker/kind a vérifié le parcours webhook d'alerte → worker → épisode d'investigation simulé, puis la conservation de l'état après redémarrage du pod avec le même PVC. Cela ne valide ni une restauration de sauvegarde ni la perte du volume/cluster.
 - À la publication d'une release GitHub, l'automatisation teste et vérifie les versions, publie le paquet Python sur PyPI, puis l'image AMD64/ARM64 correspondante sur GHCR. Voir [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
-- La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration, les objectifs de reprise, l'inventaire réel des cibles et l'exécution réelle des actions restent à qualifier.
+- La candidate `v0.1.4` ajoute un inventaire local fail-closed, les commandes SQLite de sauvegarde/restauration et un benchmark synthétique de charge/reprise. Ces outils ne qualifient pas à eux seuls un déploiement de production.
+- La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration depuis une sauvegarde de la cible, les objectifs de reprise, la synchronisation de l'inventaire local avec une source réelle et l'exécution réelle des actions restent à qualifier.
+- Le mapping détaillé entre le dépôt et une vraie cible (valeurs à fournir, responsables, preuves et gates de promotion) est documenté dans [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Un profil solo, mono-nœud, limité à l'observation et à la simulation **n'exige pas de tenant Entra**. Ses travaux de qualification réalisables en solo et ses limites sont décrits dans [`docs/SELF_HOSTED_PRODUCTION_PATH.md`](docs/SELF_HOSTED_PRODUCTION_PATH.md). Ce profil ne vaut pas SSO d'entreprise, HA ou ancrage d'audit indépendant.
 
 Pour distinguer ce qui est implémenté des portes de production restantes, consulter [`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md) et [`docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md).

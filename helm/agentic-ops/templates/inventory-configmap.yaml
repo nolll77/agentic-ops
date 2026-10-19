@@ -1,0 +1,17 @@
+{{- if .Values.inventory.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}-inventory
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  inventory.yaml: |
+    schema_version: 1
+    generated_at: {{ .Values.inventory.generatedAt | quote }}
+    max_age_seconds: {{ .Values.inventory.maxAgeSeconds }}
+    targets:
+{{ toYaml .Values.inventory.targets | indent 6 }}
+{{- end }}

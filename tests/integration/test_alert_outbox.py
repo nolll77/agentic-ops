@@ -1,5 +1,8 @@
 import json
 import sqlite3
+import subprocess
+import sys
+from datetime import datetime, timezone
 
 import pytest
 
@@ -11,6 +14,22 @@ from agentic_ops.core.alert_processing import (
     AlertTriageWorker,
 )
 from agentic_ops.core.atomic_quota import AtomicQuotaManager
+
+
+def _configure_inventory(monkeypatch, tmp_path):
+    path = tmp_path / "inventory.yaml"
+    path.write_text(
+        f"""schema_version: 1
+generated_at: {datetime.now(timezone.utc).isoformat()}
+max_age_seconds: 3600
+targets:
+  feature-pipeline:
+    replicas: 1
+    criticality: low
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENTIC_OPS_INVENTORY_PATH", str(path))
 
 
 def test_outbox_deduplicates_and_recovers_expired_lease(tmp_path):
@@ -60,6 +79,82 @@ def test_worker_retries_then_marks_terminal_failure(tmp_path):
     assert saved.attempts == 1
     assert saved.last_error == "RuntimeError"
     assert not worker.run_once()
+
+
+def test_alert_worker_recovers_after_process_crash_with_active_lease(tmp_path):
+    database = str(tmp_path / "outbox.db")
+    now = [100.0]
+    outbox = AlertOutbox(database, clock=lambda: now[0])
+    records, _ = outbox.enqueue([{"status": "firing", "labels": {"alertname": "crash"}}])
+    crash_code = """
+import os
+import sys
+from agentic_ops.core.alert_outbox import AlertOutbox
+record = AlertOutbox(sys.argv[1], clock=lambda: 100.0).claim("crashed-worker", lease_seconds=1)
+assert record is not None
+os._exit(23)
+"""
+    crashed = subprocess.run(
+        [sys.executable, "-c", crash_code, database],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert crashed.returncode == 23
+    assert outbox.get(records[0].tracking_id).status == "PROCESSING"
+
+    now[0] += 2
+    handled = []
+    recovery = AlertIngestionWorker(
+        outbox,
+        "recovery-worker",
+        lambda alert: handled.append(alert.tracking_id),
+        lease_seconds=1,
+    )
+    assert recovery.run_once()
+    assert handled == [records[0].tracking_id]
+    recovered = outbox.get(records[0].tracking_id)
+    assert recovered.status == "COMPLETED"
+    assert recovered.attempts == 2
+
+
+def test_alert_worker_recovers_after_process_crash_with_active_lease(tmp_path):
+    database = str(tmp_path / "outbox.db")
+    now = [100.0]
+    outbox = AlertOutbox(database, clock=lambda: now[0])
+    records, _ = outbox.enqueue([{"status": "firing", "labels": {"alertname": "crash"}}])
+    crash_code = """
+import os
+import sys
+from agentic_ops.core.alert_outbox import AlertOutbox
+record = AlertOutbox(sys.argv[1], clock=lambda: 100.0).claim("crashed-worker", lease_seconds=1)
+assert record is not None
+os._exit(23)
+"""
+    crashed = subprocess.run(
+        [sys.executable, "-c", crash_code, database],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert crashed.returncode == 23
+    assert outbox.get(records[0].tracking_id).status == "PROCESSING"
+
+    now[0] += 2
+    handled = []
+    recovery = AlertIngestionWorker(
+        outbox,
+        "recovery-worker",
+        lambda alert: handled.append(alert.tracking_id),
+        lease_seconds=1,
+    )
+    assert recovery.run_once()
+    assert handled == [records[0].tracking_id]
+    recovered = outbox.get(records[0].tracking_id)
+    assert recovered.status == "COMPLETED"
+    assert recovered.attempts == 2
 
 
 def test_alert_triage_worker_persists_classification_and_unknown_review(tmp_path):
@@ -148,6 +243,7 @@ def test_alert_triage_recovers_after_result_persisted_before_ack(tmp_path):
 def test_deployed_worker_creates_orchestrated_investigation_episode(tmp_path, monkeypatch):
     from agentic_ops.entrypoints.alert_worker import build_worker
 
+    _configure_inventory(monkeypatch, tmp_path)
     database = str(tmp_path / "alerts.db")
     monkeypatch.setenv("ALERT_OUTBOX_DB_PATH", database)
     monkeypatch.setenv("EVIDENCE_STORE_DIR", str(tmp_path / "episodes"))
@@ -179,6 +275,7 @@ def test_deployed_worker_creates_orchestrated_investigation_episode(tmp_path, mo
     )
     assert episode["signal"]["signal_id"] == records[0].tracking_id
     assert episode["risk_id"] == "DATA-042"
+    assert len(episode["inventory_version"]) == 64
     assert episode["action_proposal"]["type"] == "investigate"
     assert episode["execution"]["status"] == "SIMULATED"
     assert episode["state_trace"][-1] == "RESOLVED"
@@ -188,13 +285,19 @@ def test_deployed_worker_creates_orchestrated_investigation_episode(tmp_path, mo
 def test_orchestrated_episode_is_not_duplicated_on_worker_retry(tmp_path, monkeypatch):
     from agentic_ops.entrypoints.alert_worker import build_worker
 
+    _configure_inventory(monkeypatch, tmp_path)
     database = str(tmp_path / "alerts.db")
     monkeypatch.setenv("ALERT_OUTBOX_DB_PATH", database)
     monkeypatch.setenv("EVIDENCE_STORE_DIR", str(tmp_path / "episodes"))
     monkeypatch.setenv("POLICY_QUOTA_DB_PATH", str(tmp_path / "quotas.db"))
     worker = build_worker()
     records, _ = worker.worker.outbox.enqueue(
-        [{"status": "firing", "labels": {"alertname": "CacDriftAlert"}}]
+        [
+            {
+                "status": "firing",
+                "labels": {"alertname": "CacDriftAlert", "service": "feature-pipeline"},
+            }
+        ]
     )
     handler = worker.worker.handler
     fail_once = [True]
@@ -217,6 +320,38 @@ def test_orchestrated_episode_is_not_duplicated_on_worker_retry(tmp_path, monkey
     assert worker.worker.outbox.get(records[0].tracking_id).status == "COMPLETED"
     assert worker.result_store.get(records[0].tracking_id).episode_id == "EP-0001"
     assert len((tmp_path / "episodes" / "ledger.jsonl").read_text().splitlines()) == 1
+
+
+def test_deployed_alert_worker_denies_target_without_inventory(tmp_path, monkeypatch):
+    from agentic_ops.entrypoints.alert_worker import build_worker
+
+    monkeypatch.delenv("AGENTIC_OPS_INVENTORY_PATH", raising=False)
+    database = str(tmp_path / "alerts.db")
+    monkeypatch.setenv("ALERT_OUTBOX_DB_PATH", database)
+    monkeypatch.setenv("EVIDENCE_STORE_DIR", str(tmp_path / "episodes"))
+    monkeypatch.setenv("POLICY_QUOTA_DB_PATH", str(tmp_path / "quotas.db"))
+    worker = build_worker()
+    records, _ = worker.worker.outbox.enqueue(
+        [
+            {
+                "status": "firing",
+                "labels": {
+                    "alertname": "CacDriftAlert",
+                    "service": "feature-pipeline",
+                },
+            }
+        ]
+    )
+
+    assert worker.run_once()
+    result = worker.result_store.get(records[0].tracking_id)
+    assert result.episode_id == "EP-0001"
+    episode = json.loads(
+        (tmp_path / "episodes" / "EP-0001.json").read_text(encoding="utf-8")
+    )
+    assert episode["policy_evaluation"]["decision"] == "DENY"
+    assert "no authoritative local inventory is configured" in episode["policy_evaluation"]["reason_codes"][0]
+    assert episode.get("execution") is None
 
 
 def test_alert_mapping_rejects_unknown_risk_id(tmp_path):
