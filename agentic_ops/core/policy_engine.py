@@ -1,7 +1,7 @@
 from __future__ import annotations
 import hashlib, json, re
 from pathlib import Path
-from typing import Literal, Protocol, Any, Callable
+from typing import Literal, Protocol, Any, Callable, Callable
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 from .facts import SEV, SystemFacts
@@ -97,6 +97,8 @@ class EvalContext(BaseModel):
     facts: SystemFacts
     inventory: Any
     recent_count: Any
+    reserve_quota: Callable[..., bool] | None = None
+    reservation_key: str = ""
 
 class Verdict(BaseModel):
     effect: Literal["ALLOW", "REQUIRE_APPROVAL", "DENY"]
@@ -148,13 +150,25 @@ def evaluate(b: PolicyBundle, p: ProposalView, ctx: EvalContext) -> Verdict:
         elif r.kind == "risk_register_forbids" and action in b.forbidden_by_risk.get(p.risk_id, frozenset()):
             deny.append((r.id, f"{action} interdit par le registre pour {p.risk_id}"))
 
-    if ap.rate_limit:
-        n, per = ap.rate_limit.split("/")
-        if ctx.recent_count(action, p.target, _WINDOW[per]) >= int(n):
-            deny.append(("RATE-001", f"rate limit {ap.rate_limit} atteint"))
-
     if deny:
         return out("DENY", [d[0] for d in deny], [d[1] for d in deny], blast=blast, rev=spec.reversible)
+
+    if ap.rate_limit:
+        n, per = ap.rate_limit.split("/")
+        if ctx.reserve_quota is not None:
+            reserved = ctx.reserve_quota(
+                action, p.target, int(n), _WINDOW[per], ctx.reservation_key
+            )
+            if not reserved:
+                return out(
+                    "DENY", ["RATE-001"], [f"rate limit {ap.rate_limit} atteint"],
+                    blast=blast, rev=spec.reversible,
+                )
+        elif ctx.recent_count(action, p.target, _WINDOW[per]) >= int(n):
+            return out(
+                "DENY", ["RATE-001"], [f"rate limit {ap.rate_limit} atteint"],
+                blast=blast, rev=spec.reversible,
+            )
 
     lvl = b.policy.levels[ap.level]
     if lvl.effect == "allow" and spec.mutating and not ctx.facts.complete:

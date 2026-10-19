@@ -22,9 +22,11 @@
 *« Si votre système reçoit deux webhooks d'alerte identiques d'Evidently AI au même instant, ou si l'administrateur clique deux fois rapidement sur le bouton d'approbation Slack, comment votre architecture empêche-t-elle de déclencher deux réentraînements Prefect simultanés sur le serveur cible ? »*
 
 **💡 Votre réponse chirurgicale :**  
-> « C'est un problème classique de concurrence distribuée que nous avons résolu par le principe d'**Idempotence Sémantique** et de **Verrouillage Atomique via `Redis`**.  
-> Dès que la FSM traite une intention, un verrou distribué de type `SET NX EX` est posé dans notre cache `Redis`. La clé de ce verrou est calculée de manière déterministe à partir de l'empreinte sémantique de l'incident : un tuple `tenant:environment:risk_id`.  
-> Si un second clic ou une alerte dupliquée arrive pendant que le premier épisode est à l'état `EXECUTING`, le second thread échoue immédiatement à acquérir le verrou `Redis`. Le système applique alors une politique stricte de **Fail-Closed** : la transaction concurrente est rejetée (`409 Conflict`), et l'ordre de mutation n'est transmis qu'une seule fois à l'orchestrateur distant, protégeant ainsi l'infrastructure et le budget cloud (FinOps). »
+> « C'est un problème classique de concurrence distribuée que nous avons résolu par l'**Ingestion Transactionnelle Outbox**, l'**Idempotence Sémantique** et la **Réservation Atomique de Quotas**.
+> 1. **Ingestion Durable & Déduplication** : Dès la réception de l'alerte sur `/webhook/alerts`, le module `alert_outbox.py` persiste l'événement dans une table SQLite en mode WAL via une transaction `BEGIN IMMEDIATE` **avant** de libérer la réponse HTTP `202 Accepted`. L'empreinte sémantique déterministe `SHA-256(tenant, service, risk_id, alertname)` fusionne les répétitions sans double instanciation.
+> 2. **Quotas Atomiques sans Race Condition** : Pour la régulation des actions, notre gestionnaire `AtomicQuotaManager` (`atomic_quota.py`) applique une réservation atomique dans une transaction exclusive sur base locale, bloquant toute condition de course TOCTOU (validé en CI sous charge concurrente dans `test_known_gaps.py`).
+> 3. **Protection des Clics Slack & Quorum** : Toute proposition d'action est liée à un hachage SHA-256 immuable (`proposal_hash`). L'auto-approbation est formellement interdite (`requester != approver` $\rightarrow$ `SELF_APPROVAL_FORBIDDEN`). Dès que le quorum est atteint, la demande est marquée `claimed` de manière atomique et déposée dans une file d'exécution durable avec baux expirables (`leases`). Toute tentative concurrente ultérieure est rejetée avec un statut `409 Conflict`.
+> 4. **Passerelle d'Exécution Fail-Closed** : Aucun appel réseau mutant ne peut contourner l'`ExecutorGateway`, configurée par défaut en mode simulation (`SIMULATION_MODE = True`) et couplée à un Kill-Switch sentinelle. »
 
 ---
 
@@ -61,30 +63,36 @@ flowchart TD
     classDef cible fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000000;
     classDef alert fill:#ffebee,stroke:#d32f2f,stroke-width:2px,color:#000000;
 
-    S1["[ DETECTED ]<br/>Alerte Webhook Inbound"] --> S2["[ INVESTIGATING ]<br/>compute_facts() via Tailscale"]
+    S1["[ DETECTED ]<br/>Alerte Webhook Outbox WAL"] --> S2["[ INVESTIGATING ]<br/>compute_facts() via Tailscale"]
     S2 --> S3["[ DIAGNOSED & PLANNED ]<br/>ActionIntent formulée par LLM"]
     S3 --> S4{"PolicyEngine<br/>(autonomy_policy.yaml)"}
     
-    S4 -- "ALLOW (Low Risk)" --> S6["[ EXECUTING ]<br/>Mutation physique via Executor"]
-    S4 -- "REQUIRE_APPROVAL (High Risk)" --> S5["[ AWAITING_APPROVAL ]<br/>Fail-Closed / Slack HITL"]
+    S4 -- "ALLOW (Low Risk & Quota OK)" --> S6["[ EXECUTING ]<br/>ExecutorGateway (Simulation par défaut)"]
+    S4 -- "REQUIRE_APPROVAL (High Risk)" --> S5["[ AWAITING_APPROVAL ]<br/>Fail-Closed / Slack HITL Quorum"]
+    S4 -- "Cible hors inventaire (INV-001)" --> S8["[ DENIED ]<br/>Scellage WORM"]
     
-    S5 -- "Clic Slack + Signature HMAC valide" --> S6
-    S5 -- "Refus humain ou Signature invalide" --> S8["[ DENIED ]<br/>Scellage WORM"]
+    S5 -- "Quorum atteint + Anti-Auto-Approbation OK" --> S6
+    S5 -- "Refus humain ou Signature invalide" --> S8
     
     S6 -- "Succès API distante (200 OK)" --> S7["[ RESOLVED ]<br/>Scellage WORM SHA-256"]
-    S6 -- "Timeout réseau / Échec API" --> S8
+    S6 -- "Timeout réseau / Kill-Switch actif" --> S8
 ```
 
 ### Table des Invariants & Sécurités de Code
 
-| État | Événement Déclencheur | Invariant SRE / Sécurité Active |
+| État / Frontière | Événement Déclencheur | Invariant SRE / Sécurité Active |
 |:---|:---|:---|
-| `DETECTED` | Webhook HTTP POST (Evidently / Prometheus) | Génération d'un `risk_id` unique et timestamp initial non altérable. |
-| `INVESTIGATING` | Transition automatique vers `compute_facts()` | Confinement des données distantes dans des balises XML `<untrusted_data>` contre les **injections de prompts**. Lecture seule via `Tailscale`. |
+| `Périmètre API` | Requête sur `/mcp`, `/api/diagnostics/*`, `/api/alerts/*` | **`AdminAPIKeyMiddleware` Fail-Closed** : Clé API obligatoire ($\ge 16$ car.), comparaison en temps constant `hmac.compare_digest`, rotation à 2 clés, 503 immédiat si non configuré. |
+| `DETECTED` | Webhook HTTP POST (`/webhook/alerts`) | **Pattern Outbox Transactionnel SQLite WAL** : Persistance avant code HTTP `202 Accepted`, déduplication par `SHA-256(tenant, service, risk_id, alertname)`. |
+| `INVESTIGATING` | Transition automatique vers `compute_facts()` | Confinement des données distantes dans des balises XML `<untrusted_data>` contre les injections de prompts. Lecture seule via `Tailscale`. |
 | `PLANNED` | Proposition d'action par l'Agent LLM | Interception immédiate par le `PolicyEngine`. L'Agent LLM ne possède aucun socket réseau mutant. |
-| `AWAITING_APPROVAL`| Décision `REQUIRE_APPROVAL` | **Fail-Closed absolu** : suspension du thread. Envoi d'un message interactif Slack Block Kit. |
-| `EXECUTING` | Clic Slack de validation | Validation de l'en-tête HMAC-SHA256 en temps constant (`hmac.compare_digest`), fenêtre anti-rejeu $\Delta t \le 300\text{s}$, puis appel HTTP via `executor.py`. |
+| `Frontière Inventaire` | Vérification de la cible d'infrastructure | **Règle `INV-001` Fail-Closed** : Refus inconditionnel (`DENY`) si aucun fournisseur d'inventaire officiel n'est injecté. |
+| `AWAITING_APPROVAL`| Décision `REQUIRE_APPROVAL` | **Liaison cryptographique par hachage de proposition** (`FrozenProposal`). Demandeur certifié par la FSM. Interdiction de l'auto-approbation (`SELF_APPROVAL_FORBIDDEN`). |
+| `Quorum HITL` | Clic Slack de validation | Validation HMAC-SHA256 en temps constant, anti-rejeu $\Delta t \le 300\text{s}$, quorum multi-groupes, mise en file durable `execution-outbox`. |
+| `Régulation Quotas`| Actions répétitives (restarts) | **`AtomicQuotaManager`** : Réservation exclusive en transaction `BEGIN IMMEDIATE` prévenant les conditions de course concurrentielles (`test_known_gaps.py`). |
+| `EXECUTING` | Exécution de la mutation | **`ExecutorGateway`** : Maintien de `SIMULATION_MODE = True` par défaut. Interception par Kill-Switch OS/Redis (`/var/run/agentic-ops/kill-switch`). |
 | `RESOLVED` / `DENIED` | Fin d'exécution physique | Calcul du hash SHA-256 canonique du bloc, chaînage au `previous_hash` et écriture Append-Only dans `trust_ledger.jsonl`. |
+
 
 ---
 

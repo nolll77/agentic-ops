@@ -1,5 +1,8 @@
+import os
 import pytest, yaml
 from pathlib import Path
+
+os.environ["ADMIN_API_KEY"] = "test-admin-key-" + "a" * 32
 
 # Load gaps
 try:
@@ -27,5 +30,4 @@ def pytest_collection_finish(session):
     if stale and not session.config.option.keyword and os.environ.get("CHECK_GAPS"):
         import warnings
         warnings.warn(f"known_gaps.yaml: entrées sans test: {sorted(stale)}")
-
 

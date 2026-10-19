@@ -1,5 +1,11 @@
 schema_version: 1
 actions:
+  investigate:
+    class: ticket
+    mutating: false
+    reversible: true
+    blast: {mode: fixed, value: 0}
+    target_pattern: '^[a-z0-9][a-z0-9_-]{1,62}$'
   create_issue:
     class: ticket
     mutating: false

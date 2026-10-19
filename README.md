@@ -4,8 +4,8 @@
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-157%20Passed-brightgreen)](tests/)
-![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
+[![Tests](https://img.shields.io/badge/Tests-193%20Passed-brightgreen)](tests/)
+![Status](https://img.shields.io/badge/Status-Production%20Qualification%20Required-yellow)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
@@ -1511,11 +1511,13 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 uv pip install 'httpx[socks]'
 
-# 2. Run the Full Suite of Unit, Adversarial, Scenario & MCP Gateway Tests (157 tests)
+# 2. Run the Full Suite of Unit, Adversarial, Scenario, Security & Outbox Tests (183 tests)
 pytest tests/ -v
 # > Verifies RFC 6962 Binary Merkle Tree, WORM linear chain immutability, Fail-Closed governance,
-# > non-bypassable Orchestrator state transitions, 13 CacPullCollector tests, 24 MCP Gateway tests,
-# > and 13 dedicated adversarial Merkle tree tests. (157 passed, 3 skipped, 1 xfailed)
+# > non-bypassable Orchestrator state transitions, Admin API Key Zero-Trust middleware,
+# > SQLite WAL Outbox pattern before ACK 202, AlertClassifier deterministic mapping,
+# > Atomic Quota Manager (0 xfailed), Proposal digest binding, Quorum & Anti-Self-Approval,
+# > and ExecutorGateway simulation safety. (183 passed, 3 skipped, 0 xfailed in ~14s)
 
 # 3. Launch the Trust Ledger Audit CLI (Merkle Root & Selective Disclosure Proofs)
 python -m agentic_ops.cli.trust_ledger list
@@ -1529,9 +1531,16 @@ python -m agentic_ops.entrypoints.mcp_server
 
 ## Reference Documentation & Deployment Proofs
 
-1. **[Documentation Complète en Français (`README_FR.md`)](README_FR.md)**:
+0. **[Industrial Implementation Status & Safety Invariants (`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`)](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md)**:
+   Exhaustive matrix distinguishing what is implemented in code and tested in CI from external cloud integrations, GameDays, and deployment qualification gates.
+1. **[Roadmap de Durcissement Production & Levée des Écarts (`docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`)](docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)**:
+   Master SRE roadmap detailing the 10 phases, 8 invariants, and remaining production doors.
+   **[Entra & Preproduction Qualification Checklist (`docs/ENTRA_PREPRODUCTION_QUALIFICATION.md`)](docs/ENTRA_PREPRODUCTION_QUALIFICATION.md)**:
+   Concrete checklist for Entra application and SCIM provisioning, image publication, single-replica Helm rollout, end-to-end verification, backup/restore, and failure exercises. These external gates are not claimed complete.
+2. **[Documentation Complète en Français (`README_FR.md`)](README_FR.md)**:
    Full French version of this main documentation.
-2. **[Cloud Sandbox Validation Report (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**:
+3. **[Cloud Sandbox Validation Report (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**:
+
    Deployment on an isolated micro-VM (4 AMD EPYC vCPUs, 8 GB RAM), line-by-line analysis of 30 security tests (`forbidden_executed = 0`), `HTTP 401 Unauthorized` rejection on unsigned webhooks, and session screenshots.
 3. **[Tailscale Pull Connector Architecture & Validation (`CAC_TAILSCALE_PULL_CONNECTOR.md`)](CAC_TAILSCALE_PULL_CONNECTOR.md)**:
    Complete documentation of the live interconnection with [`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops) (`100.117.99.62`), `tailscaled` setup in `userspace-networking` mode (`SOCKS5 127.0.0.1:1055`), `DERP` relay diagnostics, anatomy of `cac_pull_collector.py`, and breakdown of all 13 unit tests.
@@ -1553,6 +1562,4 @@ python -m agentic_ops.entrypoints.mcp_server
     In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive breakdown of non-cognitive components operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model, as well as the interactive **Live MAS Topology & Agent Inspector** embedded directly in both the Web Console (`/console`) and Web Chat (`/chat`) backed by `GET /api/mas/topology`.
 12. **[PyPI Release & Distribution Engineering Guide (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)**:
     Comprehensive guide to public package distribution on PyPI: software supply chain security, zero-static-secrets architecture using OpenID Connect (OIDC Trusted Publishing), SLSA provenance attestations, installation and CLI consumption options, and release lifecycle runbooks for maintainers.
-
-
 

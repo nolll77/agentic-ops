@@ -38,7 +38,21 @@ def success_result(proposal):
 def build_orchestrator(*, llm, observability, executor, notifier, evidence_dir: Path, policy_path: Path):
     from agentic_ops.core.orchestrator import Orchestrator
     from agentic_ops.core.policy import PolicyEngine
+    from agentic_ops.core.atomic_quota import AtomicQuotaManager
     from agentic_ops.core.evidence import EvidenceStore
+    from agentic_ops.core.policy_engine import TargetInfo
+
+    class ScenarioInventory:
+        targets = {
+            "baac-prediction-api",
+            "baac_severity_predictor",
+            "mlops-incidents",
+            "tracker",
+        }
+
+        def describe(self, target):
+            return TargetInfo() if target in self.targets else None
+
     # We patch executor logic in Orchestrator dynamically for testing (recording executor)
     import agentic_ops.core.executor as ext
     ext.execute = executor.execute
@@ -46,7 +60,11 @@ def build_orchestrator(*, llm, observability, executor, notifier, evidence_dir: 
     return Orchestrator(
         llm=llm,
         observability=observability,
-        policy_engine=PolicyEngine.from_yaml(policy_path),
+        policy_engine=PolicyEngine.from_yaml(
+            policy_path,
+            quota_manager=AtomicQuotaManager(str(evidence_dir / "quotas.sqlite3")),
+        ),
+        inventory=ScenarioInventory(),
         evidence_store=EvidenceStore(str(evidence_dir)),
         registry=None
     )

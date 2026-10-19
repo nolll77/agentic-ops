@@ -5,6 +5,8 @@
 > **Statut** : Document d'Architecture Cible & Spécifications des Prochaines Étapes (*Next Steps*)  
 > **Périmètre** : Transition du prototype de gouvernance solo vers une plateforme industrielle de classe entreprise (*"Pour être un vrai"*).
 
+> **État du code vérifié** : consulter [`INDUSTRIAL_IMPLEMENTATION_STATUS.md`](./INDUSTRIAL_IMPLEMENTATION_STATUS.md) pour séparer les contrôles implémentés et testés des composants externes, GameDays et profils cloud non qualifiés. Pour la configuration Entra, la publication d'image et la qualification préproduction restantes, suivre [`ENTRA_PREPRODUCTION_QUALIFICATION.md`](./ENTRA_PREPRODUCTION_QUALIFICATION.md).
+
 ---
 
 ## 1. Contexte & Démarche d'Ingénierie
@@ -21,35 +23,35 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 | Dimension Architecturale | État Actuel (Prototype Avancé / Solo) | Écart Identifié par l'Audit | Spécification Cible (*"Pour être un vrai"*) | Priorité & Stack Cible |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Ingestion d'Alertes** | Adaptateur HTTP `POST /webhook/alerts` validant le JSON et comptant les alertes (`202 Accepted`). | Aucune transmission asynchrone vers l'orchestrateur (pas de boucle fermée). | File d'attente découplée (Redis Streams / Kafka), mapping d'alertes vers la taxonomie et réveil automatique de la FSM. | **P0** (`Redis Streams`, `Celery`/`arq`) |
-| **2. Exécution des Actions** | `_resume_from_claim` se borne à journaliser l'approbation (`logging.info`). Mode simulation par défaut. | L'agent n'exécute aucune action sur l'infrastructure cible lors de l'approbation humaine. | Workers d'exécution asynchrones branchés sur Kubernetes API / Argo Workflows / MLflow avec rollback et validation canary. | **P0** (`kubernetes-client`, `temporal.io` ou `arq`) |
-| **3. Authentification & Sécurité d'Accès** | Endpoints de diagnostic (`/api/diagnostics/{command}`) et MCP (`/mcp`) publics sans jeton. | Le verrou `_diagnostic_lock` protège de l'OOM cgroup (512 MiB), pas des accès non autorisés. | Authentification mutuelle TLS (mTLS) ou API Keys JWT avec rotation, rate-limiting distribué Redis par IP. | **P0** (`fastapi-limiter`, `Authlib`, `mTLS`) |
+| **1. Ingestion d'Alertes** | `POST /webhook/alerts` authentifie et persiste les alertes en SQLite WAL avant `202`; le worker supervisé comme sidecar Helm utilise un mapping versionné et crée un épisode `investigate` simulé via l'orchestrateur pour les alertes reconnues. | Le chart PVC+SQLite impose un seul pod/réplica; stockage HA multi-nœud, backup/restore et profil de stockage de cluster restent à qualifier. | Exercer le cycle de bout en bout, reprise et restauration sur le profil choisi; pour le multi-nœud, remplacer SQLite par un adaptateur transactionnel partagé qualifié. | **P0** (chemin d'investigation simulé et déploiement mono-réplica livrés; qualification opérationnelle restante) |
+| **2. Exécution des Actions** | Simulation par défaut; `agentic-approval-worker` reprend les claims HITL depuis l'outbox et marque `SIMULATED` après contrôle du rôle courant; le worker refuse le mode live. | La reprise simulée ne continue pas l'épisode suspendu de la FSM; aucune action n'est qualifiée pour mutation réelle, et rollback/kill-switch indépendant ne sont pas déployés. | Reprise idempotente de l'épisode, adaptateurs autorisés avec vérification post-action et compensation, puis exercices canary. | **P0** (aucune action réelle activée) |
+| **3. Authentification & Sécurité d'Accès** | Middleware API-key fail-closed seulement hors mode Entra; quand Entra est configuré, jeton vérifié (signature RS256/JWKS, tenant, issuer, audience, durée de vie et app-role) requis et les API keys sont ignorées; webhook Grafana avec secret dédié. | Le code OIDC existe, mais aucun tenant Entra n'est configuré ni qualifié; pas de mTLS, rate limit distribué ni test d'intrusion de plateforme. | Enregistrer l'application dans Entra, assigner le rôle d'application, exercer rotation JWKS, révocation et comportement en panne, compléter mTLS/rate limit par profil. | **P0** (code implémenté; configuration et qualification Entra restantes) |
 | **4. Registre d'Audit & Arbre de Merkle** | Structure Merkle Tree binaire RFC 6962 implémentée en code ([`merkle.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/merkle.py)), preuves d'inclusion $\mathcal{O}(\log N)$, CLI (`merkle-root`, `merkle-proof`). | Les preuves d'inclusion relatives à une racine calculée fonctionnent, mais l'authenticité de la racine n'est pas ancrée indépendamment (RFC 3161 TSA, log de transparence anti split-view) et le stockage WORM cloud physique (S3 Object Lock) reste à câbler. | Ancrage temporel (RFC 3161 TSA), registre de transparence public anti split-view avec preuves de cohérence $\mathcal{O}(\log N)$ (Rekor / Trillian) et stockage persistant sur bucket AWS S3 Object Lock en Compliance Mode avec signature Cloud KMS HSM FIPS 140-2 L3. | **P1 (Code fait / Infra externe à brancher)** (`boto3` S3 Object Lock, RFC 3161 TSA, Sigstore/Rekor) |
-| **5. Identité & RBAC des Approbateurs** | Résolution d'approbateur statique via stub `group_of=lambda user, level: "admin"`. | Tout utilisateur Slack ayant accès au canal peut approuver n'importe quelle action critique. | Intégration SSO/OIDC/SCIM (Okta, Azure AD), séparation des devoirs (*Separation of Duties*) et quorum multi-signatures. | **P1** (`OIDC`, Slack SCIM API, Quorum M-of-N) |
+| **5. Identité & RBAC des Approbateurs** | SCIM 2.0 optionnel reçoit Users/Groups Entra, mappe `externalId` au Slack member ID et revalide l'appartenance au groupe avant l'approbation et avant la simulation; le mapping statique reste disponible uniquement en mode sans SCIM. | Aucun tenant, enterprise app ou flux de provisionnement Entra n'est déployé/qualifié; la reprise ne continue pas encore l'épisode suspendu de l'orchestrateur. | Configurer l'app SCIM Entra et le mappage des groupes, tester provisioning/désactivation/suppression, latence de révocation et reprise de l'épisode en GameDay. | **P1** (chemin de code livré; déploiement et qualification Entra restants) |
 | **6. Budget de Latence & Collecte Distante** | Paramètre `timeout: float` borné entre `0.5s` et `10.0s` par sous-requête HTTP individuelle. | La collecte séquentielle de multiples métriques peut dépasser 10s au total. | Collecte concurrente via `asyncio.gather` avec budget global strict (`context.deadline` / Annulation cooperative). | **P1** (`asyncio.gather`, `httpx` async timeouts) |
-| **7. Validation End-to-End** | 144 tests unitaires et d'intégration tournant sur des mocks et `TestClient`. | Pas de validation de bout en bout sur un vrai cluster de production. | Suite E2E sur cluster éphémère (K3s / Kind via Testcontainers) testant l'intégralité du cycle alerte → Slack → pod restart. | **P2** (`testcontainers-python`, `kind`) |
+| **7. Validation End-to-End** | CI locale et scénarios sur mocks/TestClient; les invariants précisés dans [`INDUSTRIAL_IMPLEMENTATION_STATUS.md`](./INDUSTRIAL_IMPLEMENTATION_STATUS.md) ont des tests ciblés. | Aucun GameDay ni cycle complet alerte → identité → approbation → action vérifié sur cluster réel. | Suite E2E sur profil préproduction qualifié, y compris reprise après panne et exercice de restauration. | **P2** (cluster de test et opérationnels à fournir) |
 
 ---
 
 ## 3. Spécifications Techniques Détaillées des Chantiers
 
 ### Chantier 1 : Ingestion d'Alertes en Événements Asynchrones (Closed-Loop Trigger)
-* **Problème actuel** :
-  L'endpoint `agentic_ops/entrypoints/grafana_webhook.py` valide la charge utile Grafana mais ne communique pas avec `FSMOrchestrator`. L'alerte reste lettre morte dans les logs.
+* **État de l'implémentation** :
+  `agentic_ops/entrypoints/grafana_webhook.py` valide et persiste les alertes; le sidecar Helm `agentic-alert-worker` consomme l'outbox et applique `agentic_ops/governance/alert_classification.yaml`. Pour les alertes mappées, il appelle l'orchestrateur avec un diagnostic déterministe borné et l'action non mutante `investigate`, puis persiste le lien vers l'épisode. Une alerte non reconnue passe en `REVIEW_REQUIRED`; aucune action de remédiation n'est déclenchée. Le chart partagé PVC/SQLite est configuré pour un seul pod et ne constitue pas un profil HA.
 * **Architecture cible pour être "un vrai"** :
-  1. **Bus d'Événements** : Le webhook publie immédiatement le payload validé dans un flux Redis (`XADD alerts:stream * ...`).
+  1. **Transport durable** : Le profil local utilise l'outbox SQLite existante. Un profil multi-instance devra fournir un adaptateur transactionnel partagé qualifié; le passage à Redis Streams n'est pas une garantie en soi et devra préserver l'acceptation durable et l'idempotence.
   2. **Worker Consommateur (`AlertIngestionWorker`)** :
-     - Consomme les messages du flux Redis via un Consumer Group dédié.
-     - Extrait les labels Prometheus / Grafana (`alertname`, `service`, `namespace`, `metric_value`, `threshold`).
-     - Utilise le moteur `DeterministicRAGEngine` pour classifier l'alerte et lui associer son identifiant de taxonomie (ex: `Prometheus: HighMemoryUsage` $\rightarrow$ `INFRA-018: Host Out-of-Memory Kill`).
-     - Instancie un épisode d'investigation : `orchestrator.step(IncidentContext(...))`.
-  3. **Déduplication & Anti-Flapping** : Fenêtre glissante de 5 minutes dans Redis pour agréger les alertes identiques évitant de submerger l'orchestrateur.
+     - Consomme l'outbox avec leases et retries; la commande `agentic-alert-worker` peut tourner en continu ou en mode `--once`.
+     - Résout uniquement les noms `alertname` explicitement présents dans le mapping versionné et vérifie les `risk_id` contre le registre des risques.
+     - Les alertes inconnues ou sans nom passent en `REVIEW_REQUIRED`; aucune inférence LLM ne les promeut implicitement.
+     - L'investigation orchestrée et la persistance d'épisode sont maintenant câblées; le worker livré ne lance pas de remédiation.
+  3. **Déduplication & Anti-Flapping** : L'outbox SQLite actuelle déduplique pendant 5 minutes dans son propre état transactionnel. En multi-instance, conserver cette garantie avec le stockage partagé qualifié plutôt que d'ajouter un cache Redis indépendant non atomique.
 
 ---
 
 ### Chantier 2 : Moteur d'Exécution Asynchrone des Remédiations (Remediation Workers)
-* **Problème actuel** :
-  Lorsque l'opérateur humain clique sur "Approuver" dans Slack, la fonction `_resume_from_claim` se contente d'émettre un log. L'action (`restart_pod`, `rollback_prod`) n'est jamais transmise à l'infrastructure cible.
+* **État actuel** :
+  Le quorum validé crée atomiquement un claim et un message durable dans l'outbox. Le sidecar optionnel `agentic-approval-worker` relit ces claims, revérifie les rôles depuis le mapping statique ou l'annuaire SCIM Entra (si activé), et passe par l'exécuteur en simulation seulement. Un claim peut ainsi être repris après redémarrage et le statut `SIMULATED` est persisté sans mutation réelle. Ce worker ne reprend pas encore l'épisode suspendu de l'orchestrateur; le provisionnement SCIM et les rôles d'application OIDC restent à configurer et qualifier dans un tenant Entra.
 * **Architecture cible pour être "un vrai"** :
   1. **File de Tâches d'Exécution** : La validation de la signature Slack et du claim SQLite pousse une commande dans une file de tâches sécurisée (ex: Celery ou `arq`).
   2. **Drivers d'Exécution Découplés (`agentic_ops/executors/`)** :
@@ -103,7 +105,7 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 > [!NOTE]
 > **État d'Implémentation au 19/10/2026** :
-> - **Code & Algorithmes (100% Câblé & Testé)** : Le moteur d'Arbre de Merkle binaire strictement conforme RFC 6962 Section 2.1 (scission récursive à $k = 2^{\lfloor \log_2(n-1) \rfloor}$ sans duplication de nœud impair et traversée par arithmétique d'indices bornés sans copies de tranches) ([`agentic_ops/core/merkle.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/merkle.py)), son intégration dans `EvidenceStore` ([`agentic_ops/core/evidence.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/evidence.py)) avec liaison cryptographique obligatoire de payload (*Mandatory Cryptographic Payload Binding* rejetant strictement toute preuve sans contenu), la distinction formelle de complexité ($\mathcal{O}(N)$ construction/scan vs $\mathcal{O}(\log N)$ vérification/taille de preuve), l'extraction des preuves d'inclusion $\mathcal{O}(\log N)$ et les commandes CLI d'audit (`merkle-root`, `merkle-proof`) sont pleinement opérationnels et validés par **15 tests unitaires et contradictoires dédiés** ([`tests/adversarial/test_merkle_tree.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adversarial/test_merkle_tree.py)). Suite complète : **159 tests passed**.
+> - **Code & Algorithmes (100% Câblé & Testé)** : Le moteur d'Arbre de Merkle binaire strictement conforme RFC 6962 Section 2.1 (scission récursive à $k = 2^{\lfloor \log_2(n-1) \rfloor}$ sans duplication de nœud impair et traversée par arithmétique d'indices bornés sans copies de tranches) ([`agentic_ops/core/merkle.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/merkle.py)), son intégration dans `EvidenceStore` ([`agentic_ops/core/evidence.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/evidence.py)) avec liaison cryptographique obligatoire de payload (*Mandatory Cryptographic Payload Binding* rejetant strictement toute preuve sans contenu), la distinction formelle de complexité ($\mathcal{O}(N)$ construction/scan vs $\mathcal{O}(\log N)$ vérification/taille de preuve), l'extraction des preuves d'inclusion $\mathcal{O}(\log N)$ et les commandes CLI d'audit (`merkle-root`, `merkle-proof`) sont pleinement opérationnels et validés par **15 tests unitaires et contradictoires dédiés** ([`tests/adversarial/test_merkle_tree.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adversarial/test_merkle_tree.py)). Suite complète : **183 tests passed, 3 skipped, 0 xfailed**.
 > - **Restant pour être "un vrai" (Infrastructure Cloud Externe)** : Ancrage externe RFC 3161 TSA (existence temporelle), registre de transparence Sigstore Rekor (preuves de cohérence d'arbre anti split-view), bucket S3 physique avec Object Lock matériel en Compliance Mode, et clés asymétriques Ed25519 managées dans un HSM Cloud KMS FIPS 140-2 L3 avec persistance cross-restart.
 
 
@@ -111,16 +113,16 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 ---
 
 ### Chantier 5 : Identité des Approbateurs, RBAC & Quorum Multi-Signatures
-* **Problème actuel** :
-  Dans [`main.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/cli/main.py), la vérification du groupe d'approbateur est un stub `approvers=SimpleNamespace(group_of=lambda user, level: "admin")`. De plus, une seule signature Slack suffit pour valider une action critique.
-* **Architecture cible pour être "un vrai"** :
+* **Problème résolu en code local & statut actuel** :
+  - La vérification des approbateurs n'est plus un stub : [`agentic_ops/core/approvals.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/approvals.py) impose un demandeur obligatoire (`requester_id`), fige la proposition par son hachage SHA-256 (`proposal_hash`), interdit formellement l'auto-approbation (`requester == approver` $\rightarrow$ `SELF_APPROVAL_FORBIDDEN`), applique les rôles Slack via `SLACK_APPROVERS_JSON`, exige un quorum multi-groupes et enregistre atomiquement la décision dans une file durable `execution-outbox`.
+* **Architecture cible pour être "un vrai" (Raccordement Entreprise)** :
   1. **Mapping d'Identité Entreprise (SSO / OIDC)** :
      - Association stricte entre l'ID d'utilisateur Slack (`U12345`) et l'annuaire d'entreprise (Okta / Azure Active Directory / Google Workspace).
      - Vérification dynamique des groupes et permissions de l'utilisateur au moment exact du clic via l'API SCIM ou le jeton OIDC de l'opérateur.
-  2. **Séparation des Devoirs (*Separation of Duties*)** :
-     - L'ingénieur ayant déployé ou commité la dernière version d'un modèle ne peut pas approuver le rollback ou le redémarrage de son propre service.
-  3. **Quorum Multi-Signatures (*M-of-N Approval*)** :
-     - Pour les actions d'impact majeur (`Level L3` : ex. `rollback_prod` ou modification de schéma), exiger l'approbation conjointe de 2 opérateurs distincts (ex: 1 Ingénieur SRE + 1 Responsable Métier MLOps) avant libération du verrou dans la FSM.
+  2. **Séparation des Devoirs (*Separation of Duties*) en Production** :
+     - Raccordement au registre Git/CI pour certifier que l'ingénieur ayant déployé ou commité la dernière version d'un modèle ne peut pas approuver le rollback ou le redémarrage de son propre service.
+  3. **Quorum Multi-Signatures (*M-of-N Approval*) Exercé** :
+     - Pour les actions d'impact majeur (`Level L3` : ex. `rollback_prod` ou modification de schéma), exiger l'approbation conjointe de 2 opérateurs distincts (ex: 1 Ingénieur SRE + 1 Responsable Métier MLOps) avec exercice réel en conditions GameDay.
 
 ---
 
@@ -138,7 +140,7 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 ### Chantier 7 : Validation End-to-End sur Cluster Éphémère (CI/CD Rigoureuse)
 * **Problème actuel** :
-  La suite de tests actuelle (**159 tests**) est constituée de tests unitaires et d'intégration avec mocks. Elle valide la logique interne de décision mais ne teste pas l'interaction avec des dépendances réelles.
+  La suite de tests actuelle (**183 tests validés, 3 skipped, 0 xfailed**) est constituée de tests unitaires et d'intégration avec mocks et composants SQLite WAL locaux. Elle valide la logique interne de décision mais ne teste pas l'interaction avec des dépendances réelles en environnement distribué.
 * **Architecture cible pour être "un vrai"** :
   1. **Cluster Éphémère dans GitHub Actions** :
      - Déploiement d'un mini-cluster Kubernetes éphémère (Kind ou K3s) lors des tests de nuit ou des runs de pré-release.

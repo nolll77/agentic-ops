@@ -35,7 +35,17 @@ class EvidenceStore:
         return f"EP-{num + 1:04d}"
         
     def find_existing_episode(self, dedup_key: str) -> bool:
-        return False
+        return any(
+            episode.get("dedup_key") == dedup_key
+            for episode in self.load_all_episodes()
+        )
+
+    def find_episode_by_signal_id(self, signal_id: str) -> Dict[str, Any] | None:
+        for episode in self.load_all_episodes():
+            signal = episode.get("signal")
+            if isinstance(signal, dict) and signal.get("signal_id") == signal_id:
+                return episode
+        return None
 
     def save(self, episode: Dict[str, Any]) -> str:
         # Load the last state from index to chain the blocks
@@ -279,5 +289,4 @@ class EvidenceStore:
 
         # 2. O(log N) Merkle path verification
         return MerkleTree.verify_audit_proof(leaf_hash, proof, expected_root)
-
 
