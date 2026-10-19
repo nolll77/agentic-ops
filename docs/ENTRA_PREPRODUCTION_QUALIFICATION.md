@@ -2,7 +2,8 @@
 
 **Statut au 2026-10-19 :** code local implémenté et testé. Un build Docker
 local et un déploiement éphémère sur kind sans tenant Entra ont été exercés;
-aucune image n'a été publiée et aucun cluster cible n'a été qualifié.
+l'image `v0.1.3` a été publiée publiquement sur GHCR. Aucun cluster cible
+distant n'a été qualifié.
 
 Ce document sépare les livrables logiciels des opérations qui nécessitent un
 tenant, un registre d'images et un cluster sous la responsabilité de l'équipe.
@@ -49,8 +50,9 @@ l'essai dans le cluster local, jamais inscrits dans le dépôt.
 Cette expérience démontre un parcours local et la persistance après
 redémarrage du pod uniquement. Elle ne teste pas la restauration d'une
 sauvegarde, la perte du volume/nœud, un cluster distant, une identité Entra ou
-la publication de l'image. Le cluster kind a été supprimé après les essais;
-l'image reste construite localement.
+la qualification d'un cluster distant. L'image `v0.1.3` a depuis été publiée
+sur GHCR; cette publication ne constitue pas une qualification du déploiement.
+Le cluster kind a été supprimé après les essais.
 
 ## Travaux restants avant une qualification préproduction
 
@@ -107,6 +109,9 @@ télécharge pas le paquet publié sur PyPI. Pour le premier push, vérifier
 également que le package GHCR est rendu public si les téléchargements
 anonymes sont souhaités. Le tag attendu par ce chart est
 `ghcr.io/nolll77/agentic-ops:v0.1.3`.
+
+Pour le profil personnel solo sans Entra et les validations réalisables sur
+une seule machine, voir [`SELF_HOSTED_PRODUCTION_PATH.md`](./SELF_HOSTED_PRODUCTION_PATH.md).
 
 - [ ] Vérifier dans le registre que le tag `v0.1.3` existe, relever le digest
   immuable, analyser l'image et vérifier sa provenance/signature selon la
@@ -234,7 +239,7 @@ ni résultat de qualification n'est présumé par ce document.
 |---|---|---|---|
 | Entra OIDC / rôles d'application | Équipe IAM / sécurité | App registration, affectations de rôle et résultats des tests de jeton | À configurer |
 | Provisionnement SCIM / cycle de vie | Équipe IAM | Rapport de provisioning, tests d'ajout/retrait/désactivation et délai de révocation mesuré | À configurer |
-| Publication de l'image `v0.1.3` | Équipe release / supply chain | Digest publié, scan, signature/provenance et validation d'origine | À publier |
+| Publication de l'image `v0.1.3` | Équipe release / supply chain | Digest public vérifié; scan/signature/provenance restent à ajouter ou qualifier | Image publiée; contrôles supply-chain restants |
 | Stockage Kubernetes mono-réplica | Équipe plateforme / SRE | StorageClass, PVC `Bound`, comportement de rattachement et procédure de sauvegarde | À déployer |
 | Parcours E2E et tests de panne | SRE / équipe applicative | Rapports horodatés, logs corrélés, résultats de reprise et liste d'écarts | À exercer |
 | Restauration et objectifs SLO/RPO/RTO | Responsable de service / SRE | Rapport de restauration chronométré et objectifs approuvés | À exercer |

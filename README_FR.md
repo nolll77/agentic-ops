@@ -2,6 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
+[![GHCR](https://img.shields.io/badge/GHCR-v0.1.3-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![Copilote Web Chat](https://img.shields.io/badge/💬%20Chat%20Live-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-193%20Validés-brightgreen)](tests/)
@@ -12,26 +13,36 @@
 
 > **Language / Langue** : **[Read the main documentation in English (README.md)](README.md)** | **Version Française (actuelle)**
 
-**Agentic-Ops** est un *Control Plane MLOps* de classe entreprise conçu pour orchestrer des Agents IA (LLMs) dans la résolution d'incidents de production (`Data Drift`, `Model Staleness`, `OOMKilled Pods`). 
+**Agentic-Ops** est un projet personnel de control plane MLOps qui explore comment des agents IA (LLMs) peuvent aider à investiguer des signaux opérationnels tels que `Data Drift`, `Model Staleness` et `OOMKilled Pods`.
 
-Contrairement aux frameworks d'agents classiques (`LangChain`, `AutoGen`) qui privilégient l'autonomie absolue, `Agentic-Ops` est bâti sur les piliers du **SRE (Site Reliability Engineering)** : Déterminisme, Observabilité, Sécurité Distribuée (`Fail-Closed`), `Human-in-the-Loop (HITL)` Asynchrone, et **Immuabilité Cryptographique (`Arbre de Merkle Binaire RFC 6962` avec preuves d'inclusion $\mathcal{O}(\log N)$ et Divulgation Sélective pour la conformité à l'EU AI Act)**.
+Contrairement aux frameworks privilégiant l'autonomie des agents, il explore des contrôles inspirés du SRE : politiques déterministes, observabilité, autorisation fail-closed, revue humaine asynchrone et auditabilité cryptographique. Ces fonctions sont en cours de développement; elles ne constituent ni une qualification de production ni une déclaration de conformité à l'EU AI Act.
+
+## Version actuelle et statut de qualification
+
+- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; l'image publique multiarchitecture est [`ghcr.io/nolll77/agentic-ops:v0.1.3`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- Un essai local Docker/kind a vérifié le parcours webhook d'alerte → worker → épisode d'investigation simulé, puis la conservation de l'état après redémarrage du pod avec le même PVC. Cela ne valide ni une restauration de sauvegarde ni la perte du volume/cluster.
+- À la publication d'une release GitHub, l'automatisation teste et vérifie les versions, publie le paquet Python sur PyPI, puis l'image AMD64/ARM64 correspondante sur GHCR. Voir [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
+- La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration, les objectifs de reprise, l'inventaire réel des cibles et l'exécution réelle des actions restent à qualifier.
+- Un profil solo, mono-nœud, limité à l'observation et à la simulation **n'exige pas de tenant Entra**. Ses travaux de qualification réalisables en solo et ses limites sont décrits dans [`docs/SELF_HOSTED_PRODUCTION_PATH.md`](docs/SELF_HOSTED_PRODUCTION_PATH.md). Ce profil ne vaut pas SSO d'entreprise, HA ou ancrage d'audit indépendant.
+
+Pour distinguer ce qui est implémenté des portes de production restantes, consulter [`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md) et [`docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](docs/PRODUCTION_READINESS_ROADMAP_AND_GAPS.md).
 
 
 ---
 
-## Origine du Projet : Extrait de [`nolll77/car_accident`](https://github.com/nolll77/car_accident) vers un Control Plane MLOps Agnostique
+## Origine du Projet : Extrait de [`nolll77/car_accident`](https://github.com/nolll77/car_accident) vers un Control Plane MLOps
 
-À l'origine, `Agentic-Ops` a été développé comme la brique interne d'auto-guérison (*Self-Healing*) et de gouvernance SRE au sein de la plateforme MLOps de sécurité routière **[`https://github.com/nolll77/car_accident`](https://github.com/nolll77/car_accident)** (entrepôt de données `BAAC`, feature store `Feast`, registre `MLflow` et API d'inférence `FastAPI`).
+À l'origine, `Agentic-Ops` a été développé comme composant de gouvernance SRE et d'auto-guérison (*Self-Healing*) au sein de la plateforme MLOps de sécurité routière **[`nolll77/car_accident`](https://github.com/nolll77/car_accident)** (entrepôt de données `BAAC`, feature store `Feast`, registre `MLflow` et API d'inférence `FastAPI`).
 
-Plutôt que de laisser cette couche de gouvernance agentique enfermée dans un seul projet métier, elle a été volontairement **extraite dans ce dépôt autonome** pour devenir un Control Plane MLOps universel et *Plug-and-Play* :
+Cette couche a été extraite dans ce dépôt autonome pour explorer un control plane MLOps réutilisable :
 - **Zéro Couplage Métier** : Toute la logique spécifique au jeu de données initial (`car_accident`) a été retirée au profit d'une **Architecture Hexagonale (`Ports & Adapters`)** pilotée par des manifestes YAML déclaratifs ([`autonomy_policy.yaml`](agentic_ops/governance/autonomy_policy.yaml), [`action_catalog.yaml`](agentic_ops/governance/action_catalog.yaml), [`risk_register.yaml`](agentic_ops/governance/risk_register.yaml)).
-- **Adaptable à N'importe Quel Projet MLOps Réel en Production** : Parce que le cœur du moteur (`Orchestrator FSM`, `PolicyEngine`, `Trust Ledger WORM`) ne manipule que des contrats canoniques (`Signal`, `SystemFacts`), il peut gouverner **n'importe quel projet MLOps en production** en branchant simplement un connecteur d'observabilité en lecture seule — comme démontré ci-dessous sur la plateforme de production externe **[`jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)**.
+- **Conçu pour des adaptateurs** : Le cœur (`Orchestrator FSM`, `PolicyEngine`, `Trust Ledger`) utilise les contrats canoniques `Signal` et `SystemFacts`. Une connexion à un autre système exige tout de même un adaptateur approprié, une revue de sécurité et une qualification sur cette cible.
 
 ---
 
-## Déploiement de Production en Direct & Rapports de Validation
+## Démonstration en direct & rapports de validation
 
-Pour démontrer concrètement cette architecture agnostique en conditions réelles de production, `Agentic-Ops` est déployé 24h/24 sur `Render` (connecté au réseau maillé `Tailscale`) et documenté à travers deux rapports de validation technique :
+L'instance publique sur Render et les rapports suivants démontrent certaines fonctions. Ils ne prouvent ni une qualification de production ni une garantie de disponibilité :
 
 1. **Instance de Production Serverless Auto-Wake en Ligne (`Render` + `Tailscale` + `cron-job.org`)** :
    - **Statut du Control Plane en direct** : **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
@@ -1562,5 +1573,3 @@ python -m agentic_ops.entrypoints.mcp_server
     Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
 12. **[Guide d'Ingénierie de Distribution PyPI & Release (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)** :
     Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.
-
-
