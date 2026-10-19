@@ -190,15 +190,25 @@ class EvidenceStore:
         Generates an O(log N) Merkle Audit Proof of inclusion for a given episode.
         Allows third-party auditors to verify that `episode_id` is sealed in the ledger
         without revealing any other episode.
+        Includes the canonical episode payload to cryptographically bind:
+        episode_id -> canonical_payload -> leaf_hash -> Merkle Root.
         """
         episodes = self.load_all_episodes()
         target_idx = -1
+        target_ep = None
         for idx, ep in enumerate(episodes):
             if ep.get("episode_id") == episode_id:
                 target_idx = idx
+                target_ep = ep
                 break
-        if target_idx == -1:
+        if target_idx == -1 or target_ep is None:
             return None
+
+        # Canonical representation of the episode for leaf hashing
+        c_ep = dict(target_ep)
+        c_ep.pop("hash", None)
+        c_ep.pop("cryptographic_signature", None)
+        canonical_payload = get_canonical_json(c_ep)
 
         tree = self.get_merkle_tree()
         leaf_hash = tree.leaf_hashes[target_idx]
@@ -209,20 +219,55 @@ class EvidenceStore:
             "leaf_index": target_idx,
             "total_leaves": len(episodes),
             "leaf_hash": leaf_hash,
+            "canonical_payload": canonical_payload,
             "merkle_root": tree.root,
             "audit_path": audit_path,
         }
 
     @staticmethod
-    def verify_merkle_proof(proof_packet: Dict[str, Any]) -> bool:
+    def verify_merkle_proof(
+        proof_packet: Dict[str, Any],
+        raw_episode: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
         Verifies a Merkle inclusion proof packet in O(log N) time.
         Does not require reading or loading the local ledger.
+        Strictly binds episode_id and episode content to leaf_hash before
+        verifying the Merkle inclusion path.
         """
         leaf_hash = proof_packet.get("leaf_hash", "")
         proof = proof_packet.get("audit_path", [])
         expected_root = proof_packet.get("merkle_root", "")
-        if not leaf_hash or not expected_root:
+        claimed_episode_id = proof_packet.get("episode_id", "")
+
+        if not leaf_hash or not expected_root or not claimed_episode_id:
             return False
+
+        # 1. Cryptographic binding check: bind episode_id & payload to leaf_hash
+        payload_to_check = None
+        if raw_episode is not None:
+            c_ep = dict(raw_episode)
+            c_ep.pop("hash", None)
+            c_ep.pop("cryptographic_signature", None)
+            if c_ep.get("episode_id") != claimed_episode_id:
+                return False
+            payload_to_check = get_canonical_json(c_ep)
+        elif "canonical_payload" in proof_packet:
+            payload_str = proof_packet["canonical_payload"]
+            try:
+                parsed = json.loads(payload_str)
+                if parsed.get("episode_id") != claimed_episode_id:
+                    return False
+            except Exception:
+                return False
+            payload_to_check = payload_str
+
+        if payload_to_check is not None:
+            computed_leaf_hash = hash_leaf(payload_to_check)
+            if computed_leaf_hash.lower() != leaf_hash.lower():
+                return False  # Payload does not match leaf_hash!
+
+        # 2. O(log N) Merkle path verification
         return MerkleTree.verify_audit_proof(leaf_hash, proof, expected_root)
+
 

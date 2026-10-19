@@ -78,7 +78,7 @@ To reconcile **continuous real-time ingestion** with **mathematical tamper-evide
 ### A. Conversational Consultation & Cognitive Prompts in `/chat`
 In the Web Chat interface (`/chat`), click on **`📚 20 Prompts MCP`** and navigate to the **`III. WORM Forensics`** category:
 - **Prompt `09` (`09_worm_ledger_chain_verification`)**:
-  Instructs the LLM to inspect the append-only ledger, verify the full `SHA-256` Merkle chain and `HMAC-SHA512` signatures via `EvidenceStore.verify_chain()`, and return sealed episodes.
+  Instructs the LLM to inspect the append-only ledger, verify the full `SHA-256` linear hash chain and `HMAC-SHA512` signatures via `EvidenceStore.verify_chain()`, and return sealed episodes.
 - **Prompt `10` (`10_worm_simulate_and_seal_episode`)**:
   Simulates an incident episode, traces the `PolicyEngine` evaluation, and explains how the cryptographic signature is generated.
 - **Prompt `11` (`11_worm_tamper_detection_audit`)**:

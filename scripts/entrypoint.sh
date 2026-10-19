@@ -15,7 +15,8 @@ mkdir -p /tmp/state
 # Initialize Ledger signing key if not injected via external KMS/secrets
 if [ -z "$LEDGER_SECRET_KEY" ] && [ -z "$EVIDENCE_STORE_HMAC_KEY" ]; then
     echo "[SECURITY WARNING] Neither LEDGER_SECRET_KEY nor EVIDENCE_STORE_HMAC_KEY configured."
-    echo "Generating cryptographically random 256-bit ephemeral session key for sandbox container..."
+    echo "[SECURITY NOTICE] Generating cryptographically random 256-bit ephemeral session key for sandbox container..."
+    echo "[SECURITY NOTICE] Cross-restart ledger verification requires a persistent secret (Vault / AWS KMS / Render Env)."
     export LEDGER_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
 fi
 

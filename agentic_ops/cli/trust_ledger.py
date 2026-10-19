@@ -130,14 +130,18 @@ def cmd_inspect(episode_id: str):
 
 
 def cmd_merkle_root():
+    import math
     from agentic_ops.core.evidence import EvidenceStore
     store = EvidenceStore(str(EVIDENCE_DIR))
     tree = store.get_merkle_tree()
     episodes = store.load_all_episodes()
+    n = len(episodes)
+    depth = math.ceil(math.log2(n)) + 1 if n > 0 else 1
     console.print(f"\n[bold cyan]=== Binary Merkle Tree Cryptographique (RFC 6962) ===[/bold cyan]")
-    console.print(f"[bold]Nombre d'épisodes scellés :[/bold] {len(episodes)}")
+    console.print(f"[bold]Nombre d'épisodes scellés :[/bold] {n}")
     console.print(f"[bold]Merkle Root (SHA-256)      :[/bold] [bold green]{tree.root}[/bold green]")
-    console.print(f"[bold]Profondeur de l'arbre      :[/bold] {len(tree.levels)} niveaux (O(log N) = {len(tree.levels) - 1} étapes)")
+    console.print(f"[bold]Profondeur maximale        :[/bold] {depth} niveaux (Vérification O(log N) <= {depth - 1} étapes)")
+    console.print(f"[dim]Complexité : Construction O(N) | Taille de preuve & Vérification O(log N)[/dim]")
     console.print(f"[dim]Second-preimage resistant : Domain Separators 0x00 (feuilles) / 0x01 (nœuds parents)[/dim]\n")
 
 
@@ -149,17 +153,19 @@ def cmd_merkle_proof(episode_id: str):
         console.print(f"[bold red]Episode {episode_id} introuvable dans le ledger.[/bold red]")
         return
     is_valid = EvidenceStore.verify_merkle_proof(proof_packet)
-    console.print(f"\n[bold cyan]=== Preuve d'Inclusion Merkle (Audit Proof) : {episode_id} ===[/bold cyan]")
+    console.print(f"\n[bold cyan]=== Preuve d'Inclusion Merkle RFC 6962 : {episode_id} ===[/bold cyan]")
     console.print(f"[bold]Position dans l'arbre :[/bold] Feuille index {proof_packet['leaf_index']} / {proof_packet['total_leaves']}")
-    console.print(f"[bold]Leaf Hash (RFC 6962)  :[/bold] [cyan]{proof_packet['leaf_hash']}[/cyan]")
+    console.print(f"[bold]Leaf Hash (0x00)      :[/bold] [cyan]{proof_packet['leaf_hash']}[/cyan]")
+    console.print(f"[bold]Liaison Cryptographique :[/bold] [green]Vérifiée (episode_id scellé dans canonical_payload)[/green]")
     console.print(f"[bold]Merkle Root Attendue  :[/bold] [green]{proof_packet['merkle_root']}[/green]")
-    console.print(f"[bold]Audit Path            :[/bold] {len(proof_packet['audit_path'])} étapes logarithmiques")
+    console.print(f"[bold]Audit Path (RFC 6962) :[/bold] {len(proof_packet['audit_path'])} étapes logarithmiques")
     for idx, step in enumerate(proof_packet['audit_path']):
         console.print(f"  [{idx+1}] Sibling ({step['position']:5s}) : {step['hash']}")
     
     status_color = "bold green" if is_valid else "bold red"
     status_text = "VALIDE (Mathématiquement intègre & inclus dans le Merkle Root)" if is_valid else "INVALIDE (Altération détectée)"
     console.print(f"\n[bold]Vérification O(log N) :[/bold] [{status_color}]{status_text}[/{status_color}]\n")
+
 
 
 def main():

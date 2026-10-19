@@ -139,3 +139,68 @@ def test_evidence_store_merkle_integration(tmp_path):
     # Old proof packet fails against the new altered root
     proof_packet["merkle_root"] = new_root
     assert EvidenceStore.verify_merkle_proof(proof_packet) is False
+
+
+def test_merkle_rfc6962_recursive_split_odd_sizes():
+    """Validates strict adherence to RFC 6962 Section 2.1 (k = 2^floor(log2(n-1))) for non-power-of-two trees."""
+    from agentic_ops.core.merkle import largest_power_of_two_less_than
+    
+    assert largest_power_of_two_less_than(2) == 1
+    assert largest_power_of_two_less_than(3) == 2
+    assert largest_power_of_two_less_than(4) == 2
+    assert largest_power_of_two_less_than(5) == 4
+    assert largest_power_of_two_less_than(6) == 4
+    assert largest_power_of_two_less_than(7) == 4
+    assert largest_power_of_two_less_than(8) == 4
+    assert largest_power_of_two_less_than(9) == 8
+
+    # For n = 3: left child is hash(L0, L1), right child is L2 directly (NO lone duplication)
+    leaves = ["leaf_0", "leaf_1", "leaf_2"]
+    tree = MerkleTree(leaves)
+    h0 = hash_leaf("leaf_0")
+    h1 = hash_leaf("leaf_1")
+    h2 = hash_leaf("leaf_2")
+    h01 = hash_children(h0, h1)
+    manual_rfc_root = hash_children(h01, h2)
+    assert tree.root == manual_rfc_root
+
+    # Proof for leaf 2 (rightmost lone leaf) in RFC 6962: exactly 1 sibling (h01 on the left)
+    proof_2 = tree.get_audit_proof(2)
+    assert len(proof_2) == 1
+    assert proof_2[0] == {"position": "left", "hash": h01}
+    assert MerkleTree.verify_audit_proof("leaf_2", proof_2, tree.root) is True
+
+
+def test_merkle_proof_binding_tampering(tmp_path):
+    """Validates that verify_merkle_proof strictly binds episode_id and episode content to leaf_hash."""
+    store = EvidenceStore(str(tmp_path / "evidence"))
+    ep = {
+        "episode_id": "EP-BIND-001",
+        "action": "create_issue",
+        "decision": "ALLOW",
+        "details": {"metric": "drift_share", "val": 0.42},
+    }
+    store.save(ep)
+
+    proof_packet = store.get_merkle_proof("EP-BIND-001")
+    assert proof_packet is not None
+    assert "canonical_payload" in proof_packet
+    assert EvidenceStore.verify_merkle_proof(proof_packet) is True
+
+    # 1. Tampering with canonical_payload (modifying action)
+    tampered_packet = dict(proof_packet)
+    tampered_payload = json.loads(tampered_packet["canonical_payload"])
+    tampered_payload["action"] = "scale_to_zero"
+    tampered_packet["canonical_payload"] = json.dumps(tampered_payload)
+    assert EvidenceStore.verify_merkle_proof(tampered_packet) is False
+
+    # 2. Tampering with claimed episode_id
+    id_spoofed_packet = dict(proof_packet)
+    id_spoofed_packet["episode_id"] = "EP-BIND-999"
+    assert EvidenceStore.verify_merkle_proof(id_spoofed_packet) is False
+
+    # 3. Providing an external raw_episode that does not match
+    fake_raw_ep = dict(ep)
+    fake_raw_ep["details"]["val"] = 0.99
+    assert EvidenceStore.verify_merkle_proof(proof_packet, raw_episode=fake_raw_ep) is False
+

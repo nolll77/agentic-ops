@@ -44,7 +44,7 @@
 *« Votre fichier d'audit `trust_ledger.jsonl` est stocké localement. Si un attaquant parvient à s'introduire sur votre machine avec des droits root, il peut simplement éditer le fichier pour effacer ses traces ou falsifier l'historique de vos actions. À quoi sert votre sécurité cryptographique ? »*
 
 **💡 Votre réponse chirurgicale :**  
-> « C'est précisément pour cela que notre Trust Ledger n'utilise pas de simples logs textuels, mais une structure de chaîne de blocs de type **Merkle-Tree (WORM - Write Once, Read Many)**.  
+> « C'est précisément pour cela que notre Trust Ledger n'utilise pas de simples logs textuels, mais une architecture cryptographique combinant une chaîne linéaire de hachage WORM (Write Once, Read Many) et un Arbre de Merkle RFC 6962.  
 > Même avec des droits root, un attaquant fait face à une barrière mathématique : chaque ligne du fichier contient le champ `previous_hash`, qui dépend du hachage SHA-256 complet de la ligne précédente. Si un attaquant modifie une décision passée (par exemple changer un `REQUIRE_APPROVAL` en `ALLOW`), le hachage de cette ligne change. Par effet domino, la liaison avec le bloc suivant est mathématiquement brisée.  
 > Au démarrage du système ou lors de l'audit automatisé via `agentic-audit`, la méthode `verify_chain_integrity()` recalcule l'intégralité des empreintes. Elle détecte instantanément la rupture de l'invariant cryptographique, refuse de démarrer l'application et lève une alerte de falsification (**Tamper-Evident**). En production, ce fichier `.jsonl` a vocation à être répliqué en continu vers un stockage immuable de type AWS S3 configuré avec **S3 Object Lock** (mode Compliance). »
 

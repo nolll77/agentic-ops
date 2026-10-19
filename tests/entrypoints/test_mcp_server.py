@@ -164,6 +164,7 @@ def test_mcp_tool_seal_and_verify_worm_trust_ledger(tmp_path, monkeypatch):
         }
     )
     verified = json.loads(verify_resp["result"]["content"][0]["text"])
+    assert verified["linear_chain_and_hmac_valid"] is True
     assert verified["merkle_chain_and_hmac_valid"] is True
     assert verified["total_matching_episodes"] == 1
 

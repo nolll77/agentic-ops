@@ -230,7 +230,7 @@ MCP_TOOLS: List[Dict[str, Any]] = [
     {
         "name": "inspect_worm_trust_ledger",
         "description": (
-            "Audits the append-only WORM Trust Ledger (ledger.jsonl), verifies the full SHA-256 Merkle chain "
+            "Audits the append-only WORM Trust Ledger (ledger.jsonl), verifies the full SHA-256 linear hash chain "
             "and HMAC-SHA512 signatures via EvidenceStore.verify_chain(), and returns sealed episodes."
         ),
         "readOnlyHint": True,
@@ -484,7 +484,7 @@ MCP_PROMPTS: List[Dict[str, Any]] = [
     # --- Category III: WORM Trust Ledger Forensics & Cryptography (9-12) ---
     {
         "name": "09_worm_ledger_chain_verification",
-        "description": "[WORM Forensics] Verify the SHA-256 Merkle chain and HMAC-SHA512 signatures of all episodes.",
+        "description": "[WORM Forensics] Verify the SHA-256 linear hash chain and HMAC-SHA512 signatures of all episodes.",
         "arguments": [],
         "template": (
             "Call `inspect_worm_trust_ledger` with `limit=20`. Verify whether `chain_valid` is `True`, "
@@ -810,7 +810,8 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
 
             payload = {
                 "worm_ledger_file": str(store.ledger_file),
-                "merkle_chain_and_hmac_valid": chain_valid,
+                "linear_chain_and_hmac_valid": chain_valid,
+                "merkle_chain_and_hmac_valid": chain_valid,  # alias for backward-compatibility
                 "total_matching_episodes": len(episodes),
                 "episodes": episodes[-limit:],
             }

@@ -480,7 +480,7 @@ Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.
 | :--- | :--- | :--- | :--- |
 | **`Phase A: Vitals & Hardware Telemetry`** | [`/api/diagnostics/sandbox_phase_a_vitals`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_a_vitals) | `uname -a`, `/proc/cpuinfo`, `free -h`, `/healthz`, `/ready`, open ports `:6379` & `:1055` | Prints container kernel, CPU model/cores, memory table, and daemon port states. |
 | **`Phase B: Red-Team Slack Spoof Attack`** | [`/api/diagnostics/sandbox_phase_b_slack_spoof`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_b_slack_spoof) | `POST /slack/interactive` (`payload=fake_tampered_attack`, no `HMAC-SHA256` signature) | **`HTTP 401 Unauthorized`** (`{"error": "en-têtes manquants"}`) in `~2ms` (Fail-Closed). |
-| **`Phase C: Adversarial & WORM (9 Tests)`** | [`/api/diagnostics/sandbox_phase_c_adversarial_worm`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_c_adversarial_worm) | `pytest tests/adversarial/ tests/security/ -v` | **`9 passed`** (`WORM` Merkle chain tampering detection, `Redis` Fail-Closed, `<untrusted_data>` Prompt Guard). |
+| **`Phase C: Adversarial & WORM (9 Tests)`** | [`/api/diagnostics/sandbox_phase_c_adversarial_worm`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_c_adversarial_worm) | `pytest tests/adversarial/ tests/security/ -v` | **`9 passed`** (`WORM` linear chain tampering detection, `Redis` Fail-Closed, `<untrusted_data>` Prompt Guard). |
 | **`Phase D: Live Agentic Scenarios (10 Tests)`** | [`/api/diagnostics/sandbox_phase_d_mlops_scenarios`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_d_mlops_scenarios) | `pytest tests/scenarios/ -v -s` | **`10 passed`** + live `[INVESTIGATING] -> [DIAGNOSED] -> [PLANNED] -> [POLICY] DENY` traces & `[scripted] n=7 diag_ok=5/7 forbidden_proposed=6 forbidden_executed=0`. |
 | **`Phase E: FSM & Tool Sandboxing (10 Tests)`** | [`/api/diagnostics/sandbox_phase_e_fsm_governance`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/sandbox_phase_e_fsm_governance) | `pytest tests/test_fsm_orchestrator.py tests/test_grafana_webhook.py tests/test_tools_security.py -v` | **`10 passed`** (`FSM` transitions, `Grafana` webhook validation, `multiprocessing` OS sandboxing). |
 | **`Phase F: CAC Tailscale Connector (13 Tests)`** | [`/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector) | `pytest tests/adapters/test_cac_pull_collector.py -v` | **`13 passed`** (Read-only `GET` enforcement across all 5 `jakatt/cac_mlops` services + offline resilience). |
@@ -873,7 +873,7 @@ When a production incident occurs, the system executes an unambiguous 5-step tra
 
 1. **Step 1: Inbound Alert & Episode Ingestion (Non-Mutating)**:
    - Prometheus or Evidently detects covariate shift and dispatches an alert payload to `POST /webhook/alert`.
-   - The Orchestrator assigns a monotonically increasing episode ID (`EP-0004`) linked to the cryptographic Merkle chain (`previous_hash`).
+   - The Orchestrator assigns a monotonically increasing episode ID (`EP-0004`) linked to the cryptographic linear hash chain (`previous_hash`).
 2. **Step 2: Read-Only Cognitive Investigation (Non-Mutating - 100% `GET`)**:
    - The specialized LLM agent wakes up in a sandboxed process.
    - The agent inspects runtime telemetry exclusively via read-only endpoints:
@@ -907,7 +907,7 @@ In enterprise AI operations, connecting autonomous IDE or desktop clients (`Clau
 ### 1. What Can the `MCP` Server Do? (The 8 Governed `MCP Tools` & 5 `MCP Resources`)
 - **Live `/console` Reader (`read_console_diagnostic`)**: Directly executes and reads any diagnostic phase from the `/console` Web Terminal (`sandbox_phase_a_vitals` through `pytest_all`), returning either compact `PASSED` lines (`include_guides=False`) or the full color-coded pedagogical commentary (`[GUIDE:ROLE]`, `[GUIDE:AGENT]`, `[GUIDE:SLACK]`, `[GUIDE:PROD]`, `[GUIDE:HOW_IT_PASSES]`).
 - **Deterministic Pre-Flight Firewall (`evaluate_governance_policy`)**: Evaluates any proposed agent action (`create_issue`, `restart_pod`, `scale_up`, `propose_retrain`) against `autonomy_policy.yaml`, `action_catalog.yaml`, and `risk_register.yaml` (`R-001` upstream data mask veto, `R-002` forbidden risk actions, `1/hour` rate limits), returning `ALLOW`, `REQUIRE_APPROVAL` (Slack HITL), or `DENY`.
-- **End-to-End WORM Incident Sealing (`run_governed_incident_episode` & `inspect_worm_trust_ledger`)**: Runs a full incident episode, seals it in `ledger.jsonl` with a canonical `SHA-256` Merkle chain (`previous_hash`) and `HMAC-SHA512` cryptographic signature, and verifies the entire chain via `EvidenceStore.verify_chain()`.
+- **End-to-End WORM Incident Sealing (`run_governed_incident_episode` & `inspect_worm_trust_ledger`)**: Runs a full incident episode, seals it in `ledger.jsonl` with a canonical `SHA-256` linear hash chain (`previous_hash`) and `HMAC-SHA512` cryptographic signature, and verifies the entire chain via `EvidenceStore.verify_chain()`.
 - **Foundational Knowledge Search (`search_failure_taxonomy` & `get_scenario_blueprint`)**: Queries the **435 Failure Modes Taxonomy** ([`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md)) and the **36 War-Room Scenarios Registry** ([`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) + [`tests/scenarios/data/`](tests/scenarios/data/)).
 - **Live `Tailscale` Read-Only Pull (`poll_target_mlops_snapshot` & `inspect_control_plane_vitals`)**: Triggers `CacPullCollector.collect_all()` (`100% HTTP GET`) across the 5 observability sources of `jakatt/cac_mlops` over the `Tailscale SOCKS5` mesh (`127.0.0.1:1055`).
 - **5 Native `MCP Resources`**: `agentic-ops://taxonomy/failure-modes`, `agentic-ops://registry/scenarios`, `agentic-ops://governance/autonomy-policy`, `agentic-ops://governance/known-gaps`, and `agentic-ops://console/vitals`.
@@ -978,7 +978,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 | **`06`** | `06_policy_veto_thrashing_cooldown` | **PolicyEngine** | Compare `restart_pod` verdicts (`recent_executions_last_hour=0` vs `5`) to prove `1/hour` anti-thrashing rate limits. |
 | **`07`** | `07_policy_hitl_slack_escalation` | **PolicyEngine** | Evaluate `scale_up` on `baac-api` (`L2`) and explain the transition to `AWAITING_APPROVAL` (Slack HITL). |
 | **`08`** | `08_policy_l1_autonomy_fastpath` | **PolicyEngine** | Verify why `create_issue` (`mutating=False`, `blast_radius=0`, `L1`) is granted immediate autonomous `ALLOW`. |
-| **`09`** | `09_worm_ledger_chain_verification` | **WORM Forensics** | Run `inspect_worm_trust_ledger` to verify the `SHA-256` Merkle chain and `HMAC-SHA512` signatures. |
+| **`09`** | `09_worm_ledger_chain_verification` | **WORM Forensics** | Run `inspect_worm_trust_ledger` to verify the `SHA-256` linear hash chain and `HMAC-SHA512` signatures. |
 | **`10`** | `10_worm_simulate_and_seal_episode` | **WORM Forensics** | Execute `run_governed_incident_episode` and inspect the newly sealed cryptographic block in `ledger.jsonl`. |
 | **`11`** | `11_worm_tamper_detection_audit` | **WORM Forensics** | Run `Phase C` (`sandbox_phase_c_adversarial_worm`) and explain 1-byte disk tamper detection. |
 | **`12`** | `12_worm_eu_ai_act_compliance_report` | **WORM Forensics** | Map `autonomy_policy.yaml` and `WORM` ledger controls to `EU AI Act` Articles `12` (Logging) & `14` (Human Oversight). |
@@ -1193,7 +1193,7 @@ To provide radical transparency during live operations, incident post-mortems, a
 |                                    |                                                             |
 |  [ ] SlackWebhookAgent             |  4. SECURITY, BLAST RADIUS & FINOPS OBSERVABILITY           |
 |      0-Token HMAC Gate             |     - Authorized Blast Radius: 0 to 5 (PolicyEngine veto)   |
-|                                    |     - WORM Ledger: Merkle cryptographically sealed (SHA256) |
+|                                    |     - WORM Ledger: Cryptographically sealed (SHA256 + RFC 6962)|
 |  [ ] 8 AgentTools                  |     - PromQL Metric: agentic_ops_llm_requests_total{role=""} |
 |      0-Token Sensory Probes        |     - Failure Domain: Trips CircuitBreaker on 429/timeout   |
 |                                    |                                                             |
