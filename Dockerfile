@@ -9,6 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONMALLOC=malloc \
     MALLOC_TRIM_THRESHOLD_=65536 \
     ENVIRONMENT=production \
+    AGENTIC_OPS_ENV=production \
     PORT=8001 \
     APPROVAL_DB_PATH=/tmp/state/approvals.db \
     TS_SOCKET=/tmp/tailscaled.sock \

@@ -31,7 +31,7 @@ app = FastAPI(
         "and 36 SRE Simulation Scenarios (`/chat`, `/api/chat`).\n"
         "- **📚 20 Governed MCP Prompts & Tools**: Model Context Protocol JSON-RPC gateway for IDEs and autonomous agents (`/mcp`, `/api/prompts`).\n"
         "- **🛡️ Remote Tailscale Telemetry**: Passive read-only ingestion across 5 observability targets on `jakatt/cac_mlops` (`/api/cac/snapshot`).\n"
-        "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Merkle-chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
+        "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
     version="0.1.3",
@@ -784,7 +784,7 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "========================================================================================",
         "[GUIDE:ROLE] RÔLE DU BOUTON (Phase C — Sécurité Adversariale, Registre WORM & Verrous Redis — 9 Tests) :",
         "[GUIDE:ROLE]   Exécute les suites tests/adversarial/ et tests/security/ :",
-        "[GUIDE:ROLE]   - test_evidence_integrity.py (3 tests) : intégrité de la chaîne de blocs Merkle WORM (SHA-256 + HMAC-SHA512).",
+        "[GUIDE:ROLE]   - test_evidence_integrity.py (4 tests) : intégrité de la chaîne de hachage linéaire WORM (SHA-256 + HMAC-SHA512).",
         "[GUIDE:ROLE]   - test_idempotency_and_rate.py (3 tests) : verrous atomiques Redis (SET NX EX), rate-limiting & Fail-Closed.",
         "[GUIDE:ROLE]   - test_prompt_hygiene.py (1 test Hypothesis property-based) : quarantaine <untrusted_data> contre Prompt Injection.",
         "[GUIDE:ROLE]   - test_executor.py (2 tests) : isolation thread-safe de l'Executor.",
@@ -795,8 +795,8 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "[GUIDE:SLACK]   verify_episode() détecte la falsification immédiatement.",
         "[GUIDE:PROD] IMPACT SUR LE MLOPS CIBLE (PROD) : ZÉRO MUTATION EN PROD. Vérifie que si Redis tombe en panne,",
         "[GUIDE:PROD]   le système bascule en Fail-Closed (bloque les actions destructrices) et que les tickets sont simulés.",
-        "[GUIDE:HOW_IT_PASSES] POURQUOI & COMMENT ÇA PASSE (9 PASSED) :",
-        "[GUIDE:HOW_IT_PASSES]   1. Merkle Chain Tampering : altérer un épisode ou son previous_hash brise la signature SHA-256.",
+        "[GUIDE:HOW_IT_PASSES] POURQUOI & COMMENT ÇA PASSE (10 PASSED) :",
+        "[GUIDE:HOW_IT_PASSES]   1. Linear Hash Chain Tampering : altérer un épisode ou son previous_hash brise la signature SHA-256.",
         "[GUIDE:HOW_IT_PASSES]   2. Redis Fail-Closed : une coupure Redis lève un blocage de sécurité au lieu d'autoriser par défaut.",
         "[GUIDE:HOW_IT_PASSES]   3. Hypothesis Fuzzing : génère des chaînes aléatoires contenant </untrusted_data> et vérifie leur neutralisation.",
         "========================================================================================",
@@ -885,7 +885,7 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "========================================================================================",
         "[GUIDE:ROLE] RÔLE DU BOUTON (Grand Chelem — Exécution Intégrale des 42 Tests Sandbox + Connecteur CAC) :",
         "[GUIDE:ROLE]   Exécute en une seule passe continue les Phases C + D + E + F :",
-        "[GUIDE:ROLE]   - 9 tests Adversariaux, WORM Merkle Chain, Verrous Redis & Prompt Guard (<untrusted_data>)",
+        "[GUIDE:ROLE]   - 10 tests Adversariaux, WORM Linear Hash Chain, Verrous Redis & Prompt Guard (<untrusted_data>)",
         "[GUIDE:ROLE]   - 10 scénarios MLOps de bout en bout (SC-101..103 & SC-001..005 -> forbidden_executed=0)",
         "[GUIDE:ROLE]   - 10 tests FSM, Webhook Grafana, Circuit Breaker FinOps & Sandboxing OS multiprocessing",
         "[GUIDE:ROLE]   - 13 tests du Connecteur Tailscale Pull Read-Only vers jakatt/cac_mlops",
@@ -917,7 +917,7 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
         "[GUIDE:PROD]   - EP-0001, 0004, 0005 (create_issue) : simple création d'un ticket d'incident documenté (non-destructif).",
         "[GUIDE:HOW_IT_PASSES] POURQUOI & COMMENT ÇA PASSE :",
         "[GUIDE:HOW_IT_PASSES]   Chaque ligne de ce tableau est une boîte noire inviolable (WORM) : toute modification manuelle",
-        "[GUIDE:HOW_IT_PASSES]   d'un fichier JSON d'épisode invalide instantanément la chaîne de hachage Merkle.",
+        "[GUIDE:HOW_IT_PASSES]   d'un fichier JSON d'épisode invalide instantanément la chaîne de hachage linéaire.",
         "========================================================================================",
     ],
     DiagnosticCommand.tailscale_status: [
@@ -1930,7 +1930,7 @@ function renderMasUI() {
       </div>
       <div class="mas-prop-box">
         <div class="mas-prop-label">Scellement WORM Ledger</div>
-        <div class="mas-prop-val">${activeItem.worm_ledger ? '✅ Signé cryptographiquement (Merkle SHA-256)' : '🛡️ Non-mutant (Lecture ou contrôle passif)'}</div>
+        <div class="mas-prop-val">${activeItem.worm_ledger ? '✅ Signé cryptographiquement (Chaîne SHA-256)' : '🛡️ Non-mutant (Lecture ou contrôle passif)'}</div>
       </div>
     </div>
       <div class="mas-prop-label">Métrique Prometheus FinOps Dédiée</div>

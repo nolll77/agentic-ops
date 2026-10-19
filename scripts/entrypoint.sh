@@ -12,6 +12,9 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 # Ensure runtime state directory exists (on Render/HF Spaces, /tmp is mounted fresh at runtime)
 mkdir -p /tmp/state
 
+# Initialize Ledger signing key if not injected via external KMS/secrets
+export LEDGER_SECRET_KEY="${LEDGER_SECRET_KEY:-${EVIDENCE_STORE_HMAC_KEY:-render_sandbox_container_key_${PORT:-8001}}}"
+
 # 1. Start local Redis daemon if available (for distributed locks & rate limiting)
 if command -v redis-server >/dev/null 2>&1; then
     echo "[1/4] Starting local Redis server on 127.0.0.1:6379 (maxmemory 16mb, LRU eviction)..."

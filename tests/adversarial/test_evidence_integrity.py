@@ -54,14 +54,15 @@ def test_crypto_fail_closed_in_production_without_key(monkeypatch):
     import importlib
     import agentic_ops.core.crypto as crypto_mod
 
-    monkeypatch.setenv("AGENTIC_OPS_ENV", "production")
-    monkeypatch.delenv("LEDGER_SECRET_KEY", raising=False)
-    monkeypatch.delenv("EVIDENCE_STORE_HMAC_KEY", raising=False)
+    for env_var in ("AGENTIC_OPS_ENV", "ENVIRONMENT"):
+        monkeypatch.setenv(env_var, "production")
+        monkeypatch.delenv("LEDGER_SECRET_KEY", raising=False)
+        monkeypatch.delenv("EVIDENCE_STORE_HMAC_KEY", raising=False)
 
-    with pytest.raises(RuntimeError, match=r"\[FAIL-CLOSED\]"):
+        with pytest.raises(RuntimeError, match=r"\[FAIL-CLOSED\]"):
+            importlib.reload(crypto_mod)
+
+        monkeypatch.delenv(env_var, raising=False)
         importlib.reload(crypto_mod)
 
-    # Cleanup reload back to normal
-    monkeypatch.delenv("AGENTIC_OPS_ENV", raising=False)
-    importlib.reload(crypto_mod)
 

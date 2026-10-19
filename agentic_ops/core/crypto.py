@@ -11,7 +11,7 @@ logger = logging.getLogger("TrustLedgerCrypto")
 # Supporte à la fois LEDGER_SECRET_KEY et EVIDENCE_STORE_HMAC_KEY (documenté dans .env.example)
 _raw_key = os.environ.get("LEDGER_SECRET_KEY") or os.environ.get("EVIDENCE_STORE_HMAC_KEY")
 if not _raw_key:
-    if os.environ.get("AGENTIC_OPS_ENV") == "production":
+    if os.environ.get("AGENTIC_OPS_ENV") == "production" or os.environ.get("ENVIRONMENT") == "production":
         raise RuntimeError(
             "[FAIL-CLOSED] Neither LEDGER_SECRET_KEY nor EVIDENCE_STORE_HMAC_KEY is configured in production. "
             "Refusing to initialize cryptographic signer with insecure dummy key."
