@@ -190,10 +190,10 @@ agentic-ops-core/
 
 **`Agentic-Ops` is not another model-training platform: it is an agnostic "Control Plane" (an SRE governance brain) that plugs directly on top of an existing production MLOps execution platform.**
 
-In our reference deployment, `Agentic-Ops` runs both in an isolated `Docker Agentic Platform` micro-VM (Tailscale IP `100.102.123.121`) and as a live **24/7 Auto-Wake PaaS Web Service on `Render`** (`https://agentic-ops-5ebv.onrender.com`, Tailscale IP **`100.85.198.81`**, hostname `agentic-ops-render`) connected to the target production platform `CAC MLOps`:
+In our reference deployment, `Agentic-Ops` runs both in an isolated `Docker Agentic Platform` micro-VM (Tailscale IP `100.102.***.***`) and as a live **24/7 Auto-Wake PaaS Web Service on `Render`** (`https://agentic-ops-5ebv.onrender.com`, anonymized Tailscale IP **`100.85.***.***`**, hostname `agentic-ops-render`) connected to the target production platform `CAC MLOps`:
 * **Target Platform GitHub Repository**: **[`https://github.com/jakatt/cac_mlops`](https://github.com/jakatt/cac_mlops)** (Road accident severity prediction platform).
 * **Target Production Server (Scaleway VPS)**: `scw-jovial-dubinsky` — Tailscale IP: **`100.117.99.62`** — Public domain: `https://mlops.jakat-inc.fr`.
-* **Live `Agentic-Ops` Control Plane (`Render`)**: **[`https://agentic-ops-5ebv.onrender.com`](https://agentic-ops-5ebv.onrender.com)** — Tailscale IP: **`100.85.198.81`**.
+* **Live `Agentic-Ops` Control Plane (`Render`)**: **[`https://agentic-ops-5ebv.onrender.com`](https://agentic-ops-5ebv.onrender.com)** — Tailscale IP: **`100.85.***.***`** (anonymized).
 * **Dedicated Technical Connector Documentation**: **[`CAC_TAILSCALE_PULL_CONNECTOR.md`](CAC_TAILSCALE_PULL_CONNECTOR.md)**.
 
 ---
@@ -431,7 +431,7 @@ Every time the container starts (whether on a fresh deployment or waking up from
 
 1. **Layer 1 — Automated 24/7 Keep-Alive (`cron-job.org`, Zero Cold-Start)**:
    - On `Render`'s free tier, instances spin down after **`15 minutes` of HTTP inactivity** (and take `~30 to 50 seconds` to cold-start on the first subsequent request).
-   - To eliminate this `50-second` cold-start delay completely and keep the `Tailscale` tunnel (`100.85.198.81`) permanently up 24/7, a scheduled job on **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** (`Agentic-Ops Keep-Alive`) sends an `HTTP GET` request to **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** every **`10 minutes`**.
+   - To eliminate this `50-second` cold-start delay completely and keep the `Tailscale` tunnel (`100.85.***.***`) permanently up 24/7, a scheduled job on **[`https://console.cron-job.org/jobs`](https://console.cron-job.org/jobs)** (`Agentic-Ops Keep-Alive`) sends an `HTTP GET` request to **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** every **`10 minutes`**.
 2. **Layer 2 — Automatic On-Demand HTTP Wake-Up (If `cron-job.org` is Paused)**:
    - Even if the external cron job is disabled and the container goes to sleep after `15 minutes` (or several hours), **any incoming HTTP request** automatically triggers `Render` to wake the container and run [`scripts/entrypoint.sh`](scripts/entrypoint.sh):
      - Opening **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** or **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)** in any web browser.
@@ -477,7 +477,7 @@ Every single validation phase documented in [`reports/DOCKER_SANDBOX_VALIDATION.
 | **`Grand Slam: All 62 Sandbox, MCP & LLM Tests`** | [`/api/diagnostics/pytest_all`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_all) | Runs `Phases C + D + E + F + G + H` in a single `pytest` execution | **`62 passed, 2 skipped`** across all adversarial, scenario, governance, connector, MCP, and LLM hub test suites. |
 | **`LLM Provider Live Status`** | [`/api/llm/status`](https://agentic-ops-5ebv.onrender.com/api/llm/status) | `GET /api/llm/status` | Returns active AI provider, resolved model (e.g. `deepseek-r1:free`), fallback chain, and masked API key. |
 | **`WORM Trust Ledger CLI`** | [`/api/diagnostics/trust_ledger_list`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/trust_ledger_list) | `python -m agentic_ops.cli.trust_ledger list` | Lists cryptographically sealed episodes (`SHA-256` + `HMAC-SHA512`) stored in the container ledger. |
-| **`Tailscale Mesh Status`** | [`/api/diagnostics/tailscale_status`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/tailscale_status) | `tailscale --socket=/tmp/tailscaled.sock status` | Displays active `Tailnet` peers (`100.85.198.81` `agentic-ops-render`, `100.117.99.62` `scw-jovial-dubinsky`) with PII redacted. |
+| **`Tailscale Mesh Status`** | [`/api/diagnostics/tailscale_status`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/tailscale_status) | `tailscale --socket=/tmp/tailscaled.sock status` | Displays active `Tailnet` peers (`100.85.***.***` `agentic-ops-render`, `100.117.99.62` `scw-jovial-dubinsky`) with PII redacted. |
 | **`Tailscale DERP Netcheck`** | [`/api/diagnostics/tailscale_netcheck`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/tailscale_netcheck) | `tailscale --socket=/tmp/tailscaled.sock netcheck` | Displays `UDP` / `IPv4` / `DERP` relay latency telemetry from the `Render` container. |
 | **`Live Pull: jakatt/cac_mlops`** | [`/api/cac/snapshot?timeout=3.5`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot?timeout=3.5) | `CacPullCollector(use_proxy_for_vps=True).collect_all()` | Polls `Loki`, `Prometheus`, `MLflow`, `Prefect`, and `Evidently` over `socks5://127.0.0.1:1055`. |
 | **`Redis Local Daemon Ping`** | [`/api/diagnostics/redis_ping`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/redis_ping) | `redis-cli -h 127.0.0.1 -p 6379 PING` | Returns `PONG` confirming local `Redis` readiness. |
@@ -1313,7 +1313,7 @@ Under the project's **Radical Honesty** rule, we differentiate what is fully eng
 | Resilience Layer | Code Implementation Status | Live Production Status (Render Free) | Operational Proof & Verification |
 | :--- | :--- | :--- | :--- |
 | **Line 1: Zero-Code Switch (8 Providers)** | **100% Implemented** in `LLMProviderRegistry` | **Live & Operational** (OpenRouter active by default; Gemini and HuggingFace ready upon API key entry) | Validated by `test_all_8_providers_are_registered` and live Python runtime test. |
-| **Line 2: Sovereign Sanctuary (Ollama)** | **100% Implemented** in `OllamaAdapter` | **Network Mesh Ready** (Tailscale tunnel active between Render `100.85.198.81` and VPS `100.117.99.62`), requires starting `ollama serve` on VPS. | Validated by `test_ollama_adapter_mocked_success` and `test_strip_think_tags`. |
+| **Line 2: Sovereign Sanctuary (Ollama)** | **100% Implemented** in `OllamaAdapter` | **Network Mesh Ready** (Tailscale tunnel active between Render `100.85.***.***` and VPS `100.117.99.62`), requires starting `ollama serve` on VPS. | Validated by `test_ollama_adapter_mocked_success` and `test_strip_think_tags`. |
 | **Line 3: Granular Role Decoupling** | **100% Implemented** (`LLM_MODEL_{ROLE}`, `LLM_PROVIDER_{ROLE}`) | **Live & Operational** (Each of the 5 agents resolves its own specialized model independently) | Validated by `test_orchestrator_injects_specialized_roles`. |
 | **Line 4: Deterministic 0-Token Safety Net**| **100% Implemented** in `LLMCircuitBreaker` & `Orchestrator` | **100% Standalone in Prod** (Zero external dependencies; auto-trips on budget or network blackout) | Validated by `test_fallback_chain_all_failing_raises_runtime_error`. |
 

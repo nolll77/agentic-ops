@@ -173,6 +173,17 @@ def tailscale_status():
     ts_state_path = os.environ.get("TS_STATE", "/tmp/tailscaled.state")
     hostname = os.environ.get("TS_HOSTNAME", "agentic-ops-render")
 
+    if not os.path.exists(ts_socket):
+        return {
+            "backend_state": "Stopped",
+            "error": f"Tailscale socket not found at {ts_socket}",
+            "tailscale_ips": [],
+            "hostname": None,
+            "has_persisted_state": False,
+            "auth_url": None,
+            "instructions": "Tailscale daemon is not running or unreachable.",
+        }
+
     status_data = {}
     try:
         res = subprocess.run(
@@ -184,7 +195,15 @@ def tailscale_status():
         if res.returncode == 0 and res.stdout:
             status_data = json.loads(res.stdout)
     except Exception as exc:
-        return {"error": str(exc)}
+        return {
+            "backend_state": "Stopped",
+            "error": str(exc),
+            "tailscale_ips": [],
+            "hostname": None,
+            "has_persisted_state": False,
+            "auth_url": None,
+            "instructions": "Tailscale daemon is not running or unreachable.",
+        }
 
     backend_state = status_data.get("BackendState", "Unknown")
     auth_url = status_data.get("AuthURL", "")
@@ -219,6 +238,7 @@ def tailscale_status():
 
     has_persisted_state = bool(backend_state == "Running" and os.path.exists(ts_state_path))
     self_node = status_data.get("Self") or {}
+    raw_ips = self_node.get("TailscaleIPs") or []
     masked_ips = []
     for ip in raw_ips:
         if "." in ip:
