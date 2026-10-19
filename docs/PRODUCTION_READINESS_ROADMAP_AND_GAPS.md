@@ -102,8 +102,8 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 > [!NOTE]
 > **État d'Implémentation au 19/10/2026** :
-> - **Code & Algorithmes (100% Câblé & Testé)** : Le moteur d'Arbre de Merkle binaire conforme RFC 6962 ([`agentic_ops/core/merkle.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/merkle.py)), son intégration dans `EvidenceStore` ([`agentic_ops/core/evidence.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/evidence.py)), l'extraction des preuves d'inclusion $\mathcal{O}(\log N)$, leur vérification mathématique et les commandes CLI d'audit (`merkle-root`, `merkle-proof`) sont pleinement opérationnels et validés par 13 tests contradictoires dédiés ([`tests/adversarial/test_merkle_tree.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adversarial/test_merkle_tree.py)).
-> - **Restant pour être "un vrai" (Infrastructure Cloud Externe)** : Ancrage externe RFC 3161 TSA / Sigstore Rekor, bucket S3 physique avec Object Lock matériel en Compliance Mode, et clés asymétriques Ed25519 managées dans un HSM Cloud KMS FIPS 140-2 L3.
+> - **Code & Algorithmes (100% Câblé & Testé)** : Le moteur d'Arbre de Merkle binaire strictement conforme RFC 6962 Section 2.1 (scission récursive à $k = 2^{\lfloor \log_2(n-1) \rfloor}$ sans duplication de nœud impair) ([`agentic_ops/core/merkle.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/merkle.py)), son intégration dans `EvidenceStore` ([`agentic_ops/core/evidence.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/core/evidence.py)) avec scellement de payload canonique (*Cryptographic Payload Binding*), la distinction formelle de complexité ($\mathcal{O}(N)$ construction vs $\mathcal{O}(\log N)$ vérification/taille de preuve), l'extraction des preuves d'inclusion $\mathcal{O}(\log N)$ et les commandes CLI d'audit (`merkle-root`, `merkle-proof`) sont pleinement opérationnels et validés par **15 tests unitaires et contradictoires dédiés** ([`tests/adversarial/test_merkle_tree.py`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/tests/adversarial/test_merkle_tree.py)). Suite complète : **159 tests passed**.
+> - **Restant pour être "un vrai" (Infrastructure Cloud Externe)** : Ancrage externe RFC 3161 TSA / Sigstore Rekor, bucket S3 physique avec Object Lock matériel en Compliance Mode, et clés asymétriques Ed25519 managées dans un HSM Cloud KMS FIPS 140-2 L3 avec persistance cross-restart.
 
 
 
@@ -137,7 +137,7 @@ Ce document constitue la **feuille de route d'industrialisation (Roadmap Next St
 
 ### Chantier 7 : Validation End-to-End sur Cluster Éphémère (CI/CD Rigoureuse)
 * **Problème actuel** :
-  La suite de tests actuelle (**144 tests**) est constituée de tests unitaires et d'intégration avec mocks. Elle valide la logique interne de décision mais ne teste pas l'interaction avec des dépendances réelles.
+  La suite de tests actuelle (**159 tests**) est constituée de tests unitaires et d'intégration avec mocks. Elle valide la logique interne de décision mais ne teste pas l'interaction avec des dépendances réelles.
 * **Architecture cible pour être "un vrai"** :
   1. **Cluster Éphémère dans GitHub Actions** :
      - Déploiement d'un mini-cluster Kubernetes éphémère (Kind ou K3s) lors des tests de nuit ou des runs de pré-release.
