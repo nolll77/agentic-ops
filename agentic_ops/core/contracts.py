@@ -79,6 +79,7 @@ class Episode(BaseModel):
     human_approval_required: bool
     execution: Optional[ExecutionResult] = None
     policy_version: Optional[str] = None
+    inventory_version: Optional[str] = None
     facts: Optional[dict] = None
     shadow_divergence: Optional[dict] = None
 

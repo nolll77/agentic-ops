@@ -46,7 +46,8 @@ Docker Hub ni PAT n'est requis.
    **Public**. GHCR peut créer le package en privé lors du premier push; la
    visibilité publique doit être activée explicitement par un propriétaire.
 5. Consulter le workflow et vérifier le tag ainsi que les architectures
-   publiées. Le chart Helm utilise `ghcr.io/nolll77/agentic-ops:v0.1.3`.
+   publiées. Pour la candidate en préparation, le chart Helm vise
+   `ghcr.io/nolll77/agentic-ops:v0.1.4`.
 
 La publication n'est pas une transaction atomique entre deux registres : si
 PyPI réussit et GHCR échoue, PyPI reste publié. Depuis l'exécution GitHub
@@ -75,6 +76,12 @@ Le manifeste OCI, lisible sans authentification, référence `linux/amd64` et
 `linux/arm64`; son digest est
 `sha256:05a2f876cbe7d70bc60791e64660ad3ac427bf7a3e9cd39e7cfe6841b08ddc3a`.
 
+La release candidate `v0.1.4` ajoute l'inventaire local exact/frais, les
+outils de snapshot SQLite et le benchmark synthétique décrits dans
+[`INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](./INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
+Ne considérer ces artefacts publiés qu'après succès des jobs GitHub Actions
+PyPI et GHCR.
+
 ## Publication manuelle locale (exception)
 
 Cette procédure contourne la chaîne séquentielle PyPI → GHCR et ne doit être
@@ -87,7 +94,7 @@ mettre dans une commande, un fichier suivi par Git ou un message.
 docker login ghcr.io -u nolll77
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag ghcr.io/nolll77/agentic-ops:v0.1.3 \
+  --tag ghcr.io/nolll77/agentic-ops:v0.1.4 \
   --push .
 ```
 

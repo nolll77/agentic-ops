@@ -18,8 +18,8 @@ from agentic_ops.core.alert_processing import (
 )
 from agentic_ops.core.contracts import Diagnosis, Finding, Signal
 from agentic_ops.core.evidence import EvidenceStore
+from agentic_ops.core.local_inventory import inventory_from_environment
 from agentic_ops.core.policy import PolicyEngine
-from agentic_ops.core.policy_engine import TargetInfo
 from agentic_ops.core.atomic_quota import AtomicQuotaManager
 from agentic_ops.core.orchestrator import Orchestrator
 
@@ -61,7 +61,7 @@ class _AlertObservability:
             else "data_pipeline"
         )
         service = str(labels.get("service") or labels.get("job") or labels.get("alertname") or "unknown")
-        target = f"alert-{tracking_id.replace('-', '')}"
+        target = str(labels.get("service") or labels.get("job") or "").strip()
         self.signal = Signal(
             signal_id=tracking_id,
             source="grafana",
@@ -106,17 +106,7 @@ class _DeterministicDiagnosis:
         )
 
 
-class _AlertInventory:
-    def __init__(self, target: str):
-        self.target = target
-
-    def describe(self, target: str) -> TargetInfo | None:
-        if target != self.target:
-            return None
-        return TargetInfo(replicas=1, criticality="low")
-
-
-def _build_incident_processor(database_path: str) -> AlertIncidentProcessor:
+def _build_incident_processor(database_path: str, inventory) -> AlertIncidentProcessor:
     evidence_path = os.environ.get("EVIDENCE_STORE_DIR", "state/episodes")
     policy_path = Path(os.environ.get("AUTONOMY_POLICY_PATH", str(DEFAULT_POLICY_PATH)))
     policy_engine = PolicyEngine.from_yaml(
@@ -133,6 +123,7 @@ def _build_incident_processor(database_path: str) -> AlertIncidentProcessor:
         evidence_store=evidence_store,
         environment=os.environ.get("ENVIRONMENT", "development"),
         llm=_DeterministicDiagnosis(),
+        inventory=inventory,
     )
 
     def process_alert(record, risk_id):
@@ -142,9 +133,6 @@ def _build_incident_processor(database_path: str) -> AlertIncidentProcessor:
         if not risk_id:
             raise ValueError("classified alert has no risk_id")
         observability.set_alert(record.payload, record.tracking_id, risk_id)
-        orchestrator.inventory = _AlertInventory(
-            observability.signal.metadata["target"]
-        )
         return AlertIncidentProcessor(orchestrator)(record, risk_id)
 
     return process_alert
@@ -155,12 +143,13 @@ def build_worker() -> AlertTriageWorker:
     mapping_path = os.environ.get("ALERT_CLASSIFICATION_MAP", str(DEFAULT_MAPPING_PATH))
     if database_path == ":memory:":
         raise ValueError("ALERT_OUTBOX_DB_PATH must be persistent for a standalone worker")
+    inventory = inventory_from_environment()
     return AlertTriageWorker(
         outbox=AlertOutbox(database_path),
         classifier=AlertClassifier(mapping_path),
         result_store=AlertClassificationStore(database_path),
         worker_id=os.environ.get("ALERT_WORKER_ID", f"alert-triage-{os.getpid()}"),
-        incident_handler=_build_incident_processor(database_path),
+        incident_handler=_build_incident_processor(database_path, inventory),
     )
 
 

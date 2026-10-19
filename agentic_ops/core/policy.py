@@ -53,6 +53,8 @@ class PolicyEngine:
         verdict = evaluate(self.bundle, view, ctx)
         
         episode.policy_version = verdict.policy_version
+        if hasattr(episode, "inventory_version"):
+            episode.inventory_version = verdict.inventory_version
         episode.facts = facts.model_dump(mode="json")
         proposal.blast_radius = verdict.computed_blast_radius
         proposal.reversible = verdict.computed_reversible

@@ -79,7 +79,7 @@ class PolicyBundle(_S):
 
 # ---------- évaluation ----------
 class TargetInfo(BaseModel):
-    replicas: int = 1
+    replicas: int = Field(default=1, ge=1)
     criticality: Literal["low", "high"] = "low"
 
 class InventoryPort(Protocol):
@@ -106,6 +106,7 @@ class Verdict(BaseModel):
     rule_ids: list[str]
     reasons: list[str]
     policy_version: str
+    inventory_version: str | None = None
     computed_blast_radius: int | None = None
     computed_reversible: bool | None = None
     declared_blast_radius: int | None = None
@@ -122,7 +123,9 @@ def evaluate(b: PolicyBundle, p: ProposalView, ctx: EvalContext) -> Verdict:
 
     def out(effect, rules, reasons, approvals=0, blast=None, rev=None) -> Verdict:
         return Verdict(effect=effect, approvals_required=approvals, rule_ids=rules, reasons=reasons,
-                       policy_version=b.version, computed_blast_radius=blast, computed_reversible=rev,
+                       policy_version=b.version,
+                       inventory_version=getattr(ctx.inventory, "version", None),
+                       computed_blast_radius=blast, computed_reversible=rev,
                        declared_blast_radius=p.declared_blast_radius)
 
     spec = b.catalog.actions.get(action)
@@ -132,7 +135,13 @@ def evaluate(b: PolicyBundle, p: ProposalView, ctx: EvalContext) -> Verdict:
         return out("DENY", ["CAT-002"], [f"cible {p.target!r} hors du format autorisé pour {action}"])
     info = ctx.inventory.describe(p.target)
     if info is None:
-        return out("DENY", ["INV-001"], [f"cible {p.target!r} absente de l'inventaire"])
+        failure_reason = getattr(ctx.inventory, "failure_reason", None)
+        reason = (
+            failure_reason
+            if failure_reason
+            else f"cible {p.target!r} absente de l'inventaire"
+        )
+        return out("DENY", ["INV-001"], [reason])
 
     blast = _blast(spec, info)
     ap = b.policy.actions[action]

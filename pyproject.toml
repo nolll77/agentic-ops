@@ -1,6 +1,6 @@
 [project]
 name = "agentic-ops"
-version = "0.1.3"
+version = "0.1.4"
 description = "A generic, plug-and-play Agentic Control Plane for MLOps Governance"
 readme = "README.md"
 license = { text = "MIT" }
@@ -54,6 +54,8 @@ agentic-start = "agentic_ops.cli.main:start_server"
 agentic-mcp = "agentic_ops.entrypoints.mcp_server:run_stdio_server"
 agentic-alert-worker = "agentic_ops.entrypoints.alert_worker:run_alert_worker"
 agentic-approval-worker = "agentic_ops.entrypoints.approval_worker:run_approval_worker"
+agentic-ops-db = "agentic_ops.entrypoints.sqlite_backup:main"
+agentic-ops-benchmark-alerts = "agentic_ops.entrypoints.alert_benchmark:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

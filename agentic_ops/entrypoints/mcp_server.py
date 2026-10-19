@@ -42,11 +42,11 @@ from agentic_ops.core.contracts import (
 )
 from agentic_ops.core.evidence import EvidenceStore
 from agentic_ops.core.facts import Observation, SEV, SystemFacts, compute_facts
+from agentic_ops.core.local_inventory import inventory_from_environment
 from agentic_ops.core.policy_engine import (
     EvalContext,
     PolicyBundle,
     ProposalView,
-    TargetInfo,
     evaluate,
 )
 
@@ -59,7 +59,7 @@ SCENARIOS_DATA_DIR = REPO_ROOT / "tests" / "scenarios" / "data"
 MCP_PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "agentic-ops-mcp-gateway",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "description": (
         "Deterministic MLOps & SRE Governance Control Plane MCP Server "
         "(8 Tools, 5 Knowledge Resources, 20 Starter Prompts)"
@@ -123,8 +123,8 @@ MCP_TOOLS: List[Dict[str, Any]] = [
         "name": "evaluate_governance_policy",
         "description": (
             "Evaluates a proposed AI agent action against the deterministic PolicyEngine "
-            "(governance/autonomy_policy.yaml, action_catalog.yaml, risk_register.yaml). "
-            "Returns ALLOW, REQUIRE_APPROVAL (Slack HITL), or DENY with exact rule IDs (R-001, CAT-001, CAT-002)."
+            "and the configured exact-name local inventory. Without a fresh local inventory, targets are denied. "
+            "Returns ALLOW, REQUIRE_APPROVAL (Slack HITL), or DENY with exact rule IDs."
         ),
         "readOnlyHint": True,
         "destructiveHint": False,
@@ -158,7 +158,7 @@ MCP_TOOLS: List[Dict[str, Any]] = [
                 "target": {
                     "type": "string",
                     "default": "service/prediction-api",
-                    "description": "Target resource URI (e.g. service/prediction-api, model/baac_rf_v2, repo/mlops).",
+                    "description": "Exact target identifier from the configured local inventory.",
                 },
                 "upstream_data_severity": {
                     "type": "string",
@@ -171,17 +171,6 @@ MCP_TOOLS: List[Dict[str, Any]] = [
                     "default": 0,
                     "description": "Number of times this action ran in the last hour (triggers rate_limit_exceeded if >= limit).",
                 },
-                "target_replicas": {
-                    "type": "integer",
-                    "default": 1,
-                    "description": "Replica count of target service (computes true blast_radius).",
-                },
-                "target_criticality": {
-                    "type": "string",
-                    "enum": ["low", "high"],
-                    "default": "low",
-                    "description": "Target criticality tier.",
-                },
             },
             "required": ["risk_id", "action"],
         },
@@ -190,7 +179,7 @@ MCP_TOOLS: List[Dict[str, Any]] = [
         "name": "run_governed_incident_episode",
         "description": (
             "Executes a full end-to-end governed incident episode through the PolicyEngine and seals "
-            "the cryptographic record (SHA-256 hash chain + HMAC-SHA512 signature) into the WORM Trust Ledger."
+            "the record into the local trust ledger. A fresh configured local inventory is required for an allowed target."
         ),
         "readOnlyHint": False,
         "destructiveHint": False,
@@ -466,9 +455,8 @@ MCP_PROMPTS: List[Dict[str, Any]] = [
         "arguments": [],
         "template": (
             "Call `evaluate_governance_policy` with `risk_id='MODEL-012'`, `action='rollback'`, "
-            "`target='model/baac_rf_v2'`, `target_replicas=2`, `target_criticality='high'`. "
-            "Explain how the computed blast radius and action catalog level (`L2`/`L3`) force the state machine into "
-            "`AWAITING_APPROVAL` with an interactive Slack Block Kit payload."
+            "`target='model/baac_rf_v2'`. Ensure that exact target is present in the fresh local inventory, "
+            "then explain how the inventory-derived blast radius and action catalog level (`L2`/`L3`) can require approval and prevent execution until approval is recorded."
         ),
     },
     {
@@ -621,15 +609,6 @@ MCP_PROMPTS: List[Dict[str, Any]] = [
 # ============================================================================
 
 
-class _CustomInventory:
-    def __init__(self, replicas: int = 1, criticality: str = "low"):
-        self.replicas = replicas
-        self.criticality = criticality if criticality in ("low", "high") else "low"
-
-    def describe(self, target: str) -> TargetInfo:
-        return TargetInfo(replicas=self.replicas, criticality=self.criticality)
-
-
 def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
     """Executes one of the 8 governed MCP tools and returns an MCP CallToolResult dict."""
     try:
@@ -664,8 +643,6 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             target = str(arguments.get("target", "service/prediction-api"))
             upstream_sev_str = str(arguments.get("upstream_data_severity", "OK")).upper()
             recent_count_val = int(arguments.get("recent_executions_last_hour", 0))
-            replicas = int(arguments.get("target_replicas", 1))
-            criticality = str(arguments.get("target_criticality", "low"))
 
             now = datetime.now(timezone.utc)
             norm_sev = "INFO" if upstream_sev_str in ("OK", "INFO") else upstream_sev_str
@@ -680,7 +657,7 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             view = ProposalView(action=action, target=target, risk_id=risk_id)
             ctx = EvalContext(
                 facts=facts,
-                inventory=_CustomInventory(replicas=replicas, criticality=criticality),
+                inventory=inventory_from_environment(),
                 recent_count=lambda act, win: recent_count_val,
             )
             verdict = evaluate(bundle, view, ctx)
@@ -717,7 +694,7 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             view = ProposalView(action=action_str, target=target, risk_id=risk_id)
             ctx = EvalContext(
                 facts=facts,
-                inventory=_CustomInventory(),
+                inventory=inventory_from_environment(),
                 recent_count=lambda act, win: 0,
             )
             verdict = evaluate(bundle, view, ctx)
@@ -771,6 +748,7 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                 },
                 "human_approval_required": verdict.effect == "REQUIRE_APPROVAL",
                 "policy_version": verdict.policy_version,
+                "inventory_version": verdict.inventory_version,
             }
             ledger_path = store.save(ep_dict)
             result = {
