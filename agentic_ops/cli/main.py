@@ -29,7 +29,7 @@ app = FastAPI(
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Merkle-chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.2",
+    version="0.1.3",
 )
 
 # CORS enabled so a Vercel frontend or external dashboard can wake the container via fetch()
