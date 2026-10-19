@@ -10,6 +10,24 @@ persistence:
   storageClassName: ""
   mountPath: /var/lib/agentic-ops
 
+crypto:
+  # Create this Kubernetes Secret out-of-band; the same persistent signing key
+  # must be shared by the API and every worker.
+  signingSecretName: ""
+  signingSecretKey: LEDGER_SECRET_KEY
+
+apiAuth:
+  # Required when Entra is disabled; protects the alert-status/admin endpoints.
+  secretName: ""
+  secretKey: ADMIN_API_KEY
+  previousSecretKey: ""
+
+grafanaWebhook:
+  # Required while alertWorker is enabled.
+  secretName: ""
+  secretKey: GRAFANA_WEBHOOK_SECRET
+  previousSecretKey: ""
+
 alertWorker:
   enabled: true
   pollIntervalSeconds: 1

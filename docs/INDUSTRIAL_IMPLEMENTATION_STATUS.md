@@ -33,6 +33,14 @@ pod's PVC. This profile is deliberately limited to one replica and one
 single-writer pod using SQLite; it is persistent but not HA. Set a storage
 class appropriate for the cluster. Set both API and worker to the same
 `ALERT_OUTBOX_DB_PATH`, `POLICY_QUOTA_DB_PATH`, and `EVIDENCE_STORE_DIR`.
+The chart requires `crypto.signingSecretName` to refer to a pre-created
+Kubernetes Secret containing a persistent `LEDGER_SECRET_KEY`; it injects that
+same key into the API and workers. With Entra disabled, `apiAuth.secretName`
+must reference a Secret containing `ADMIN_API_KEY`. While the alert worker is
+enabled, `grafanaWebhook.secretName` must reference a Secret containing
+`GRAFANA_WEBHOOK_SECRET`. Current and previous keys may be rotated using the
+optional `previousSecretKey` values. Do not use a newly generated per-process
+key for a persistent ledger.
 `COMPLETED` means the investigation episode was persisted, not that an
 incident was remediated or service health recovered.
 
