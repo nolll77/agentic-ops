@@ -193,16 +193,16 @@ pas un objectif de service ni une prédiction pour le cluster cible.
 
 ## Statut vérifié du dépôt
 
-La release candidate `v0.1.4` est préparée dans le dépôt; vérifier le workflow
-avant d'utiliser les registres. L'automatisation coordonne PyPI puis GHCR. Un
+La release `v0.1.4` a été publiée sur PyPI et GHCR; la candidate `v0.1.5`
+améliore la gestion d'authentification des interfaces Render. L'automatisation
+coordonne PyPI puis GHCR. Un
 parcours local Docker/kind sans tenant Entra a
 déjà traité une alerte en simulation et conservé son état après redémarrage
 du pod sur le même PVC. Cela ne vérifie pas encore une restauration de
 sauvegarde, une perte de volume/nœud, une qualification sur machine cible ni
 une exécution réelle. L'essai Docker/kind historique portait sur `v0.1.3`;
-les changements d'inventaire, backup/restore et benchmark doivent être
-exercés sur une cible avant qualification. Voir aussi
-[`ENTRA_PREPRODUCTION_QUALIFICATION.md`](./ENTRA_PREPRODUCTION_QUALIFICATION.md)
-,
+les changements d'inventaire, backup/restore et benchmark livrés en `v0.1.4`
+doivent être exercés sur une cible avant qualification. Voir aussi
+[`ENTRA_PREPRODUCTION_QUALIFICATION.md`](./ENTRA_PREPRODUCTION_QUALIFICATION.md),
 [`PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](./PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)
 et [`INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](./INDUSTRIAL_PRODUCTION_BLUEPRINT.md).

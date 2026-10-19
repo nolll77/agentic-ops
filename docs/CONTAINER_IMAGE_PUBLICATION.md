@@ -34,7 +34,7 @@ Docker Hub ni PAT n'est requis.
    `helm/agentic-ops/values.yaml` à `vX.Y.Z`. Pousser et vérifier les
    changements sur `main`.
 2. Créer un tag/release GitHub `vX.Y.Z` correspondant exactement à la version
-   du paquet, par exemple `pyproject.toml` version `0.1.4` et tag `v0.1.4`.
+   du paquet, par exemple `pyproject.toml` version `0.1.5` et tag `v0.1.5`.
    La publication de la release démarre la chaîne. Un tag seul sans release
    publiée ne la démarre pas.
 3. Le workflow vérifie que le tag sémantique correspond à `pyproject.toml` et
@@ -47,7 +47,7 @@ Docker Hub ni PAT n'est requis.
    visibilité publique doit être activée explicitement par un propriétaire.
 5. Consulter le workflow et vérifier le tag ainsi que les architectures
    publiées. Pour la candidate en préparation, le chart Helm vise
-   `ghcr.io/nolll77/agentic-ops:v0.1.4`.
+   `ghcr.io/nolll77/agentic-ops:v0.1.5`.
 
 La publication n'est pas une transaction atomique entre deux registres : si
 PyPI réussit et GHCR échoue, PyPI reste publié. Depuis l'exécution GitHub
@@ -76,11 +76,13 @@ Le manifeste OCI, lisible sans authentification, référence `linux/amd64` et
 `linux/arm64`; son digest est
 `sha256:05a2f876cbe7d70bc60791e64660ad3ac427bf7a3e9cd39e7cfe6841b08ddc3a`.
 
-La release candidate `v0.1.4` ajoute l'inventaire local exact/frais, les
+La release `v0.1.4` ajoute l'inventaire local exact/frais, les
 outils de snapshot SQLite et le benchmark synthétique décrits dans
 [`INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](./INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
-Ne considérer ces artefacts publiés qu'après succès des jobs GitHub Actions
-PyPI et GHCR.
+Les jobs de build, PyPI et GHCR ont réussi dans le
+[run de publication `39254442273`](https://github.com/nolll77/agentic-ops/actions/runs/39254442273).
+La candidate `v0.1.5` corrige l'interface d'authentification de la console et
+des sondes LLM; elle ne provisionne pas les secrets Render.
 
 ## Publication manuelle locale (exception)
 
@@ -94,7 +96,7 @@ mettre dans une commande, un fichier suivi par Git ou un message.
 docker login ghcr.io -u nolll77
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag ghcr.io/nolll77/agentic-ops:v0.1.4 \
+  --tag ghcr.io/nolll77/agentic-ops:v0.1.5 \
   --push .
 ```
 
