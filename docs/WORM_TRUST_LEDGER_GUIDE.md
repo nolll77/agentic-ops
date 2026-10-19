@@ -276,12 +276,12 @@ If an adversary generates an alternate ledger from scratch, they can compute a v
 - **What the Merkle proof guarantees**: Given an authentic root $R$, it is computationally infeasible under SHA-256 for an operator to forge a proof for an unsealed or tampered episode, or to substitute an incident without detection.
 - **What requires an external trust anchor**: The authenticity and non-repudiation of the root $R$ itself.
 
-To anchor root authenticity in enterprise production environments (specified in **Chantier 4** of [`PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)), three complementary external mechanisms are required:
-1. **RFC 3161 Timestamping Authority (TSA)**: Periodically submitting epoch roots to an accredited external timestamping service, producing cryptographically sealed `.tsr` tokens proving that $R$ existed at a certified legal timestamp.
-2. **Public Transparency Logs (Sigstore Rekor / Certificate Transparency)**: Appending epoch roots to a public, append-only, verifiable transparency log to prevent split-view attacks.
-3. **Asymmetric HSM Signatures (AWS/GCP Cloud KMS)**: Signing $R$ with an asymmetric key pair (Ed25519 or ECDSA P-256) residing inside a FIPS 140-2 Level 3 Hardware Security Module.
+To anchor root authenticity in enterprise production environments (specified in **Chantier 4** of [`PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)), three complementary external mechanisms are required, each fulfilling a strictly delineated security property:
+1. **RFC 3161 Timestamping Authority (TSA) (Proof of Existence at $t_0$)**: Periodically submitting epoch roots to an accredited external timestamping service, producing cryptographically sealed `.tsr` tokens proving that $R$ existed at a certified legal timestamp. *Crucially, an RFC 3161 timestamp alone proves temporal existence but does NOT prevent split-view attacks, as an operator could present two distinct timestamped roots to different parties.*
+2. **Public Append-Only Transparency Logs (Sigstore Rekor / Trillian / Certificate Transparency) (Split-View Attack Prevention)**: Appending epoch roots to a public, append-only, verifiable transparency log equipped with $\mathcal{O}(\log N)$ Tree Consistency Proofs between log states and monitored by independent external witnesses (*witness gossiping*). This prevents an operator from serving divergent roots to different auditors.
+3. **Asymmetric HSM Signatures (AWS/GCP Cloud KMS) (Signer Identity Non-Repudiation)**: Signing $R$ with an asymmetric key pair (Ed25519 or ECDSA P-256) residing inside a FIPS 140-2 Level 3 Hardware Security Module, binding the root to the authenticated enterprise operator.
 
-In the current demonstration and sandbox release, the root is anchored to the reference episodes baked directly into the immutable Docker image layer, while external cloud anchoring constitutes the next planned production milestone.
+In the current demonstration and sandbox release, the root is calculated at runtime from the reference episodes provided with the image; its authenticity is not independently anchored, while external cloud anchoring constitutes the next planned production milestone.
 
 ### C. Audit Proof Generation, Cryptographic Payload Binding & Verification Algorithm
 
@@ -446,6 +446,9 @@ As a result, the reference baseline episodes (`EP-0001` through `EP-0005`, and c
 /app/agentic_ops/evidence_store/
 ```
 They **never disappear**, even when the container spins down after 15 minutes of inactivity or when Render restarts the container.
+
+> [!NOTE]
+> **Radical Honesty on Root Authenticity in Container Deployments**: While the reference JSON files are bundled into the container image at build time, the Merkle root is calculated dynamically at runtime by ingesting these reference episodes. Its authenticity is not independently anchored by a third party or hardware token; the `/app` directory remains writable by `appuser` within the container runtime layer. Independent cryptographic anchoring belongs to the enterprise production roadmap (Section 6.B).
 
 ### B. The Live Execution Ledger: Ephemeral vs. Persistent Disks
 At runtime, whenever new remediation episodes or live tests run:
