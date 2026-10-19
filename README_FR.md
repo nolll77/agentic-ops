@@ -50,15 +50,15 @@ L'instance publique sur Render et les rapports suivants démontrent certaines fo
 1. **Instance de Production Serverless Auto-Wake en Ligne (`Render` + `Tailscale` + `cron-job.org`)** :
    - **Statut du Control Plane en direct** : **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
-   - 💬 **Copilote Web Chat SRE en direct (`/chat`)** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
+   - 💬 **Assistant Web Chat SRE en direct (`/chat`)** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Manifeste `MCP` (`Model Context Protocol`) en direct (`/mcp/manifest`)** : **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Guide complet : **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Statut du Tunnel Maillé Tailscale (`100.85.***.***` anonymisé)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 
 > [!TIP]
-> ### 💬 Tester le Copilote Web Chat SRE en Direct (`/chat`)
+> ### 💬 Tester l'Assistant Web Chat SRE en Direct (`/chat`)
 > **Accès Direct en 1 Clic** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat%20Live-agentic--ops--5ebv.onrender.com%2Fchat-0284c7?style=for-the-badge)](https://agentic-ops-5ebv.onrender.com/chat)  
-> Posez vos questions en langage naturel au copilote cognitif, explorez la matrice des **435 modes de défaillance MLOps**, rejouez les **36 scénarios de simulation d'incidents**, et inspectez la topologie Multi-Agents (MAS) en temps réel à 0 token consommé.
+> Posez vos questions en langage naturel à l'assistant cognitif, explorez la matrice des **435 modes de défaillance MLOps**, rejouez les **36 scénarios de simulation d'incidents**, et inspectez la topologie Multi-Agents (MAS) en temps réel à 0 token consommé.
 
 2. **Rapport de Validation Cloud Sandbox (`Docker Agentic Platform`)** :
    Déploiement sur micro-VM isolée et interprétation ligne par ligne des 30 tests unitaires, adversariaux et cryptographiques :  
@@ -426,7 +426,7 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
 | :--- | :--- | :--- | :--- |
 | **Route Racine Auto-Wake & Statut des Démons** | **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** | `GET` | **URL Principale d'Auto-Wake**. Visiter cette URL dans un navigateur ou l'appeler via `fetch()` depuis un frontend externe (`Vercel`) réveille automatiquement le conteneur s'il est en veille et renvoie l'état en direct de `Redis` (`127.0.0.1:6379`) et du proxy `Tailscale SOCKS5` (`127.0.0.1:1055`). |
 | **Terminal Web SRE Interactif (`/console`)** | **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** | `GET` | **Remplacement Gratuit du Shell SSH**. Terminal web Dark-Mode permettant d'exécuter en 1 clic les suites `pytest`, `trust_ledger list`, `tailscale status` (avec anonymisation PII automatique), `tailscale netcheck` et `redis-cli PING`. |
-| 💬 **Copilote Web Chat SRE en direct (`/chat`)** &nbsp; [![Ouvrir](https://img.shields.io/badge/Ouvrir-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Copilote SRE en Langage Naturel**. Interface conversationnelle Dark-Mode pour interroger la télémétrie, la dérive des modèles, la sécurité du ledger WORM et la topologie MAS via `POST /api/chat`. |
+| 💬 **Assistant Web Chat SRE en direct (`/chat`)** &nbsp; [![Ouvrir](https://img.shields.io/badge/Ouvrir-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Assistant SRE en Langage Naturel**. Interface conversationnelle Dark-Mode pour interroger la télémétrie, la dérive des modèles, la sécurité du ledger WORM et la topologie MAS via `POST /api/chat`. |
 | **Console API Interactive `Swagger UI` (`/docs`)** | **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)** | `GET` | Interface `OpenAPI` interactive (`Try it out` -> `Execute`) pour tester toutes les routes et commandes de diagnostic. |
 | **Exécuteur de Commandes de Diagnostic** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Exécute une commande de diagnostic autorisée dans le conteneur (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Sonde de Vie `Keep-Alive` (`Liveness Probe`)** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Route ultra-légère renvoyant `{"status": "ok"}`. Interrogée toutes les `10 minutes` par `cron-job.org` pour empêcher la mise en veille au bout de `15 minutes` d'inactivité du plan gratuit. |
@@ -1082,7 +1082,7 @@ Déployer un modèle unique indifférencié pour toutes les tâches SRE et MLOps
 | **`infra`** | Dumps Loki & Traces Système Noyau (256k tokens) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
 | **`data`** | Triage Rapide Schémas Pandera & Dérives Evidently | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
 | **`model`** | Évaluation Dérive F1 MLflow & Distributions | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `LLM_MODEL_MODEL` |
-| **`chat`** | Assistant Conversationnel Web Copilot (/chat) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
+| **`chat`** | Assistant Conversationnel Web (/chat) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
 
 - **Intelligence Distribuée Native Sans Configuration** : Sans définir la moindre variable d'environnement, chaque agent hérite nativement et automatiquement de son modèle expert ci-dessus. Si `LLM_MODEL` est renseigné, il agit comme un override universel pour tous les agents ; si `LLM_MODEL_{ROLE}` est défini, il surcharge spécifiquement cet agent.
 - **Pourquoi ces Modèles Spécifiques par Défaut ? (Justification Architecturale)** :
@@ -1146,7 +1146,7 @@ Pour éliminer le goulot d'étranglement de l'agent unique et bannir les conflit
 | **`ModelSpecialist`**<br>(`role="model"`) | Dégradation statistique ML, dérive de concept & baisse de F1-Score | `"MODEL" in risk_id.upper()` | `meta-llama/llama-3.3-70b-instruct:free` | Évalue la divergence de distribution par rapport au baseline MLflow sans confondre une anomalie ponctuelle de données avec une vraie dérive de concept ($P(Y \mid X)$). |
 | **`InfraSpecialist`**<br>(`role="infra"`) | SRE, restarts de conteneurs, saturation mémoire & connexions PostgreSQL | `"INFRA" in risk_id.upper()` | `google/gemma-4-31b-it:free` | Absorbe des dumps complets de logs système Loki et de traces noyau Linux grâce à sa fenêtre de contexte massive de 256 000 tokens sans troncature. |
 | **`RemediationAgent`**<br>(`role="remediation"`) | Planification indépendante, calcul du rayon d'impact (0-5) & réversibilité | Exécuté systématiquement lors de l'état FSM `PLANNED` | `deepseek/deepseek-r1:free` | **Séparation Anti-Biais** : Les spécialistes se limitent au constat factuel ; seul le coordinateur évalue le rayon d'impact systémique et la proportionnalité de l'action. |
-| **`WebChatCopilot`**<br>(`role="chat"`) | Assistance conversationnelle de l'opérateur & audit du Grand Livre WORM | Déclenché via `/chat` et `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimisé pour le dialogue à très faible latence et l'exécution immédiate des 20 Starter Prompts Cognitifs MCP sans délai de réflexion CoT. |
+| **`WebChatAssistant`**<br>(`role="chat"`) | Assistance conversationnelle de l'opérateur & audit du Grand Livre WORM | Déclenché via `/chat` et `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimisé pour le dialogue à très faible latence et l'exécution immédiate des 20 Starter Prompts Cognitifs MCP sans délai de réflexion CoT. |
 
 #### Pourquoi les Autres Acteurs du Système n'ont Aucun LLM (Actionneurs Déterministes vs. Cerveaux Cognitifs)
 
@@ -1192,7 +1192,7 @@ Pour garantir une transparence cognitive radicale lors des opérations réelles,
 |  [ ] ModelSpecialist               |  2. MOTEUR ACTIF & CONFIGURATION D'INFÉRENCE                |
 |      llama-3.3-70b-instruct:free   |     - Modèle Résolu : openrouter/deepseek/deepseek-r1:free  |
 |                                    |     - Raisonnement : Chain-of-Thought (<think> filtrés)     |
-|  [ ] WebChatCopilot                |     - Chaîne de Repli : deepseek-chat -> llama-3.3-70b      |
+|  [ ] WebChatAssistant              |     - Chaîne de Repli : deepseek-chat -> llama-3.3-70b      |
 |      deepseek-chat:free            |     - Hyperparamètres : Temp = 0.0 | MaxTokens = 4096 | 30s |
 |                                    |     - Variable d'Override : LLM_MODEL_REMEDIATION           |
 |  [ ] CircuitBreakerFallback        |     - Rationale Métier : Seul modèle gratuit capable        |
@@ -1251,7 +1251,7 @@ Un Système Multi-Agents autonome opérant en production doit gérer deux périm
 | - InfraSpecialist    : gemma-4-31b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
 | - DataSpecialist     : gemma-4-26b-it:free  ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
 | - ModelSpecialist    : llama-3.3-70b:free   ──(Erreur ?)──> deepseek-r1   ──> deepseek-chat ...  |
-| - WebChatCopilot     : deepseek-chat:free   ──(Erreur ?)──> deepseek-r1   ──> llama-3.3-70b ...  |
+| - WebChatAssistant   : deepseek-chat:free   ──(Erreur ?)──> deepseek-r1   ──> llama-3.3-70b ...  |
 |                                                                                                  |
 | [ÉTAGE 2 : DÉFAILLANCE DE L'AGENT OU DE L'ORCHESTRATEUR (Logique / Réseau / Sécurité)]          |
 | - Alerte Inconnue    : Repli automatique sur DataSpecialist (analyse de corruption des données)  |
@@ -1572,6 +1572,6 @@ python -m agentic_ops.entrypoints.mcp_server
 10. **[Architecture de Repli du Système Multi-Agents (MAS) & Clés de Mapping (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)** :
     Dissection architecturale exhaustive des 5 niveaux de repli (fallbacks) en cascade garantissant la résilience et la sécurité du Control Plane : Bascule cognitive multi-LLM, Circuit Breaker FinOps, Aiguillage des Spécialistes, Fail-Closed du Moteur de Règles et Verrouillage Réseau VPS/Tailscale. Inclut toutes les clés de mapping de configuration, déclencheurs, états de repli, ainsi que la **Stratégie d'Indépendance Fournisseur & Plan de Continuité** détaillant la défense en 4 lignes (bascule zero-code d'env var, sanctuaire souverain 100% hors-cloud via Ollama/Tailscale, isolation fine par agent, et filet de sécurité déterministe à 0-token) en cas de coupure des accès ou changement de politique d'OpenRouter.
 11. **[Architecture de Sélection des Agents & Routage par Défaut du MAS (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)** :
-    Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
+    Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatAssistant`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
 12. **[Guide d'Ingénierie de Distribution PyPI & Release (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)** :
     Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.

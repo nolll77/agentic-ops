@@ -50,13 +50,13 @@ The following public Render instance and reports demonstrate selected features. 
 1. **Live Serverless Auto-Wake Production Instance (`Render` + `Tailscale` + `cron-job.org`)**:
    - **Live Control Plane Status**: **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
-   - 💬 **Live Interactive Web Chat Copilot (`/chat`)**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
+   - 💬 **Live Interactive Web Chat Assistant (`/chat`)**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Live `MCP` (`Model Context Protocol`) Manifest (`/mcp/manifest`)**: **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Full guide: **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Live Tailscale Mesh Status (`100.85.***.***` anonymized)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
 
 > [!TIP]
-> ### 💬 Try the Live SRE Copilot Web Chat (`/chat`)
+> ### 💬 Try the Live SRE Assistant Web Chat (`/chat`)
 > **Direct Access**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-agentic--ops--5ebv.onrender.com%2Fchat-0284c7?style=for-the-badge)](https://agentic-ops-5ebv.onrender.com/chat)  
 > Ask natural language SRE questions, explore the **435 Failure Modes Taxonomy**, simulate the **36 incident scenarios**, and inspect the Multi-Agent System (MAS) in real-time with zero tokens consumed.
 
@@ -192,7 +192,7 @@ agentic-ops-core/
 │   ├── entrypoints/
 │   │   ├── test_mcp_server.py         # 24 unit & E2E tests for the MCP Governance Gateway.
 │   │   ├── test_tailscale_endpoint.py # 4 tests for mesh status and PII redaction.
-│   │   └── test_chat_endpoint.py      # 10 tests for live SSE streaming and copilot endpoints.
+│   │   └── test_chat_endpoint.py      # 10 tests for live SSE streaming and chat assistant endpoints.
 │   ├── adversarial/
 │   │   ├── test_merkle_tree.py        # 13 tests for RFC 6962 Merkle Tree, odd/even leaves, O(log N) proofs & tamper resistance.
 │   │   ├── test_evidence_integrity.py # 4 tests for WORM linear hash chain tampering and production fail-closed.
@@ -425,7 +425,7 @@ To allow `Agentic-Ops` to run continuously on a free-tier PaaS (`Render`, `Huggi
 | :--- | :--- | :--- | :--- |
 | **Root Auto-Wake & Daemon Status** | **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** | `GET` | **Primary Auto-Wake URL**. Visiting this URL in a browser or calling it via `fetch()` from an external frontend (`Vercel`) wakes the container automatically if asleep and returns the live status of local `Redis` (`127.0.0.1:6379`) and `Tailscale SOCKS5` (`127.0.0.1:1055`). |
 | **Interactive SRE Web Terminal (`/console`)** | **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** | `GET` | **Zero-Cost SSH Shell Replacement**. Dark-mode browser terminal providing 1-click execution of `pytest` suites, `trust_ledger list`, `tailscale status` (with automatic PII redaction), `tailscale netcheck`, and `redis-cli PING`. |
-| 💬 **Interactive SRE Web Chat Copilot (`/chat`)** &nbsp; [![Open](https://img.shields.io/badge/Open-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Natural Language SRE Copilot**. Dark-mode conversational UI to query telemetry, models drift, WORM ledger security, and MAS topology via `POST /api/chat`. |
+| 💬 **Interactive SRE Web Chat Assistant (`/chat`)** &nbsp; [![Open](https://img.shields.io/badge/Open-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Natural Language SRE Assistant**. Dark-mode conversational UI to query telemetry, models drift, WORM ledger security, and MAS topology via `POST /api/chat`. |
 | **Interactive `Swagger UI` API Console (`/docs`)** | **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)** | `GET` | Interactive `OpenAPI` interface (`Try it out` -> `Execute`) for all endpoints and diagnostic commands. |
 | **Whitelisted Diagnostic Runner** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Executes a whitelisted diagnostic command inside the container (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Keep-Alive Liveness Probe** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Lightweight health check returning `{"status": "ok"}`. Polled every `10 minutes` by `cron-job.org` to prevent the `15-minute` free-tier inactivity spin-down. |
@@ -1081,7 +1081,7 @@ Deploying a single undifferentiated LLM across all SRE and MLOps tasks is an arc
 | **`infra`** | Loki Dumps & Kernel Trace Logs (256k) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_INFRA` |
 | **`data`** | Fast Schema & Covariance Drift Triage | `openrouter/google/gemma-4-26b-a4b-it:free` | `LLM_MODEL_DATA` |
 | **`model`** | MLflow F1-Score & Distribution Shift | `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | `LLM_MODEL_MODEL` |
-| **`chat`** | Interactive Web Chat Copilot (/chat) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
+| **`chat`** | Interactive Web Chat Assistant (/chat) | `openrouter/google/gemma-4-31b-it:free` | `LLM_MODEL_CHAT` |
 
 - **Native Distributed Intelligence Out-of-the-Box**: Without setting a single environment variable, each agent is natively routed to its expert LLM above. If `LLM_MODEL` is explicitly defined, it serves as a universal override; if `LLM_MODEL_{ROLE}` is defined, it overrides that specific agent.
 - **Why These Specific Default Models? (Architectural Rationale)**:
@@ -1145,7 +1145,7 @@ To avoid the single-agent bottleneck and prevent judicial conflicts of interest 
 | **`ModelSpecialist`**<br>(`role="model"`) | ML degradation, concept drift & F1-score tracking | `"MODEL" in risk_id.upper()` | `meta-llama/llama-3.3-70b-instruct:free` | Evaluates statistical distribution shifts against MLflow baseline without confusing raw data anomalies with genuine concept drift ($P(Y \mid X)$). |
 | **`InfraSpecialist`**<br>(`role="infra"`) | SRE, container restarts, memory leaks & PostgreSQL limits | `"INFRA" in risk_id.upper()` | `google/gemma-4-31b-it:free` | Ingests high-density Loki log streams and Linux kernel traces via its massive 256,000-token context window without truncation. |
 | **`RemediationAgent`**<br>(`role="remediation"`) | Independent planning, blast radius (0-5) & reversibility | Executed on every incident during FSM state `PLANNED` | `deepseek/deepseek-r1:free` | **Anti-Bias Separation**: Specialists only diagnose facts; only the Remediation Agent evaluates cross-system blast radius and action proportionality. |
-| **`WebChatCopilot`**<br>(`role="chat"`) | Interactive operator assistance & WORM ledger audits | Triggered via `/chat` and `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimized for low-latency dialogue and immediate execution of the 20 MCP Cognitive Starter Prompts without Chain-of-Thought delay. |
+| **`WebChatAssistant`**<br>(`role="chat"`) | Interactive operator assistance & WORM ledger audits | Triggered via `/chat` and `POST /api/chat` | `deepseek/deepseek-chat:free` | Optimized for low-latency dialogue and immediate execution of the 20 MCP Cognitive Starter Prompts without Chain-of-Thought delay. |
 
 #### Why Other System Actors Have No LLM (Deterministic Actuators vs. Cognitive Brains)
 
@@ -1191,7 +1191,7 @@ To provide radical transparency during live operations, incident post-mortems, a
 |  [ ] ModelSpecialist               |  2. ACTIVE ENGINE & INFERENCE CONFIGURATION                 |
 |      llama-3.3-70b-instruct:free   |     - Active Model: openrouter/deepseek/deepseek-r1:free    |
 |                                    |     - Reasoning Mode: Chain-of-Thought (<think> filtered)   |
-|  [ ] WebChatCopilot                |     - Cascading Fallbacks: deepseek-chat -> llama-3.3-70b   |
+|  [ ] WebChatAssistant              |     - Cascading Fallbacks: deepseek-chat -> llama-3.3-70b   |
 |      deepseek-chat:free            |     - Hyperparameters: Temp = 0.0 | MaxTokens = 4096 | 30s  |
 |                                    |     - Override Variable: LLM_MODEL_REMEDIATION              |
 |  [ ] CircuitBreakerFallback        |     - Architectural Rationale: Only free model with deep    |
@@ -1250,7 +1250,7 @@ An autonomous Multi-Agent System operating in production must handle two distinc
 | - InfraSpecialist    : gemma-4-31b-it:free  ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
 | - DataSpecialist     : gemma-4-26b-it:free  ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
 | - ModelSpecialist    : llama-3.3-70b:free   ──(Fails ?)──> deepseek-r1   ──> deepseek-chat ...   |
-| - WebChatCopilot     : deepseek-chat:free   ──(Fails ?)──> deepseek-r1   ──> llama-3.3-70b ...   |
+| - WebChatAssistant   : deepseek-chat:free   ──(Fails ?)──> deepseek-r1   ──> llama-3.3-70b ...   |
 |                                                                                                  |
 | [TIER 2: AGENT SYSTEM BUG (Logic / Storm / Network)]                                             |
 | - Unmatched Risk ID  : Automatic fallback to DataSpecialist (safely triages data corruption)    |
@@ -1571,6 +1571,6 @@ python -m agentic_ops.entrypoints.mcp_server
 10. **[Multi-Agent System (MAS) Fallback Architecture & Mapping Keys (`docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md`)](docs/MAS_FALLBACK_ARCHITECTURE_GUIDE.md)**:
     Exhaustive architectural breakdown of the 5 cascading resilience and safety fallback layers in `Agentic-Ops`: Cognitive Multi-LLM failover, FinOps Circuit Breaker, Specialist routing fallback, Policy Engine fail-closed enforcement, and Remote VPS/Tailscale partition locks. Includes complete code mapping keys, trigger conditions, fallback states, and the **Provider Independence & Disaster Recovery Strategy** detailing the 4 lines of defense (zero-code env switches, 100% sovereign off-cloud Ollama over Tailscale, granular per-role splitting, and deterministic 0-token safety net) if OpenRouter cuts access or changes policies.
 11. **[Multi-Agent System (MAS) Agent Selection & Default Routing Architecture (`docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md`)](docs/MAS_AGENT_ROUTING_AND_DEFAULTS_GUIDE.md)**:
-    In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatCopilot`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive breakdown of non-cognitive components operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model, as well as the interactive **Live MAS Topology & Agent Inspector** embedded directly in both the Web Console (`/console`) and Web Chat (`/chat`) backed by `GET /api/mas/topology`.
+    In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatAssistant`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive breakdown of non-cognitive components operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model, as well as the interactive **Live MAS Topology & Agent Inspector** embedded directly in both the Web Console (`/console`) and Web Chat (`/chat`) backed by `GET /api/mas/topology`.
 12. **[PyPI Release & Distribution Engineering Guide (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)**:
     Comprehensive guide to public package distribution on PyPI: software supply chain security, zero-static-secrets architecture using OpenID Connect (OIDC Trusted Publishing), SLSA provenance attestations, installation and CLI consumption options, and release lifecycle runbooks for maintainers.
