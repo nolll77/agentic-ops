@@ -91,6 +91,8 @@ et preuves, la continuation simulée d'approbation sur l'épisode d'origine,
 les tests élargis de panne et d'inventaire, et le benchmark multi-tailles. La
 publication séquencée du paquet PyPI puis de l'image GHCR (linux/amd64 et
 linux/arm64) a réussi dans le [run `39265132313`](https://github.com/nolll77/agentic-ops/actions/runs/39265132313).
+Les tags `v0.1.6` et `latest` sont publics; un contrôle anonyme du registre
+retourne le manifeste multi-architecture attendu.
 
 ## Publication manuelle locale (exception)
 
