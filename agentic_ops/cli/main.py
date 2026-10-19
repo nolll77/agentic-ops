@@ -3258,10 +3258,36 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-color: #4f46e5;
       color: #fff;
     }
-    html[data-theme="light"] .qn-tip-box {
-      background: #ecfdf5;
-      border-left-color: #059669;
-      color: #065f46;
+    .btn-repo-link {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #38bdf8;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-repo-link:hover {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+      text-decoration: none;
+    }
+    html[data-theme="light"] .btn-repo-link {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      color: #0369a1;
+    }
+    html[data-theme="light"] .btn-repo-link:hover {
+      background: #0284c7;
+      border-color: #0284c7;
+      color: #ffffff;
     }
 
     /* COMPREHENSIVE LIGHT THEME OVERRIDES */
@@ -3671,12 +3697,24 @@ CHAT_HTML = r"""<!DOCTYPE html>
           <h2>🎯 RAG Déterministe — Taxonomie des 435 Failure Modes MLOps</h2>
           <p>Indexation in-memory sub-milliseconde (&lt; 1ms) sans token externe depuis <code>docs/mlops_failure_modes_taxonomy.md</code>.</p>
         </div>
-        <button class="btn-close-modal" onclick="toggleRagTaxonomy(false)" title="Fermer (Échap)">✕</button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <a href="https://github.com/nolll77/agentic-ops/blob/main/docs/mlops_failure_modes_taxonomy.md" target="_blank" rel="noopener noreferrer" class="btn-repo-link" title="Ouvrir la page dédiée du document sur le repo GitHub">
+            <span>📂</span>
+            <span>Voir sur GitHub ↗</span>
+          </a>
+          <button class="btn-close-modal" onclick="toggleRagTaxonomy(false)" title="Fermer (Échap)">✕</button>
+        </div>
       </div>
 
       <div class="qn-content-scroll">
         <div class="qn-intro-banner">
           Le <strong>RAG Déterministe Taxonomie</strong> permet d'interroger la matrice exhaustive des <strong>435 modes de défaillance MLOps</strong> structurée selon nos <strong>10 dimensions système</strong>. En mode connecté, il injecte les fiches de vérité dans le prompt du LLM pour éliminer 100% des hallucinations. En mode dégradé hors-ligne, il génère instantanément la fiche technique Markdown complète (RPN, SLO, Détection, Réponse Auto, Script Chaos) à <strong>0 token consommé</strong>.
+          <div style="margin-top:10px;">
+            <a href="https://github.com/nolll77/agentic-ops/blob/main/docs/mlops_failure_modes_taxonomy.md" target="_blank" rel="noopener noreferrer" class="btn-repo-link" style="font-size:11.5px;padding:4px 10px;">
+              <span>📖</span>
+              <span>Consulter la taxonomie complète sur le repo (docs/mlops_failure_modes_taxonomy.md) ↗</span>
+            </a>
+          </div>
         </div>
 
         <!-- 1. Recherche Directe par ID -->
@@ -3763,12 +3801,24 @@ CHAT_HTML = r"""<!DOCTYPE html>
           <h2>🎬 RAG Déterministe — Registre des 36 Scénarios de Simulation SRE</h2>
           <p>Exploration des simulations dynamiques d'incidents, timelines T0..T4 et contrats YAML depuis <code>docs/mlops_simulation_scenarios_registry.md</code>.</p>
         </div>
-        <button class="btn-close-modal" onclick="toggleRagScenarios(false)" title="Fermer (Échap)">✕</button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <a href="https://github.com/nolll77/agentic-ops/blob/main/docs/mlops_simulation_scenarios_registry.md" target="_blank" rel="noopener noreferrer" class="btn-repo-link" title="Ouvrir la page dédiée du document sur le repo GitHub">
+            <span>📂</span>
+            <span>Voir sur GitHub ↗</span>
+          </a>
+          <button class="btn-close-modal" onclick="toggleRagScenarios(false)" title="Fermer (Échap)">✕</button>
+        </div>
       </div>
 
       <div class="qn-content-scroll">
         <div class="qn-intro-banner">
           Le <strong>RAG Déterministe Scénarios</strong> vous connecte au <strong>Registre des 36 Scénarios de Simulation Industriels (Incident War Room)</strong>. Chaque scénario formalise une propagation d'incident pas-à-pas (Timeline $T_0 \dots T_4$), son analyse de cause racine (Amazon-style 5-Whys RCA), la topologie du garde-fou en ASCII Art et les contrats de test déclaratifs sous <code>tests/scenarios/data/</code>.
+          <div style="margin-top:10px;">
+            <a href="https://github.com/nolll77/agentic-ops/blob/main/docs/mlops_simulation_scenarios_registry.md" target="_blank" rel="noopener noreferrer" class="btn-repo-link" style="font-size:11.5px;padding:4px 10px;">
+              <span>📖</span>
+              <span>Consulter le registre complet sur le repo (docs/mlops_simulation_scenarios_registry.md) ↗</span>
+            </a>
+          </div>
         </div>
 
         <!-- 1. Scénarios Fondamentaux de Propagation -->
