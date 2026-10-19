@@ -52,7 +52,12 @@ son `503` ne prouve donc pas que la conversation elle-même soit en panne.
 `GET /api/llm/status` pour le fournisseur et traiter séparément les erreurs
 retournées par `POST /api/chat`.
 
-La publication d'une version sur GitHub, PyPI et GHCR ne modifie pas les
-variables Render. Après publication, vérifier dans Render que le déploiement
-utilise le commit/image attendu et que la variable secrète est présente; aucun
-secret Render ne doit être transmis pour publier les paquets.
+La publication d'une version sur GitHub, PyPI et GHCR ne modifie pas le service
+Render ni ses variables. Lors du diagnostic du 2026-10-19, son
+`GET /openapi.json` déclarait encore `info.version=0.1.3`, alors que `v0.1.5`
+était publiée. Il faut donc déclencher le déploiement dans le tableau de bord
+Render : déployer le commit `3e4261b` si le service suit le dépôt Git, ou
+sélectionner `ghcr.io/nolll77/agentic-ops:v0.1.5` si le service utilise une
+image de conteneur. Ajouter `ADMIN_API_KEY` avant le redémarrage, puis vérifier
+que `/openapi.json` annonce `0.1.5` et qu'une route protégée n'émet plus ce
+`503`. Aucun secret Render ne doit être transmis pour publier les paquets.
