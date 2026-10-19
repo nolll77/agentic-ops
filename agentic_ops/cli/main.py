@@ -1,9 +1,13 @@
 import datetime
+import hashlib
+import json
+import logging
 import os
 import re
 import socket
 import subprocess
 import sys
+import threading
 import time
 from enum import Enum
 from types import SimpleNamespace
@@ -12,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from agentic_ops.entrypoints.slack_webhook import router as slack_router
 from agentic_ops.entrypoints.mcp_server import router as mcp_router
+from agentic_ops.entrypoints.grafana_webhook import router as grafana_router
 from agentic_ops.core.approvals import ApprovalRepo
 from agentic_ops.adapters.cac_pull_collector import CacPullCollector
 
@@ -53,17 +58,46 @@ repo = ApprovalRepo(db_path, clock)
 slack_secret = os.environ.get("SLACK_SIGNING_SECRET")
 hitl_secrets = [slack_secret] if slack_secret else []
 
+def _load_hitl_episode(ep_id: str):
+    """Loads the frozen proposal from the ApprovalRepo SQLite database."""
+    c = repo._conn()
+    try:
+        row = c.execute("SELECT proposal FROM requests WHERE episode_id=?", (ep_id,)).fetchone()
+        if not row:
+            return None
+        return json.loads(row["proposal"])
+    except Exception:
+        return None
+    finally:
+        c.close()
+
+def _current_proposal_hash(ep):
+    """Computes canonical digest of proposal to detect divergence."""
+    if not ep:
+        return ""
+    if isinstance(ep, dict):
+        canon = json.dumps(ep, sort_keys=True, separators=(",", ":"), default=list)
+        return hashlib.sha256(canon.encode()).hexdigest()[:24]
+    return getattr(ep, "digest", lambda: "")()
+
+def _resume_from_claim(claim):
+    ep_id = getattr(claim, "episode_id", str(claim))
+    logging.getLogger("HITL").info("[HITL] Claim approved for episode %s. Resuming execution.", ep_id)
+
+def _close_episode(ep_id, val):
+    repo.finish(ep_id, val)
+
 app.state.hitl = SimpleNamespace(
     secrets=hitl_secrets,
     clock=clock,
     repo=repo,
     orchestrator=SimpleNamespace(
-        load_episode=lambda ep_id: None,
-        current_proposal_hash=lambda ep: "",
-        resume_from_claim=lambda claim: None,
-        close_episode=lambda ep_id, val: None,
+        load_episode=_load_hitl_episode,
+        current_proposal_hash=_current_proposal_hash,
+        resume_from_claim=_resume_from_claim,
+        close_episode=_close_episode,
     ),
-    policy=SimpleNamespace(level_of=lambda ep: "L1"),
+    policy=SimpleNamespace(level_of=lambda ep: "L2"),
     approvers=SimpleNamespace(group_of=lambda user, level: "admin"),
 )
 
@@ -270,7 +304,10 @@ def tailscale_status():
 
 
 @app.get("/api/cac/snapshot")
-def get_cac_snapshot(use_proxy: bool = Query(default=True), timeout: float = Query(default=3.5)):
+def get_cac_snapshot(
+    use_proxy: bool = Query(default=True, description="Route requests via local Tailscale SOCKS5 proxy"),
+    timeout: float = Query(default=3.5, ge=0.5, le=10.0, description="Per-service timeout in seconds (bounded between 0.5s and 10.0s)"),
+):
     """
     Triggers an immediate Read-Only Pull collection against the remote
     jakatt/cac_mlops platform (via Tailscale SOCKS5 proxy if available).
@@ -980,6 +1017,9 @@ COMMAND_PEDAGOGICAL_GUIDES: dict[DiagnosticCommand, list[str]] = {
 }
 
 
+_diagnostic_lock = threading.Lock()
+
+
 @app.get("/api/diagnostics/{command}", response_class=PlainTextResponse)
 def run_diagnostic_command(command: DiagnosticCommand):
     """
@@ -987,211 +1027,221 @@ def run_diagnostic_command(command: DiagnosticCommand):
     container and returns formatted plain-text terminal output (with automatic PII redaction
     and detailed pedagogical commentary).
     Replaces the paid Render SSH Shell tab for zero-cost live auditing.
+    Protected by concurrency lock to prevent container OOM starvation.
     """
-    ts_socket = os.environ.get("TS_SOCKET", "/tmp/tailscaled.sock")
-    py = sys.executable
+    if not _diagnostic_lock.acquire(blocking=False):
+        return PlainTextResponse(
+            "⚠️ CONCURRENCY THROTTLE (HTTP 429) : Une commande de diagnostic est déjà en cours d'exécution "
+            "dans ce conteneur. Veuillez patienter jusqu'à sa fin pour préserver les ressources mémoire (512 MiB).",
+            status_code=429,
+        )
 
-    cmd_map = {
-        DiagnosticCommand.sandbox_phase_c_adversarial_worm: [
-            py, "-m", "pytest", "tests/adversarial/", "tests/security/", "-v"
-        ],
-        DiagnosticCommand.sandbox_phase_d_mlops_scenarios: [
-            py, "-m", "pytest", "tests/scenarios/", "-v"
-        ],
-        DiagnosticCommand.sandbox_phase_e_fsm_governance: [
-            py, "-m", "pytest",
-            "tests/test_fsm_orchestrator.py",
-            "tests/test_grafana_webhook.py",
-            "tests/test_tools_security.py",
-            "-v",
-        ],
-        DiagnosticCommand.pytest_cac_connector: [
-            py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"
-        ],
-        DiagnosticCommand.pytest_mcp_gateway: [
-            py, "-m", "pytest", "tests/entrypoints/test_mcp_server.py", "-v"
-        ],
-        DiagnosticCommand.pytest_llm_hub: [
-            py, "-m", "pytest", "tests/adapters/test_llm_provider_registry.py", "-v"
-        ],
-        DiagnosticCommand.pytest_security: [
-            py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
-        ],
-        DiagnosticCommand.pytest_all: [
-            py, "-m", "pytest",
-            "tests/adversarial/",
-            "tests/security/",
-            "tests/scenarios/",
-            "tests/test_fsm_orchestrator.py",
-            "tests/test_grafana_webhook.py",
-            "tests/test_tools_security.py",
-            "tests/adapters/test_cac_pull_collector.py",
-            "tests/entrypoints/test_mcp_server.py",
-            "tests/adapters/test_llm_provider_registry.py",
-            "-v",
-        ],
-        DiagnosticCommand.trust_ledger_list: [
-            py, "-m", "agentic_ops.cli.trust_ledger", "list"
-        ],
-        DiagnosticCommand.tailscale_status: [
-            "tailscale", f"--socket={ts_socket}", "status"
-        ],
-        DiagnosticCommand.tailscale_netcheck: [
-            "tailscale", f"--socket={ts_socket}", "netcheck"
-        ],
-        DiagnosticCommand.redis_ping: [
-            "redis-cli", "-h", "127.0.0.1", "-p", "6379", "PING"
-        ],
-    }
+    try:
+        ts_socket = os.environ.get("TS_SOCKET", "/tmp/tailscaled.sock")
+        py = sys.executable
 
-    t0 = time.time()
-    guide_lines = COMMAND_PEDAGOGICAL_GUIDES.get(
-        command,
-        COMMAND_PEDAGOGICAL_GUIDES.get(DiagnosticCommand.sandbox_phase_a_vitals, []),
-    )
-    guide_block = "\n\n" + "\n".join(guide_lines) + "\n" if guide_lines else ""
+        cmd_map = {
+            DiagnosticCommand.sandbox_phase_c_adversarial_worm: [
+                py, "-m", "pytest", "tests/adversarial/", "tests/security/", "-v"
+            ],
+            DiagnosticCommand.sandbox_phase_d_mlops_scenarios: [
+                py, "-m", "pytest", "tests/scenarios/", "-v"
+            ],
+            DiagnosticCommand.sandbox_phase_e_fsm_governance: [
+                py, "-m", "pytest",
+                "tests/test_fsm_orchestrator.py",
+                "tests/test_grafana_webhook.py",
+                "tests/test_tools_security.py",
+                "-v",
+            ],
+            DiagnosticCommand.pytest_cac_connector: [
+                py, "-m", "pytest", "tests/adapters/test_cac_pull_collector.py", "-v"
+            ],
+            DiagnosticCommand.pytest_mcp_gateway: [
+                py, "-m", "pytest", "tests/entrypoints/test_mcp_server.py", "-v"
+            ],
+            DiagnosticCommand.pytest_llm_hub: [
+                py, "-m", "pytest", "tests/adapters/test_llm_provider_registry.py", "-v"
+            ],
+            DiagnosticCommand.pytest_security: [
+                py, "-m", "pytest", "tests/security/", "tests/integration/", "-v"
+            ],
+            DiagnosticCommand.pytest_all: [
+                py, "-m", "pytest",
+                "tests/adversarial/",
+                "tests/security/",
+                "tests/scenarios/",
+                "tests/test_fsm_orchestrator.py",
+                "tests/test_grafana_webhook.py",
+                "tests/test_tools_security.py",
+                "tests/adapters/test_cac_pull_collector.py",
+                "tests/entrypoints/test_mcp_server.py",
+                "tests/adapters/test_llm_provider_registry.py",
+                "-v",
+            ],
+            DiagnosticCommand.trust_ledger_list: [
+                py, "-m", "agentic_ops.cli.trust_ledger", "list"
+            ],
+            DiagnosticCommand.tailscale_status: [
+                "tailscale", f"--socket={ts_socket}", "status"
+            ],
+            DiagnosticCommand.tailscale_netcheck: [
+                "tailscale", f"--socket={ts_socket}", "netcheck"
+            ],
+            DiagnosticCommand.redis_ping: [
+                "redis-cli", "-h", "127.0.0.1", "-p", "6379", "PING"
+            ],
+        }
 
-    if command in (DiagnosticCommand.sandbox_phase_a_vitals, DiagnosticCommand.system_info):
-        try:
-            uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
-        except Exception as exc:
-            uname = f"Unknown ({exc})"
+        t0 = time.time()
+        guide_lines = COMMAND_PEDAGOGICAL_GUIDES.get(
+            command,
+            COMMAND_PEDAGOGICAL_GUIDES.get(DiagnosticCommand.sandbox_phase_a_vitals, []),
+        )
+        guide_block = "\n\n" + "\n".join(guide_lines) + "\n" if guide_lines else ""
 
-        mem_lines = []
-        try:
-            free_out = subprocess.run(["free", "-h"], capture_output=True, text=True).stdout.strip()
-            if free_out:
-                mem_lines.append(free_out)
-        except Exception:
-            pass
-
-        if not mem_lines and os.path.exists("/proc/meminfo"):
+        if command in (DiagnosticCommand.sandbox_phase_a_vitals, DiagnosticCommand.system_info):
             try:
-                with open("/proc/meminfo", "r", encoding="utf-8", errors="replace") as f:
-                    for line in f:
-                        if line.startswith(("MemTotal:", "MemFree:", "MemAvailable:", "Buffers:", "Cached:", "SwapTotal:", "SwapFree:")):
-                            mem_lines.append(line.strip())
+                uname = subprocess.run(["uname", "-a"], capture_output=True, text=True).stdout.strip()
+            except Exception as exc:
+                uname = f"Unknown ({exc})"
+
+            mem_lines = []
+            try:
+                free_out = subprocess.run(["free", "-h"], capture_output=True, text=True).stdout.strip()
+                if free_out:
+                    mem_lines.append(free_out)
             except Exception:
                 pass
 
-        for cg_path, label in (
-            ("/sys/fs/cgroup/memory.current", "Cgroup Memory Current"),
-            ("/sys/fs/cgroup/memory.max", "Cgroup Memory Max"),
-        ):
-            if os.path.exists(cg_path):
+            if not mem_lines and os.path.exists("/proc/meminfo"):
                 try:
-                    with open(cg_path, "r", encoding="utf-8") as f:
-                        val = f.read().strip()
-                        if val.isdigit():
-                            mem_lines.append(f"{label:22s}: {int(val) / (1024 * 1024):.1f} MiB ({val} bytes)")
-                        else:
-                            mem_lines.append(f"{label:22s}: {val}")
+                    with open("/proc/meminfo", "r", encoding="utf-8", errors="replace") as f:
+                        for line in f:
+                            if line.startswith(("MemTotal:", "MemFree:", "MemAvailable:", "Buffers:", "Cached:", "SwapTotal:", "SwapFree:")):
+                                mem_lines.append(line.strip())
                 except Exception:
                     pass
 
-        cpu_model = "Unknown"
-        if os.path.exists("/proc/cpuinfo"):
-            try:
-                with open("/proc/cpuinfo", "r", encoding="utf-8", errors="replace") as f:
-                    for line in f:
-                        if "model name" in line:
-                            cpu_model = line.split(":", 1)[1].strip()
-                            break
-            except Exception:
-                pass
-        info = [
-            "=== Phase A: Container Vitals, Health Probes & Hardware Telemetry ===",
-            f"OS / Kernel          : {uname}",
-            f"CPU Architecture     : {cpu_model} (cores={os.cpu_count()})",
-            f"Python Executable    : {sys.executable} ({sys.version.split()[0]})",
-            f"Working Directory    : {os.getcwd()}",
-            f"Probe GET /healthz   : {healthz()}",
-            f"Probe GET /ready     : {ready()}",
-            f"Redis Local (:6379)  : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 6379) else 'CLOSED'}",
-            f"Tailscale (:1055)    : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 1055) else 'CLOSED'}",
-            f"Approval DB Path     : {db_path} (exists={os.path.exists(db_path)})",
-            "",
-            "--- Memory & Cgroup Telemetry (/proc/meminfo & cgroup v2) ---",
-            "\n".join(mem_lines) if mem_lines else "(memory telemetry unavailable)",
-            "",
-            "[GUIDE:HOW_IT_PASSES] VERDICT PHASE A : Tous les démons internes (Redis :6379, Tailscale SOCKS5 :1055, FastAPI :8001, SQLite WAL) sont OPÉRATIONNELS.",
-        ]
-        return "\n".join(info) + guide_block
+            for cg_path, label in (
+                ("/sys/fs/cgroup/memory.current", "Cgroup Memory Current"),
+                ("/sys/fs/cgroup/memory.max", "Cgroup Memory Max"),
+            ):
+                if os.path.exists(cg_path):
+                    try:
+                        with open(cg_path, "r", encoding="utf-8") as f:
+                            val = f.read().strip()
+                            if val.isdigit():
+                                mem_lines.append(f"{label:22s}: {int(val) / (1024 * 1024):.1f} MiB ({val} bytes)")
+                            else:
+                                mem_lines.append(f"{label:22s}: {val}")
+                    except Exception:
+                        pass
 
-    if command == DiagnosticCommand.sandbox_phase_b_slack_spoof:
-        from fastapi.testclient import TestClient
-
-        orig_secrets = list(app.state.hitl.secrets)
-        if not orig_secrets:
-            app.state.hitl.secrets = ["sandbox_ephemeral_test_secret"]
-        try:
-            client = TestClient(app)
-            resp = client.post(
-                "/slack/interactive",
-                data={"payload": "fake_tampered_attack"},
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-        finally:
-            app.state.hitl.secrets = orig_secrets
-        elapsed_ms = int((time.time() - t0) * 1000)
-        lines = [
-            "=== Phase B: Live Red-Team Slack Webhook Spoofing Attack ===",
-            "$ curl -i -X POST http://127.0.0.1:8001/slack/interactive \\",
-            '    -H "Content-Type: application/x-www-form-urlencoded" \\',
-            '    -d "payload=fake_tampered_attack"',
-            f"[status_code={resp.status_code} | duration={elapsed_ms}ms]",
-            "-" * 72,
-            f"HTTP/1.1 {resp.status_code} Unauthorized",
-            f"content-type: {resp.headers.get('content-type', 'application/json')}",
-            "",
-            resp.text,
-            "",
-            "[GUIDE:HOW_IT_PASSES] VERDICT PHASE B : L'attaque par usurpation Slack a été bloquée en Fail-Closed (HTTP 401 Unauthorized) en 2ms.",
-        ]
-        return "\n".join(lines) + guide_block
-
-    if command == DiagnosticCommand.tailscale_logs:
-        logs = []
-        for path in ("/tmp/tailscale_up.log", "/tmp/tailscaled.log"):
-            if os.path.exists(path):
+            cpu_model = "Unknown"
+            if os.path.exists("/proc/cpuinfo"):
                 try:
-                    with open(path, "r", encoding="utf-8", errors="replace") as f:
-                        content = f.read()[-4000:]
-                    logs.append(f"=== {path} ===\n{content}")
-                except Exception as exc:
-                    logs.append(f"=== {path} (error: {exc}) ===")
-            else:
-                logs.append(f"=== {path} (not found) ===")
-        out = "\n\n".join(logs)
-        return _redact_pii(out) + guide_block
+                    with open("/proc/cpuinfo", "r", encoding="utf-8", errors="replace") as f:
+                        for line in f:
+                            if "model name" in line:
+                                cpu_model = line.split(":", 1)[1].strip()
+                                break
+                except Exception:
+                    pass
+            info = [
+                "=== Phase A: Container Vitals, Health Probes & Hardware Telemetry ===",
+                f"OS / Kernel          : {uname}",
+                f"CPU Architecture     : {cpu_model} (cores={os.cpu_count()})",
+                f"Python Executable    : {sys.executable} ({sys.version.split()[0]})",
+                f"Working Directory    : {os.getcwd()}",
+                f"Probe GET /healthz   : {healthz()}",
+                f"Probe GET /ready     : {ready()}",
+                f"Redis Local (:6379)  : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 6379) else 'CLOSED'}",
+                f"Tailscale (:1055)    : {'OPEN (ONLINE)' if _is_port_open('127.0.0.1', 1055) else 'CLOSED'}",
+                f"Approval DB Path     : {db_path} (exists={os.path.exists(db_path)})",
+                "",
+                "--- Memory & Cgroup Telemetry (/proc/meminfo & cgroup v2) ---",
+                "\n".join(mem_lines) if mem_lines else "(memory telemetry unavailable)",
+                "",
+                "[GUIDE:HOW_IT_PASSES] VERDICT PHASE A : Tous les démons internes (Redis :6379, Tailscale SOCKS5 :1055, FastAPI :8001, SQLite WAL) sont OPÉRATIONNELS.",
+            ]
+            return "\n".join(info) + guide_block
 
-    argv = cmd_map[command]
-    env = {**os.environ, "PYTHONPATH": "/app:."}
-    try:
-        proc = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=env,
-        )
-        elapsed_ms = int((time.time() - t0) * 1000)
-        header = (
-            f"$ {' '.join(argv)}\n"
-            f"[exit_code={proc.returncode} | duration={elapsed_ms}ms]\n"
-            f"{'-' * 72}\n"
-        )
-        body = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
-        footer = (
-            f"\n{'-' * 72}\n"
-            f"[GUIDE:HOW_IT_PASSES] EXÉCUTION TERMINÉE AVEC SUCCÈS : exit_code={proc.returncode} en {elapsed_ms}ms (0 action interdite exécutée sur la prod cible).\n"
-            if proc.returncode == 0
-            else f"\n{'-' * 72}\n[GUIDE:PROD] ATTENTION : exit_code={proc.returncode} en {elapsed_ms}ms.\n"
-        )
-        return _redact_pii(header + body.strip() + footer) + guide_block
-    except Exception as exc:
-        return f"Error executing {command.value}: {exc}\n" + guide_block
+        if command == DiagnosticCommand.sandbox_phase_b_slack_spoof:
+            from fastapi.testclient import TestClient
+
+            orig_secrets = list(app.state.hitl.secrets)
+            if not orig_secrets:
+                app.state.hitl.secrets = ["sandbox_ephemeral_test_secret"]
+            try:
+                client = TestClient(app)
+                resp = client.post(
+                    "/slack/interactive",
+                    data={"payload": "fake_tampered_attack"},
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+            finally:
+                app.state.hitl.secrets = orig_secrets
+            elapsed_ms = int((time.time() - t0) * 1000)
+            lines = [
+                "=== Phase B: Live Red-Team Slack Webhook Spoofing Attack ===",
+                "$ curl -i -X POST http://127.0.0.1:8001/slack/interactive \\",
+                '    -H "Content-Type: application/x-www-form-urlencoded" \\',
+                '    -d "payload=fake_tampered_attack"',
+                f"[status_code={resp.status_code} | duration={elapsed_ms}ms]",
+                "-" * 72,
+                f"HTTP/1.1 {resp.status_code} Unauthorized",
+                f"content-type: {resp.headers.get('content-type', 'application/json')}",
+                "",
+                resp.text,
+                "",
+                "[GUIDE:HOW_IT_PASSES] VERDICT PHASE B : L'attaque par usurpation Slack a été bloquée en Fail-Closed (HTTP 401 Unauthorized) en 2ms.",
+            ]
+            return "\n".join(lines) + guide_block
+
+        if command == DiagnosticCommand.tailscale_logs:
+            logs = []
+            for path in ("/tmp/tailscale_up.log", "/tmp/tailscaled.log"):
+                if os.path.exists(path):
+                    try:
+                        with open(path, "r", encoding="utf-8", errors="replace") as f:
+                            content = f.read()[-4000:]
+                        logs.append(f"=== {path} ===\n{content}")
+                    except Exception as exc:
+                        logs.append(f"=== {path} (error: {exc}) ===")
+                else:
+                    logs.append(f"=== {path} (not found) ===")
+            out = "\n\n".join(logs)
+            return _redact_pii(out) + guide_block
+
+        argv = cmd_map[command]
+        env = {**os.environ, "PYTHONPATH": "/app:."}
+        try:
+            proc = subprocess.run(
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+            )
+            elapsed_ms = int((time.time() - t0) * 1000)
+            header = (
+                f"$ {' '.join(argv)}\n"
+                f"[exit_code={proc.returncode} | duration={elapsed_ms}ms]\n"
+                f"{'-' * 72}\n"
+            )
+            body = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
+            footer = (
+                f"\n{'-' * 72}\n"
+                f"[GUIDE:HOW_IT_PASSES] EXÉCUTION TERMINÉE AVEC SUCCÈS : exit_code={proc.returncode} en {elapsed_ms}ms (0 action interdite exécutée sur la prod cible).\n"
+                if proc.returncode == 0
+                else f"\n{'-' * 72}\n[GUIDE:PROD] ATTENTION : exit_code={proc.returncode} en {elapsed_ms}ms.\n"
+            )
+            return _redact_pii(header + body.strip() + footer) + guide_block
+        except Exception as exc:
+            return f"Error executing {command.value}: {exc}\n" + guide_block
     finally:
+        _diagnostic_lock.release()
         import gc
         gc.collect()
         try:
@@ -4368,6 +4418,7 @@ def web_chat():
 
 app.include_router(slack_router)
 app.include_router(mcp_router)
+app.include_router(grafana_router)
 
 
 def start_server():

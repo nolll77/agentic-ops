@@ -70,3 +70,58 @@ def test_verify_slack_valid_signature_succeeds():
     valid_sig = compute_signature(secrets[0], b"payload=ok", ts)
     # Should not raise
     verify_slack(b"payload=ok", str(ts), valid_sig, secrets=secrets, now=now)
+
+
+def test_slack_interactive_loads_real_episode_from_approval_repo():
+    """Verify that /slack/interactive reads real pending proposals from SQLite rather than returning 404."""
+    import json
+    import urllib.parse
+    from fastapi.testclient import TestClient
+    from agentic_ops.cli.main import app
+    from agentic_ops.core.approvals import FrozenProposal
+
+    client = TestClient(app)
+
+    # Configure a test secret in app.state.hitl
+    test_secret = "test_slack_signing_secret_32bytes"
+    app.state.hitl.secrets = [test_secret]
+
+    import uuid
+    dynamic_ep = f"EP-TEST-SLACK-{uuid.uuid4().hex[:8]}"
+
+    # Open a proposal in app.state.hitl.repo
+    proposal = FrozenProposal(
+        episode_id=dynamic_ep,
+        action="rollback_prod",
+        target="lgbm_accidents",
+        risk_id="RISK-42",
+        policy_version="1.0",
+        required=1,
+    )
+    req_hash = app.state.hitl.repo.open_request(proposal, ttl_s=600)
+
+    # Build Slack Block Kit interaction payload
+    slack_payload = {
+        "user": {"id": "U12345"},
+        "actions": [
+            {
+                "action_id": "approve",
+                "value": f"{dynamic_ep}:{req_hash}",
+            }
+        ],
+    }
+    raw_body = urllib.parse.urlencode({"payload": json.dumps(slack_payload)}).encode()
+
+    now = int(time.time())
+    sig = compute_signature(test_secret, raw_body, now)
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Slack-Request-Timestamp": str(now),
+        "X-Slack-Signature": sig,
+    }
+
+    resp = client.post("/slack/interactive", content=raw_body, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "approuvé" in data.get("status", "") or "enregistrée" in data.get("status", "")

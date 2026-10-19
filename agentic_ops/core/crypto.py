@@ -7,9 +7,18 @@ from typing import Any, Dict
 
 logger = logging.getLogger("TrustLedgerCrypto")
 
-# Clé de signature (Simule un KMS externe AWS/GCP)
-# En production absolue, on utiliserait une clé Ed25519 asymétrique.
-LEDGER_SECRET_KEY = os.environ.get("LEDGER_SECRET_KEY", "dummy_kms_key_for_testing").encode('utf-8')
+# Clé de signature (Simule un KMS externe AWS/GCP ou HMAC-SHA512 dédié)
+# Supporte à la fois LEDGER_SECRET_KEY et EVIDENCE_STORE_HMAC_KEY (documenté dans .env.example)
+_raw_key = os.environ.get("LEDGER_SECRET_KEY") or os.environ.get("EVIDENCE_STORE_HMAC_KEY")
+if not _raw_key:
+    if os.environ.get("AGENTIC_OPS_ENV") == "production":
+        logger.warning(
+            "[SECURITY ALERT] Neither LEDGER_SECRET_KEY nor EVIDENCE_STORE_HMAC_KEY is configured in production. "
+            "Falling back to dummy test key. Configure LEDGER_SECRET_KEY in production environment!"
+        )
+    _raw_key = "dummy_kms_key_for_testing"
+
+LEDGER_SECRET_KEY = _raw_key.encode("utf-8")
 
 def get_canonical_json(data: Dict[str, Any]) -> str:
     """

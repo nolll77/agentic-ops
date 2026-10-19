@@ -1,9 +1,10 @@
 import json
 import logging
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 log = logging.getLogger(__name__)
+router = APIRouter(tags=["Grafana Webhook"])
 app = FastAPI(title="Agentic-Ops Grafana webhook")
 MAX_REQUEST_BYTES = 1_048_576
 
@@ -49,7 +50,7 @@ async def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/webhook/alerts", status_code=202)
+@router.post("/webhook/alerts", status_code=202)
 async def receive_alerts(request: Request) -> dict[str, int | str]:
     body = await read_limited_body(request)
     try:
@@ -59,3 +60,6 @@ async def receive_alerts(request: Request) -> dict[str, int | str]:
 
     log.info("received Grafana webhook with %d alert(s)", len(alerts))
     return {"status": "received", "alerts_received": len(alerts)}
+
+
+app.include_router(router)
