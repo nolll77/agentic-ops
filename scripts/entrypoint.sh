@@ -13,7 +13,11 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 mkdir -p /tmp/state
 
 # Initialize Ledger signing key if not injected via external KMS/secrets
-export LEDGER_SECRET_KEY="${LEDGER_SECRET_KEY:-${EVIDENCE_STORE_HMAC_KEY:-render_sandbox_container_key_${PORT:-8001}}}"
+if [ -z "$LEDGER_SECRET_KEY" ] && [ -z "$EVIDENCE_STORE_HMAC_KEY" ]; then
+    echo "[SECURITY WARNING] Neither LEDGER_SECRET_KEY nor EVIDENCE_STORE_HMAC_KEY configured."
+    echo "Generating cryptographically random 256-bit ephemeral session key for sandbox container..."
+    export LEDGER_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
+fi
 
 # 1. Start local Redis daemon if available (for distributed locks & rate limiting)
 if command -v redis-server >/dev/null 2>&1; then

@@ -128,6 +128,40 @@ def cmd_inspect(episode_id: str):
         
     console.print(Panel(act_text, title="3. Gouvernance & Exécution", border_style="green"))
 
+
+def cmd_merkle_root():
+    from agentic_ops.core.evidence import EvidenceStore
+    store = EvidenceStore(str(EVIDENCE_DIR))
+    tree = store.get_merkle_tree()
+    episodes = store.load_all_episodes()
+    console.print(f"\n[bold cyan]=== Binary Merkle Tree Cryptographique (RFC 6962) ===[/bold cyan]")
+    console.print(f"[bold]Nombre d'épisodes scellés :[/bold] {len(episodes)}")
+    console.print(f"[bold]Merkle Root (SHA-256)      :[/bold] [bold green]{tree.root}[/bold green]")
+    console.print(f"[bold]Profondeur de l'arbre      :[/bold] {len(tree.levels)} niveaux (O(log N) = {len(tree.levels) - 1} étapes)")
+    console.print(f"[dim]Second-preimage resistant : Domain Separators 0x00 (feuilles) / 0x01 (nœuds parents)[/dim]\n")
+
+
+def cmd_merkle_proof(episode_id: str):
+    from agentic_ops.core.evidence import EvidenceStore
+    store = EvidenceStore(str(EVIDENCE_DIR))
+    proof_packet = store.get_merkle_proof(episode_id)
+    if not proof_packet:
+        console.print(f"[bold red]Episode {episode_id} introuvable dans le ledger.[/bold red]")
+        return
+    is_valid = EvidenceStore.verify_merkle_proof(proof_packet)
+    console.print(f"\n[bold cyan]=== Preuve d'Inclusion Merkle (Audit Proof) : {episode_id} ===[/bold cyan]")
+    console.print(f"[bold]Position dans l'arbre :[/bold] Feuille index {proof_packet['leaf_index']} / {proof_packet['total_leaves']}")
+    console.print(f"[bold]Leaf Hash (RFC 6962)  :[/bold] [cyan]{proof_packet['leaf_hash']}[/cyan]")
+    console.print(f"[bold]Merkle Root Attendue  :[/bold] [green]{proof_packet['merkle_root']}[/green]")
+    console.print(f"[bold]Audit Path            :[/bold] {len(proof_packet['audit_path'])} étapes logarithmiques")
+    for idx, step in enumerate(proof_packet['audit_path']):
+        console.print(f"  [{idx+1}] Sibling ({step['position']:5s}) : {step['hash']}")
+    
+    status_color = "bold green" if is_valid else "bold red"
+    status_text = "VALIDE (Mathématiquement intègre & inclus dans le Merkle Root)" if is_valid else "INVALIDE (Altération détectée)"
+    console.print(f"\n[bold]Vérification O(log N) :[/bold] [{status_color}]{status_text}[/{status_color}]\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Trust Ledger - Observabilité de l'Agentic Control Plane")
     subparsers = parser.add_subparsers(dest="command", help="Commandes disponibles")
@@ -138,6 +172,13 @@ def main():
     # Commande inspect
     inspect_parser = subparsers.add_parser("inspect", help="Inspecter un épisode spécifique")
     inspect_parser.add_argument("episode_id", type=str, help="L'ID de l'épisode (ex: EP-0001)")
+
+    # Commande merkle-root
+    subparsers.add_parser("merkle-root", help="Afficher la racine cryptographique Merkle Root (RFC 6962)")
+
+    # Commande merkle-proof
+    proof_parser = subparsers.add_parser("merkle-proof", help="Générer et vérifier la preuve d'inclusion Merkle pour un épisode")
+    proof_parser.add_argument("episode_id", type=str, help="L'ID de l'épisode (ex: EP-0001)")
     
     args = parser.parse_args()
     
@@ -145,6 +186,12 @@ def main():
         cmd_list()
     elif args.command == "inspect":
         cmd_inspect(args.episode_id)
+    elif args.command == "merkle-root":
+        cmd_merkle_root()
+    elif args.command == "merkle-proof":
+        cmd_merkle_proof(args.episode_id)
+
 
 if __name__ == "__main__":
     main()
+

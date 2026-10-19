@@ -41,6 +41,8 @@ state/
 *.sqlite
 *.sqlite3
 *.log
+agentic_ops/evidence_store/ledger.jsonl
+
 
 # OS & IDE
 .DS_Store

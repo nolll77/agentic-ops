@@ -3,9 +3,10 @@ import os
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from agentic_ops.core.crypto import get_canonical_json, sign_payload, verify_signature
+from agentic_ops.core.merkle import MerkleTree, hash_leaf
 
 class EvidenceStore:
     def __init__(self, store_dir: str):
@@ -141,3 +142,87 @@ class EvidenceStore:
                     print(f"Erreur de parsing à la ligne {line_no}: {e}")
                     return False
         return True
+
+    def load_all_episodes(self) -> List[Dict[str, Any]]:
+        """Loads all sealed episodes from the append-only ledger or individual JSON files in canonical order."""
+        episodes: List[Dict[str, Any]] = []
+        if self.ledger_file.exists() and self.ledger_file.stat().st_size > 0:
+            with open(self.ledger_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            episodes.append(json.loads(line))
+                        except Exception:
+                            pass
+        elif self.store_dir.exists():
+            for p in sorted(self.store_dir.glob("*.json")):
+                if p.name.startswith("_"):
+                    continue
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        episodes.append(json.load(f))
+                except Exception:
+                    pass
+        return episodes
+
+    def get_merkle_tree(self) -> MerkleTree:
+        """
+        [RFC 6962] Constructs an immutable Binary Merkle Tree across all episodes in the ledger.
+        Each episode is converted to a canonical leaf: SHA-256(0x00 || canonical_json).
+        """
+        episodes = self.load_all_episodes()
+        # Canonical representation of each episode without signature for leaf hashing
+        leaves = []
+        for ep in episodes:
+            c_ep = dict(ep)
+            c_ep.pop("hash", None)
+            c_ep.pop("cryptographic_signature", None)
+            leaves.append(get_canonical_json(c_ep))
+        return MerkleTree(leaves)
+
+    def get_merkle_root(self) -> str:
+        """Returns the current 32-byte hex Merkle Root representing the whole ledger."""
+        return self.get_merkle_tree().root
+
+    def get_merkle_proof(self, episode_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Generates an O(log N) Merkle Audit Proof of inclusion for a given episode.
+        Allows third-party auditors to verify that `episode_id` is sealed in the ledger
+        without revealing any other episode.
+        """
+        episodes = self.load_all_episodes()
+        target_idx = -1
+        for idx, ep in enumerate(episodes):
+            if ep.get("episode_id") == episode_id:
+                target_idx = idx
+                break
+        if target_idx == -1:
+            return None
+
+        tree = self.get_merkle_tree()
+        leaf_hash = tree.leaf_hashes[target_idx]
+        audit_path = tree.get_audit_proof(target_idx)
+
+        return {
+            "episode_id": episode_id,
+            "leaf_index": target_idx,
+            "total_leaves": len(episodes),
+            "leaf_hash": leaf_hash,
+            "merkle_root": tree.root,
+            "audit_path": audit_path,
+        }
+
+    @staticmethod
+    def verify_merkle_proof(proof_packet: Dict[str, Any]) -> bool:
+        """
+        Verifies a Merkle inclusion proof packet in O(log N) time.
+        Does not require reading or loading the local ledger.
+        """
+        leaf_hash = proof_packet.get("leaf_hash", "")
+        proof = proof_packet.get("audit_path", [])
+        expected_root = proof_packet.get("merkle_root", "")
+        if not leaf_hash or not expected_root:
+            return False
+        return MerkleTree.verify_audit_proof(leaf_hash, proof, expected_root)
+
