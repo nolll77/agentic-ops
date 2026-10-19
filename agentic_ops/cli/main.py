@@ -3283,6 +3283,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <div style="text-align:center;color:var(--muted);padding:40px;">Chargement du catalogue MCP...</div>
       </div>
     </div>
+  </div>
+
   <!-- QUICK NOTICE MODAL -->
   <div class="catalog-modal-overlay" id="quick-notice-modal" onclick="onQuickNoticeOverlayClick(event)">
     <div class="catalog-modal-box qn-modal-box">
@@ -3776,6 +3778,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
 
     initTheme();
     loadLLMStatus();
+    // Préchargement en arrière-plan pour affichage instantané (0 ms de latence au clic)
+    fetchMasData();
+    loadPromptsCatalog();
   </script>
 </body>
 </html>"""
