@@ -2,6 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
+[![Copilote Web Chat](https://img.shields.io/badge/💬%20Chat%20Live-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
@@ -33,10 +34,16 @@ Pour démontrer concrètement cette architecture agnostique en conditions réell
 1. **Instance de Production Serverless Auto-Wake en Ligne (`Render` + `Tailscale` + `cron-job.org`)** :
    - **Statut du Control Plane en direct** : **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Terminal Web SRE Interactif (`/console`)** : **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
-   - **Copilote Web Chat SRE en direct (`/chat`)** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)**
+   - 💬 **Copilote Web Chat SRE en direct (`/chat`)** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Manifeste `MCP` (`Model Context Protocol`) en direct (`/mcp/manifest`)** : **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Guide complet : **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Statut du Tunnel Maillé Tailscale (`100.85.198.81`)** : **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Collecte Pull Lecture Seule en direct (`jakatt/cac_mlops`)** : **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
+
+> [!TIP]
+> ### 💬 Tester le Copilote Web Chat SRE en Direct (`/chat`)
+> **Accès Direct en 1 Clic** : **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Ouvrir le Chat](https://img.shields.io/badge/💬%20Ouvrir%20le%20Chat%20Live-agentic--ops--5ebv.onrender.com%2Fchat-0284c7?style=for-the-badge)](https://agentic-ops-5ebv.onrender.com/chat)  
+> Posez vos questions en langage naturel au copilote cognitif, explorez la matrice des **435 modes de défaillance MLOps**, rejouez les **36 scénarios de simulation d'incidents**, et inspectez la topologie Multi-Agents (MAS) en temps réel à 0 token consommé.
+
 2. **Rapport de Validation Cloud Sandbox (`Docker Agentic Platform`)** :
    Déploiement sur micro-VM isolée et interprétation ligne par ligne des 30 tests unitaires, adversariaux et cryptographiques :  
    **[Consulter le Rapport de Déploiement et Validation Cloud Sandbox (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**
@@ -392,7 +399,7 @@ Pour permettre à `Agentic-Ops` de tourner en continu sur un PaaS gratuit (`Rend
 | :--- | :--- | :--- | :--- |
 | **Route Racine Auto-Wake & Statut des Démons** | **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** | `GET` | **URL Principale d'Auto-Wake**. Visiter cette URL dans un navigateur ou l'appeler via `fetch()` depuis un frontend externe (`Vercel`) réveille automatiquement le conteneur s'il est en veille et renvoie l'état en direct de `Redis` (`127.0.0.1:6379`) et du proxy `Tailscale SOCKS5` (`127.0.0.1:1055`). |
 | **Terminal Web SRE Interactif (`/console`)** | **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** | `GET` | **Remplacement Gratuit du Shell SSH**. Terminal web Dark-Mode permettant d'exécuter en 1 clic les suites `pytest`, `trust_ledger list`, `tailscale status` (avec anonymisation PII automatique), `tailscale netcheck` et `redis-cli PING`. |
-| **Copilote Web Chat SRE en direct (`/chat`)** | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Copilote SRE en Langage Naturel**. Interface conversationnelle Dark-Mode pour interroger la télémétrie, la dérive des modèles, la sécurité du ledger WORM et la topologie MAS via `POST /api/chat`. |
+| 💬 **Copilote Web Chat SRE en direct (`/chat`)** &nbsp; [![Ouvrir](https://img.shields.io/badge/Ouvrir-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Copilote SRE en Langage Naturel**. Interface conversationnelle Dark-Mode pour interroger la télémétrie, la dérive des modèles, la sécurité du ledger WORM et la topologie MAS via `POST /api/chat`. |
 | **Console API Interactive `Swagger UI` (`/docs`)** | **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)** | `GET` | Interface `OpenAPI` interactive (`Try it out` -> `Execute`) pour tester toutes les routes et commandes de diagnostic. |
 | **Exécuteur de Commandes de Diagnostic** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Exécute une commande de diagnostic autorisée dans le conteneur (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Sonde de Vie `Keep-Alive` (`Liveness Probe`)** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Route ultra-légère renvoyant `{"status": "ok"}`. Interrogée toutes les `10 minutes` par `cron-job.org` pour empêcher la mise en veille au bout de `15 minutes` d'inactivité du plan gratuit. |

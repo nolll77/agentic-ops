@@ -48,8 +48,13 @@ if db_path != ":memory:":
 clock = time.time
 repo = ApprovalRepo(db_path, clock)
 
+# FAIL-CLOSED: In production, never fall back to a hardcoded predictable secret.
+# If unset, secrets list is empty so verify_slack() rejects all incoming calls with Reject(500, "secret absent").
+slack_secret = os.environ.get("SLACK_SIGNING_SECRET")
+hitl_secrets = [slack_secret] if slack_secret else []
+
 app.state.hitl = SimpleNamespace(
-    secrets=[os.environ.get("SLACK_SIGNING_SECRET", "dummy_secret_defense_presentation")],
+    secrets=hitl_secrets,
     clock=clock,
     repo=repo,
     orchestrator=SimpleNamespace(
@@ -214,14 +219,27 @@ def tailscale_status():
 
     has_persisted_state = bool(backend_state == "Running" and os.path.exists(ts_state_path))
     self_node = status_data.get("Self") or {}
+    raw_ips = self_node.get("TailscaleIPs", [])
+    masked_ips = [
+        re.sub(r"^(\d+\.\d+)\.\d+\.\d+$", r"\1.***.***", ip)
+        for ip in raw_ips
+    ]
+    safe_auth_url = None
+    if backend_state != "Running" and auth_url:
+        safe_auth_url = (
+            auth_url
+            if os.environ.get("EXPOSE_TAILSCALE_AUTH_URL", "0") == "1"
+            else "[REDACTED_FOR_SECURITY - Consult private Render deployment logs or set TS_AUTHKEY]"
+        )
+
     return {
         "backend_state": backend_state,
-        "auth_url": auth_url or None,
-        "tailscale_ips": self_node.get("TailscaleIPs", []),
+        "auth_url": safe_auth_url,
+        "tailscale_ips": masked_ips,
         "hostname": self_node.get("HostName"),
         "has_persisted_state": has_persisted_state,
         "instructions": (
-            "1. Open auth_url in your browser to authorize this container. "
+            "1. Authorize this node via the link in private Render logs. "
             "2. To persist credentials across container sleep cycles, configure TS_AUTHKEY in Render Environment Variables."
             if backend_state != "Running"
             else "Connected to Tailscale! Machine is active on the mesh network."
@@ -1081,12 +1099,18 @@ def run_diagnostic_command(command: DiagnosticCommand):
     if command == DiagnosticCommand.sandbox_phase_b_slack_spoof:
         from fastapi.testclient import TestClient
 
-        client = TestClient(app)
-        resp = client.post(
-            "/slack/interactive",
-            data={"payload": "fake_tampered_attack"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
+        orig_secrets = list(app.state.hitl.secrets)
+        if not orig_secrets:
+            app.state.hitl.secrets = ["sandbox_ephemeral_test_secret"]
+        try:
+            client = TestClient(app)
+            resp = client.post(
+                "/slack/interactive",
+                data={"payload": "fake_tampered_attack"},
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        finally:
+            app.state.hitl.secrets = orig_secrets
         elapsed_ms = int((time.time() - t0) * 1000)
         lines = [
             "=== Phase B: Live Red-Team Slack Webhook Spoofing Attack ===",

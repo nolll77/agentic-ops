@@ -2,6 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
+[![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 ![Status](https://img.shields.io/badge/Status-Production%20Hardened-success)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
@@ -33,10 +34,16 @@ To demonstrate this platform-agnostic design in real production conditions, `Age
 1. **Live Serverless Auto-Wake Production Instance (`Render` + `Tailscale` + `cron-job.org`)**:
    - **Live Control Plane Status**: **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)**
    - **Live Interactive SRE Web Console (`/console`)**: **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)**
-   - **Live Interactive Web Chat Copilot (`/chat`)**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)**
+   - 💬 **Live Interactive Web Chat Copilot (`/chat`)**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat)
    - **Live `MCP` (`Model Context Protocol`) Manifest (`/mcp/manifest`)**: **[`https://agentic-ops-5ebv.onrender.com/mcp/manifest`](https://agentic-ops-5ebv.onrender.com/mcp/manifest)** *(Full guide: **[`docs/MCP_SERVER_GUIDE.md`](docs/MCP_SERVER_GUIDE.md)**)*
    - **Live Tailscale Mesh Status (`100.85.198.81`)**: **[`https://agentic-ops-5ebv.onrender.com/api/tailscale/status`](https://agentic-ops-5ebv.onrender.com/api/tailscale/status)**
    - **Live Read-Only Pull Snapshot (`jakatt/cac_mlops`)**: **[`https://agentic-ops-5ebv.onrender.com/api/cac/snapshot`](https://agentic-ops-5ebv.onrender.com/api/cac/snapshot)**
+
+> [!TIP]
+> ### 💬 Try the Live SRE Copilot Web Chat (`/chat`)
+> **Direct Access**: **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** &nbsp; [![Open Live Chat](https://img.shields.io/badge/💬%20Open%20Live%20Chat-agentic--ops--5ebv.onrender.com%2Fchat-0284c7?style=for-the-badge)](https://agentic-ops-5ebv.onrender.com/chat)  
+> Ask natural language SRE questions, explore the **435 Failure Modes Taxonomy**, simulate the **36 incident scenarios**, and inspect the Multi-Agent System (MAS) in real-time with zero tokens consumed.
+
 2. **Cloud Sandbox Validation Report (`Docker Agentic Platform`)**:
    End-to-end deployment on an isolated micro-VM and line-by-line technical interpretation of all 30 unit, adversarial, and cryptographic security tests:  
    **[Read the Cloud Sandbox Deployment & Validation Report (`DOCKER_SANDBOX_VALIDATION.md`)](DOCKER_SANDBOX_VALIDATION.md)**
@@ -392,7 +399,7 @@ To allow `Agentic-Ops` to run continuously on a free-tier PaaS (`Render`, `Huggi
 | :--- | :--- | :--- | :--- |
 | **Root Auto-Wake & Daemon Status** | **[`https://agentic-ops-5ebv.onrender.com/`](https://agentic-ops-5ebv.onrender.com/)** | `GET` | **Primary Auto-Wake URL**. Visiting this URL in a browser or calling it via `fetch()` from an external frontend (`Vercel`) wakes the container automatically if asleep and returns the live status of local `Redis` (`127.0.0.1:6379`) and `Tailscale SOCKS5` (`127.0.0.1:1055`). |
 | **Interactive SRE Web Terminal (`/console`)** | **[`https://agentic-ops-5ebv.onrender.com/console`](https://agentic-ops-5ebv.onrender.com/console)** | `GET` | **Zero-Cost SSH Shell Replacement**. Dark-mode browser terminal providing 1-click execution of `pytest` suites, `trust_ledger list`, `tailscale status` (with automatic PII redaction), `tailscale netcheck`, and `redis-cli PING`. |
-| **Interactive SRE Web Chat Copilot (`/chat`)** | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Natural Language SRE Copilot**. Dark-mode conversational UI to query telemetry, models drift, WORM ledger security, and MAS topology via `POST /api/chat`. |
+| 💬 **Interactive SRE Web Chat Copilot (`/chat`)** &nbsp; [![Open](https://img.shields.io/badge/Open-%2Fchat-0284c7?style=flat-square)](https://agentic-ops-5ebv.onrender.com/chat) | **[`https://agentic-ops-5ebv.onrender.com/chat`](https://agentic-ops-5ebv.onrender.com/chat)** | `GET` | **Natural Language SRE Copilot**. Dark-mode conversational UI to query telemetry, models drift, WORM ledger security, and MAS topology via `POST /api/chat`. |
 | **Interactive `Swagger UI` API Console (`/docs`)** | **[`https://agentic-ops-5ebv.onrender.com/docs`](https://agentic-ops-5ebv.onrender.com/docs)** | `GET` | Interactive `OpenAPI` interface (`Try it out` -> `Execute`) for all endpoints and diagnostic commands. |
 | **Whitelisted Diagnostic Runner** | **[`https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector`](https://agentic-ops-5ebv.onrender.com/api/diagnostics/pytest_cac_connector)** | `GET` | Executes a whitelisted diagnostic command inside the container (`pytest_cac_connector`, `pytest_security`, `pytest_all`, `trust_ledger_list`, `tailscale_status`, `tailscale_netcheck`, `tailscale_logs`, `redis_ping`, `system_info`). |
 | **Keep-Alive Liveness Probe** | **[`https://agentic-ops-5ebv.onrender.com/healthz`](https://agentic-ops-5ebv.onrender.com/healthz)** | `GET` | Lightweight health check returning `{"status": "ok"}`. Polled every `10 minutes` by `cron-job.org` to prevent the `15-minute` free-tier inactivity spin-down. |
