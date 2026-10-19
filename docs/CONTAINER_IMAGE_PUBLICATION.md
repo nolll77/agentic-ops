@@ -42,6 +42,15 @@ n'est requis.
 La release PyPI est un workflow distinct; publier une version PyPI ne lance pas
 la publication du conteneur.
 
+## Publication réalisée
+
+Le 2026-10-19, le workflow GitHub Actions a publié
+`ghcr.io/nolll77/agentic-ops:v0.1.3` (run
+[39246908384](https://github.com/nolll77/agentic-ops/actions/runs/39246908384)).
+Le manifeste OCI, lisible sans authentification, référence `linux/amd64` et
+`linux/arm64`; son digest est
+`sha256:05a2f876cbe7d70bc60791e64660ad3ac427bf7a3e9cd39e7cfe6841b08ddc3a`.
+
 ## Publication manuelle locale (facultative)
 
 Pour publier depuis un poste, créer un Personal Access Token GitHub Classic
