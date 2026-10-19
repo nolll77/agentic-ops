@@ -285,7 +285,7 @@ Because `LiteLLMAdapter` supports over 100 model backends under a unified protoc
 #### 2. Line 2: The Sovereign Sanctuary: Ollama + Tailscale Mesh (100% Off-Cloud / 0 EUR)
 To eliminate external SaaS dependencies completely, `Agentic-Ops` includes a native [`OllamaAdapter`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/agentic_ops/adapters/llm_protocol.py#L233-L315) running over the private WireGuard mesh:
 
-- The Render container (`100.85.198.81`) routes outbound requests through its local SOCKS5 proxy `:1055` directly to the Scaleway VPS (`100.117.99.62` `scw-jovial-dubinsky`) where Ollama can be hosted.
+- The Render container (`100.85.***.***`) routes outbound requests through its local SOCKS5 proxy `:1055` directly to the Scaleway VPS (`100.117.99.62` `scw-jovial-dubinsky`) where Ollama can be hosted.
 - **Zero API Keys**: Uses standard HTTP JSON payloads directly against Ollama's `/api/chat` endpoint.
 - **Automatic R1 `<think>` Tag Stripping**: Includes regex sanitization to clean CoT reasoning blocks before Pydantic schema validation.
 - **Zero Ongoing Cost**: Operates entirely on existing compute capacity at $0$ EUR additional cost.
@@ -327,7 +327,7 @@ Under the project's **Radical Honesty** rule, we differentiate what is fully eng
 | Resilience Layer | Code Implementation Status | Live Production Status (Render Free) | Operational Proof & Verification |
 | :--- | :--- | :--- | :--- |
 | **Line 1: Zero-Code Switch (8 Providers)** | **100% Implemented** in `LLMProviderRegistry` | **Live & Operational** (OpenRouter active by default; Gemini and HuggingFace ready upon API key entry) | Validated by `test_all_8_providers_are_registered` and live Python runtime test. |
-| **Line 2: Sovereign Sanctuary (Ollama)** | **100% Implemented** in `OllamaAdapter` | **Network Mesh Ready** (Tailscale tunnel active between Render `100.85.198.81` and VPS `100.117.99.62`), requires starting `ollama serve` on VPS. | Validated by `test_ollama_adapter_mocked_success` and `test_strip_think_tags`. |
+| **Line 2: Sovereign Sanctuary (Ollama)** | **100% Implemented** in `OllamaAdapter` | **Network Mesh Ready** (Tailscale tunnel active between Render `100.85.***.***` and VPS `100.117.99.62`), requires starting `ollama serve` on VPS. | Validated by `test_ollama_adapter_mocked_success` and `test_strip_think_tags`. |
 | **Line 3: Granular Role Decoupling** | **100% Implemented** (`LLM_MODEL_{ROLE}`, `LLM_PROVIDER_{ROLE}`) | **Live & Operational** (Each of the 5 agents resolves its own specialized model independently) | Validated by `test_orchestrator_injects_specialized_roles`. |
 | **Line 4: Deterministic 0-Token Safety Net**| **100% Implemented** in `LLMCircuitBreaker` & `Orchestrator` | **100% Standalone in Prod** (Zero external dependencies; auto-trips on budget or network blackout) | Validated by `test_fallback_chain_all_failing_raises_runtime_error`. |
 

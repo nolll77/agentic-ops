@@ -13,7 +13,7 @@ In classical MLOps architectures, if the supervised server (the target cluster o
 
 In **`Agentic-Ops`**, the Control Plane is designed as an **autonomous, decoupled governance brain**:
 - **Target Platform (The Muscle)**: The Scaleway VPS (`scw-jovial-dubinsky`, `100.117.99.62`) hosting `Loki`, `Prometheus`, `MLflow`, `Prefect`, and `FastAPI`.
-- **Control Plane (The Brain)**: The Render cloud container (`agentic-ops-5ebv.onrender.com`, `100.85.198.81`) hosting the FSM orchestrator, policy engine, WORM trust ledger, LLM agents, and interactive Web Console.
+- **Control Plane (The Brain)**: The Render cloud container (`agentic-ops-5ebv.onrender.com`, `100.85.***.***`) hosting the FSM orchestrator, policy engine, WORM trust ledger, LLM agents, and interactive Web Console.
 
 ```text
 +--------------------------------------------------------------------------------------------------+
