@@ -173,6 +173,9 @@ def test_get_console_ui_contains_mas_inspector():
     assert 'openMasModal()' in html
     assert "Topologie MAS & LLMs Live" in html
     assert "/api/mas/topology" in html
+    assert "fetchAdminApi('/api/diagnostics/' + cmd)" in html
+    assert "Render ne possède pas la variable secrète ADMIN_API_KEY" in html
+    assert "headers.set('x-api-key', key)" in html
 
 
 def test_get_chat_ui_contains_mas_inspector():
@@ -184,4 +187,23 @@ def test_get_chat_ui_contains_mas_inspector():
     assert 'openMasModal()' in html
     assert "Topologie MAS" in html
     assert "/api/mas/topology" in html
+    assert "async function fetchAdminApi(url, options = {})" in html
+    assert "adminApiErrorMessage(res.status, data)" in html
 
+
+def test_protected_diagnostics_fail_closed_without_admin_auth(monkeypatch):
+    """Protected console actions must explain the exact missing Render setting."""
+    for name in (
+        "ADMIN_API_KEY",
+        "ADMIN_API_KEY_PREVIOUS",
+        "ENTRA_TENANT_ID",
+        "ENTRA_API_AUDIENCE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    response = client.get("/api/diagnostics/redis_ping")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "administrative authentication is not configured"
+    }

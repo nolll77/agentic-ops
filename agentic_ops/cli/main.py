@@ -37,7 +37,7 @@ app = FastAPI(
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.4",
+    version="0.1.5",
 )
 
 app.add_middleware(AdminAPIKeyMiddleware)
@@ -2034,7 +2034,7 @@ async function probeAgentModel(agentId) {
   }
   try {
     const url = '/api/llm/probe?role=' + encodeURIComponent(agentId || 'global') + '&timeout=20.0';
-    const res = await fetch(url, { method: 'POST' });
+    const res = await fetchAdminApi(url, { method: 'POST' });
     const rawText = await res.text();
     let data;
     try {
@@ -2042,10 +2042,13 @@ async function probeAgentModel(agentId) {
     } catch (e) {
       data = { status: 'error', error: rawText || 'Réponse vide du serveur (' + res.status + ')' };
     }
-    if (data.status === 'ok') {
+    if (res.ok && data.status === 'ok') {
       alert('✅ Sonde LLM Opérationnelle !\n\n• Agent : ' + (data.role || agentId || 'global') + '\n• Provider : ' + data.provider + '\n• Modèle : ' + data.model + '\n• Réponse : ' + (data.response || 'ok') + '\n• Latence : ' + data.latency_ms + ' ms');
     } else {
-      alert('⚠️ Erreur de Sonde LLM (' + (data.role || agentId || 'global') + ') :\n\n• Modèle ciblé : ' + (data.model || 'inconnu') + '\n• Détail : ' + (data.error || 'Erreur inconnue') + '\n\nVérifiez votre clé OPENROUTER_API_KEY dans les variables d\'environnement.');
+      const detail = res.ok
+        ? (data.error || 'Erreur inconnue. Vérifiez le fournisseur et /api/llm/status.')
+        : adminApiErrorMessage(res.status, data);
+      alert('⚠️ Erreur de Sonde LLM (' + (data.role || agentId || 'global') + ') :\n\n• Modèle ciblé : ' + (data.model || 'inconnu') + '\n• Détail : ' + detail);
     }
   } catch (err) {
     alert('❌ Erreur réseau lors du test de la sonde : ' + err);
@@ -2055,6 +2058,46 @@ async function probeAgentModel(agentId) {
       btn.innerText = origText;
     }
   }
+}
+
+let pageAdminApiKey = '';
+
+async function fetchAdminApi(url, options = {}) {
+  const send = (key) => {
+    const headers = new Headers(options.headers || {});
+    if (key) headers.set('x-api-key', key);
+    return fetch(url, { ...options, headers });
+  };
+
+  let response = await send(pageAdminApiKey);
+  if (response.status !== 401) return response;
+
+  const key = window.prompt(
+    'Cette action est protégée. Saisissez la clé ADMIN_API_KEY configurée par l’administrateur Render. Elle reste en mémoire dans cet onglet.'
+  );
+  if (!key) return response;
+
+  pageAdminApiKey = key.trim();
+  response = await send(pageAdminApiKey);
+  if (response.status === 401) pageAdminApiKey = '';
+  return response;
+}
+
+function adminApiErrorMessage(status, data) {
+  const detail = data && (data.detail || data.error);
+  if (status === 503 && detail === 'administrative authentication is not configured') {
+    return 'Render ne possède pas la variable secrète ADMIN_API_KEY. Ajoutez-en une d’au moins 32 caractères dans les variables d’environnement du service, puis redéployez. Les routes protégées restent désactivées jusque-là.';
+  }
+  if (status === 503 && detail === 'Entra administrative authentication is misconfigured') {
+    return 'La configuration Entra de l’authentification administrative est incomplète. Vérifiez ENTRA_TENANT_ID et ENTRA_API_AUDIENCE dans Render.';
+  }
+  if (status === 503 && detail === 'identity provider temporarily unavailable') {
+    return 'Le fournisseur d’identité est temporairement indisponible. Réessayez plus tard.';
+  }
+  if (status === 401) {
+    return 'Authentification refusée. Vérifiez la clé ADMIN_API_KEY configurée dans Render.';
+  }
+  return detail || ('La requête a échoué (HTTP ' + status + ').');
 }
 
 document.addEventListener('keydown', function(e) {
@@ -2471,10 +2514,20 @@ Cliquez sur n'importe quel bouton ci-dessus :
       status.textContent = 'RUNNING...';
       out.textContent = 'Exécution de la commande dans le conteneur Render, veuillez patienter...';
       try {
-        const res = await fetch('/api/diagnostics/' + cmd);
+        const res = await fetchAdminApi('/api/diagnostics/' + cmd);
         const text = await res.text();
         title.textContent = 'Completed: /api/diagnostics/' + cmd;
         status.textContent = 'HTTP ' + res.status;
+        if (!res.ok) {
+          let data = {};
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            data = { detail: text };
+          }
+          out.textContent = adminApiErrorMessage(res.status, data);
+          return;
+        }
         out.innerHTML = renderColorizedTerminal(text);
         out.scrollTop = 0;
       } catch (err) {
