@@ -15,6 +15,7 @@ from agentic_ops.core.approvals import (
 )
 from agentic_ops.core.contracts import ActionProposal, ActionType
 from agentic_ops.core.entra_scim import SCIMDirectory, scim_database_path, scim_enabled
+from agentic_ops.core.evidence import EvidenceStore
 
 
 def _approver_directory() -> dict[str, set[str]]:
@@ -55,6 +56,7 @@ def build_worker() -> ApprovalExecutionWorker:
     if database_path == ":memory:":
         raise ValueError("APPROVAL_DB_PATH must be persistent for the approval worker")
     repo = ApprovalRepo(database_path, time.time)
+    evidence_store = EvidenceStore(os.environ.get("EVIDENCE_STORE_DIR", "state/episodes"))
     enterprise_directory = None
     if scim_enabled():
         identity_path = scim_database_path()
@@ -81,6 +83,16 @@ def build_worker() -> ApprovalExecutionWorker:
             if group not in current_roles:
                 raise RuntimeError("an approver role is no longer authorized")
 
+        episode, already_resumed = evidence_store.validate_pending_approval(proposal)
+        if already_resumed:
+            resume = episode.get("approval_resume", {})
+            if (
+                resume.get("decision") == "APPROVE"
+                and resume.get("result_status") == "SIMULATED"
+            ):
+                return "SIMULATED"
+            raise RuntimeError("episode has a conflicting approval outcome")
+
         try:
             action_type = ActionType(proposal.action)
         except ValueError as exc:
@@ -96,6 +108,12 @@ def build_worker() -> ApprovalExecutionWorker:
             raise RuntimeError(
                 f"simulation executor did not safely simulate {proposal.action}: {result.status}"
             )
+        evidence_store.append_approval_result(
+            proposal,
+            decision="APPROVE",
+            result_status="SIMULATED",
+            approvals=approvals,
+        )
         logging.getLogger(__name__).info(
             "approved action simulated episode_id=%s action=%s",
             proposal.episode_id,

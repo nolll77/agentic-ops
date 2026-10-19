@@ -10,6 +10,9 @@
 {{- if and .Values.alertWorker.enabled (empty .Values.grafanaWebhook.secretName) }}
 {{- fail "grafanaWebhook.secretName must reference a pre-created Secret containing GRAFANA_WEBHOOK_SECRET when alertWorker is enabled" }}
 {{- end }}
+{{- if and .Values.alertWorker.enabled (not .Values.persistence.enabled) }}
+{{- fail "alertWorker.enabled requires persistence.enabled so the API and worker share their SQLite databases and evidence" }}
+{{- end }}
 {{- if and .Values.approvalWorker.enabled (not .Values.persistence.enabled) }}
 {{- fail "approvalWorker.enabled requires persistence.enabled for the durable approval outbox" }}
 {{- end }}
@@ -208,6 +211,10 @@ spec:
                   fieldPath: metadata.name
             - name: ALERT_OUTBOX_DB_PATH
               value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/alerts.db{{ else }}"state/alerts.db"{{ end }}
+            - name: APPROVAL_DB_PATH
+              value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/approvals.db{{ else }}"/tmp/state/approvals.db"{{ end }}
+            - name: APPROVAL_REQUESTER_ID
+              value: {{ .Values.env.APPROVAL_REQUESTER_ID | default "agentic-ops-alert-worker" | quote }}
             - name: POLICY_QUOTA_DB_PATH
               value: {{ if .Values.persistence.enabled }}{{ .Values.persistence.mountPath }}/policy_quotas.db{{ else }}"state/policy_quotas.sqlite3"{{ end }}
             - name: EVIDENCE_STORE_DIR
@@ -249,6 +256,8 @@ spec:
                   fieldPath: metadata.name
             - name: APPROVAL_DB_PATH
               value: {{ .Values.persistence.mountPath }}/approvals.db
+            - name: EVIDENCE_STORE_DIR
+              value: {{ .Values.persistence.mountPath }}/episodes
             - name: SCIM_ENABLED
               value: {{ .Values.identity.scimEnabled | quote }}
             - name: SCIM_DB_PATH

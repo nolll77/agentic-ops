@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from agentic_ops.core.alert_outbox import AlertOutbox
+from agentic_ops.core.approvals import ApprovalRepo
 from agentic_ops.core.alert_processing import (
     AlertIncidentProcessor,
     AlertClassificationStore,
@@ -116,6 +117,10 @@ def _build_incident_processor(database_path: str, inventory) -> AlertIncidentPro
         ),
     )
     evidence_store = EvidenceStore(evidence_path)
+    approval_database_path = os.environ.get("APPROVAL_DB_PATH", "state/approvals.db")
+    if approval_database_path == ":memory:":
+        raise ValueError("APPROVAL_DB_PATH must be persistent for the alert worker")
+    approval_repo = ApprovalRepo(approval_database_path, time.time)
     observability = _AlertObservability(database_path)
     orchestrator = Orchestrator(
         observability=observability,
@@ -124,11 +129,16 @@ def _build_incident_processor(database_path: str, inventory) -> AlertIncidentPro
         environment=os.environ.get("ENVIRONMENT", "development"),
         llm=_DeterministicDiagnosis(),
         inventory=inventory,
+        approval_repo=approval_repo,
+        approval_requester_id=os.environ.get(
+            "APPROVAL_REQUESTER_ID", "agentic-ops-alert-worker"
+        ),
     )
 
     def process_alert(record, risk_id):
         existing = evidence_store.find_episode_by_signal_id(record.tracking_id)
         if existing is not None:
+            orchestrator.ensure_approval_request(existing)
             return str(existing["episode_id"])
         if not risk_id:
             raise ValueError("classified alert has no risk_id")

@@ -34,7 +34,7 @@ Docker Hub ni PAT n'est requis.
    `helm/agentic-ops/values.yaml` à `vX.Y.Z`. Pousser et vérifier les
    changements sur `main`.
 2. Créer un tag/release GitHub `vX.Y.Z` correspondant exactement à la version
-   du paquet, par exemple `pyproject.toml` version `0.1.5` et tag `v0.1.5`.
+   du paquet, par exemple `pyproject.toml` version `0.1.6` et tag `v0.1.6`.
    La publication de la release démarre la chaîne. Un tag seul sans release
    publiée ne la démarre pas.
 3. Le workflow vérifie que le tag sémantique correspond à `pyproject.toml` et
@@ -47,7 +47,7 @@ Docker Hub ni PAT n'est requis.
    visibilité publique doit être activée explicitement par un propriétaire.
 5. Consulter le workflow et vérifier le tag ainsi que les architectures
    publiées. Pour la candidate en préparation, le chart Helm vise
-   `ghcr.io/nolll77/agentic-ops:v0.1.5`.
+   `ghcr.io/nolll77/agentic-ops:v0.1.6`.
 
 La publication n'est pas une transaction atomique entre deux registres : si
 PyPI réussit et GHCR échoue, PyPI reste publié. Depuis l'exécution GitHub
@@ -86,6 +86,12 @@ des sondes LLM; elle ne provisionne pas les secrets Render. Le workflow a
 réussi pour les trois jobs (tests/build, PyPI, GHCR) dans le
 [run `39256020816`](https://github.com/nolll77/agentic-ops/actions/runs/39256020816).
 
+La candidate `v0.1.6` regroupe l'exercice de sauvegarde/restauration multi-bases
+et preuves, la continuation simulée d'approbation sur l'épisode d'origine,
+les tests élargis de panne et d'inventaire, et le benchmark multi-tailles. La
+release GitHub déclenchera la publication séquencée PyPI puis GHCR; l'issue
+réelle de ces jobs sera ajoutée après exécution.
+
 ## Publication manuelle locale (exception)
 
 Cette procédure contourne la chaîne séquentielle PyPI → GHCR et ne doit être
@@ -98,7 +104,7 @@ mettre dans une commande, un fichier suivi par Git ou un message.
 docker login ghcr.io -u nolll77
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  --tag ghcr.io/nolll77/agentic-ops:v0.1.5 \
+  --tag ghcr.io/nolll77/agentic-ops:v0.1.6 \
   --push .
 ```
 

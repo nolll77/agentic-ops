@@ -2,7 +2,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
-[![GHCR](https://img.shields.io/badge/GHCR-v0.1.5-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
+[![GHCR](https://img.shields.io/badge/GHCR-v0.1.6-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![Copilote Web Chat](https://img.shields.io/badge/💬%20Chat%20Live-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-213%20Validés-brightgreen)](tests/)
@@ -19,11 +19,12 @@ Contrairement aux frameworks privilégiant l'autonomie des agents, il explore de
 
 ## Version actuelle et statut de qualification
 
-- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; l'image publique multiarchitecture actuellement publiée est [`ghcr.io/nolll77/agentic-ops:v0.1.5`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; la candidate de release vise [`ghcr.io/nolll77/agentic-ops:v0.1.6`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
 - Un essai local Docker/kind a vérifié le parcours webhook d'alerte → worker → épisode d'investigation simulé, puis la conservation de l'état après redémarrage du pod avec le même PVC. Cela ne valide ni une restauration de sauvegarde ni la perte du volume/cluster.
 - À la publication d'une release GitHub, l'automatisation teste et vérifie les versions, publie le paquet Python sur PyPI, puis l'image AMD64/ARM64 correspondante sur GHCR. Voir [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
 - La release `v0.1.4` ajoute un inventaire local fail-closed, les commandes SQLite de sauvegarde/restauration et un benchmark synthétique de charge/reprise. Ces outils ne qualifient pas à eux seuls un déploiement de production.
 - La release `v0.1.5` améliore l'authentification de l'interface console et des sondes LLM protégées. Render doit toujours avoir une variable secrète `ADMIN_API_KEY` configurée pour autoriser ces actions.
+- La release `v0.1.6` ajoute les sauvegardes multi-bases avec preuves vérifiées, la reprise d'approbation en simulation sur l'épisode d'origine, des tests élargis de pannes/inventaire et un benchmark multi-tailles. Elle ne qualifie pas une restauration hors machine et n'active aucune action réelle.
 - La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration depuis une sauvegarde de la cible, les objectifs de reprise, la synchronisation de l'inventaire local avec une source réelle et l'exécution réelle des actions restent à qualifier.
 - Le mapping détaillé entre le dépôt et une vraie cible (valeurs à fournir, responsables, preuves et gates de promotion) est documenté dans [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Le diagnostic Console/Chat Render et le prérequis exact `ADMIN_API_KEY` sont documentés dans [`docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md`](docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md).
@@ -377,9 +378,9 @@ Lorsque l'ingénieur SRE clique sur **`[ APPROVE ]`** dans Slack, les serveurs d
 
 #### 6. Exécution du Dernier Kilomètre et Scellement `WORM` (`Trust Ledger`)
 Une fois l'approbation validée :
-- `orchestrator.resume_episode()` réhydrate l'épisode et passe la FSM à l'état `EXECUTING`.
-- Le module déterministe `Executor` exécute l'action autorisée (et uniquement celle-ci).
-- L'intégralité de l'épisode (le snapshot initial de la plateforme cible, la proposition de l'IA, l'identité de l'approbateur Slack, l'horodatage et le résultat d'exécution) est sérialisée en JSON canonique, chaînée au bloc précédent (`previous_hash` `SHA-256`) et signée en `HMAC-SHA512` dans le registre immuable **`Trust Ledger` (`evidence.py`)**.
+- Le worker durable revalide les rôles actuels et n'appelle l'exécuteur qu'en mode simulation.
+- Il ajoute le résultat simulé `EXECUTING → RESOLVED` à la chaîne de preuves signée de l'épisode d'origine. Une reprise après append de la preuve mais avant acquittement de la file est idempotente.
+- Ce parcours n'active aucune action réelle sur l'infrastructure. La livraison Slack, l'identité de production, la réconciliation des refus et la reprise au niveau du déploiement restent à qualifier; voir [`docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md`](docs/INDUSTRIAL_IMPLEMENTATION_STATUS.md).
 
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'actorBkg': '#0f172a', 'actorBorder': '#38bdf8', 'actorTextColor': '#f8fafc', 'actorLineColor': '#64748b', 'signalColor': '#e2e8f0', 'signalTextColor': '#f8fafc', 'noteBkgColor': '#1e1b4b', 'noteBorderColor': '#c084fc', 'noteTextColor': '#f3e8ff', 'activationBkgColor': '#334155', 'activationBorderColor': '#38bdf8'}}}%%
@@ -599,7 +600,7 @@ Ce dépôt a subi un audit architectural offensif (*Red-Teaming*) exhaustif et a
 
 ### 1. Gouvernance E2E & Model Registry
 - **Contrôle Strict (Incontournable)** : L'`Orchestrator` gère le cycle de vie MLOps. Si l'action `PROMOTE_MODEL` est classée `REQUIRE_APPROVAL`, l'orchestrateur s'arrête physiquement. **Aucune action n'est soumise à l'exécuteur**.
-- **Réhydratation Asynchrone (HITL)** : L'approbation humaine déclenche `orchestrator.resume_episode()` qui valide cryptographiquement l'approbateur, reprend la machine d'état et transmet l'ordre à l'Exécuteur.
+- **Réhydratation Asynchrone (HITL)** : Le worker durable revalide les rôles actuels, simule l'action approuvée et ajoute le résultat à l'épisode d'origine. Cela n'active pas l'exécution réelle; la réconciliation des refus et la qualification du déploiement restent à faire.
 - **Model Registry Gatekeeping** : L'Exécuteur pilote directement le Registre de Modèle. Ce dernier refuse silencieusement les promotions non valides (ex: F1 < 0.85 ou schéma incompatible), forçant l'Exécuteur à renvoyer un statut `FAILED` détectable (et non un faux `SIMULATED`). Seule une version de modèle peut être `ACTIVE` à la fois.
 
 ### 2. Traçabilité Cryptographique (Trust Ledger WORM & Arbre de Merkle RFC 6962)
@@ -692,12 +693,11 @@ sequenceDiagram
     end
     
     rect rgb(6, 78, 59)
-    Note over Human, Exec: Phase 3 : Validation & Exécution (Écriture - Zone Émeraude)
+    Note over Human, Exec: Phase 3 : Validation & Simulation uniquement
     Human-->>FSM: Clic sur [ APPROUVER ] (Signé HMAC-SHA256)
-    FSM->>Exec: Ordre formel & déterministe
-    Exec->>Platform: Requête mutante (POST /deploy /retrain)
-    Platform-->>Exec: Succès de l'opération
-    Exec-->>FSM: Scellage dans le Trust Ledger WORM
+    FSM->>Exec: Simulation déterministe (aucun effet externe)
+    Exec-->>FSM: Résultat SIMULATED
+    FSM->>FSM: Append du résultat à l'épisode d'origine (Trust Ledger)
     end
 ```
 

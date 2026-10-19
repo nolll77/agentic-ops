@@ -2,6 +2,7 @@ import json
 import sqlite3
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -81,6 +82,53 @@ def test_worker_retries_then_marks_terminal_failure(tmp_path):
     assert not worker.run_once()
 
 
+def test_worker_idle_before_claim_has_no_effect_and_later_claims_persisted_alert(tmp_path):
+    outbox = AlertOutbox(str(tmp_path / "outbox.db"))
+    handled = []
+    worker = AlertIngestionWorker(
+        outbox,
+        "idle-worker",
+        lambda alert: handled.append(alert.tracking_id),
+    )
+
+    assert not worker.run_once()
+    assert handled == []
+    records, _ = outbox.enqueue(
+        [{"status": "firing", "labels": {"alertname": "arrived-later"}}]
+    )
+    assert worker.run_once()
+    assert handled == [records[0].tracking_id]
+    assert outbox.get(records[0].tracking_id).status == "COMPLETED"
+
+
+def test_worker_retries_after_interruption_during_handler(tmp_path):
+    now = [100.0]
+    outbox = AlertOutbox(str(tmp_path / "outbox.db"), clock=lambda: now[0])
+    records, _ = outbox.enqueue(
+        [{"status": "firing", "labels": {"alertname": "interrupted"}}]
+    )
+    calls = []
+
+    def handler(alert):
+        calls.append(alert.payload["labels"]["alertname"])
+        if len(calls) == 1:
+            raise RuntimeError("worker interrupted during processing")
+
+    worker = AlertIngestionWorker(
+        outbox, "retry-worker", handler, lease_seconds=5, max_attempts=3
+    )
+    assert worker.run_once()
+    assert outbox.get(records[0].tracking_id).status == "RETRY"
+    assert calls == ["interrupted"]
+
+    now[0] += 2
+    assert worker.run_once()
+    completed = outbox.get(records[0].tracking_id)
+    assert completed.status == "COMPLETED"
+    assert completed.attempts == 2
+    assert calls == ["interrupted", "interrupted"]
+
+
 def test_alert_worker_recovers_after_process_crash_with_active_lease(tmp_path):
     database = str(tmp_path / "outbox.db")
     now = [100.0]
@@ -119,42 +167,54 @@ os._exit(23)
     assert recovered.attempts == 2
 
 
-def test_alert_worker_recovers_after_process_crash_with_active_lease(tmp_path):
+def test_worker_crash_after_handler_before_ack_requires_idempotency_key(tmp_path):
     database = str(tmp_path / "outbox.db")
-    now = [100.0]
-    outbox = AlertOutbox(database, clock=lambda: now[0])
-    records, _ = outbox.enqueue([{"status": "firing", "labels": {"alertname": "crash"}}])
+    effects = tmp_path / "effects.log"
+    outbox = AlertOutbox(database)
+    records, _ = outbox.enqueue(
+        [{"status": "firing", "labels": {"alertname": "after-effect"}}]
+    )
+    tracking_id = records[0].tracking_id
     crash_code = """
 import os
 import sys
 from agentic_ops.core.alert_outbox import AlertOutbox
-record = AlertOutbox(sys.argv[1], clock=lambda: 100.0).claim("crashed-worker", lease_seconds=1)
+record = AlertOutbox(sys.argv[1]).claim("crashed-after-effect", lease_seconds=1)
 assert record is not None
-os._exit(23)
+with open(sys.argv[2], "a", encoding="utf-8") as output:
+    output.write(record.tracking_id + "\\n")
+    output.flush()
+    os.fsync(output.fileno())
+os._exit(24)
 """
     crashed = subprocess.run(
-        [sys.executable, "-c", crash_code, database],
+        [sys.executable, "-c", crash_code, database, str(effects)],
         capture_output=True,
         text=True,
         timeout=10,
         check=False,
     )
-    assert crashed.returncode == 23
-    assert outbox.get(records[0].tracking_id).status == "PROCESSING"
+    assert crashed.returncode == 24
+    assert effects.read_text(encoding="utf-8").splitlines() == [tracking_id]
+    assert outbox.get(tracking_id).status == "PROCESSING"
 
-    now[0] += 2
-    handled = []
+    time.sleep(1.1)
+
+    def idempotent_handler(alert):
+        seen = set(effects.read_text(encoding="utf-8").splitlines())
+        key = alert.tracking_id
+        if key not in seen:
+            with effects.open("a", encoding="utf-8") as output:
+                output.write(key + "\n")
+
     recovery = AlertIngestionWorker(
-        outbox,
-        "recovery-worker",
-        lambda alert: handled.append(alert.tracking_id),
-        lease_seconds=1,
+        outbox, "recovery-after-effect", idempotent_handler, lease_seconds=1
     )
     assert recovery.run_once()
-    assert handled == [records[0].tracking_id]
-    recovered = outbox.get(records[0].tracking_id)
+    recovered = outbox.get(tracking_id)
     assert recovered.status == "COMPLETED"
     assert recovered.attempts == 2
+    assert effects.read_text(encoding="utf-8").splitlines() == [tracking_id]
 
 
 def test_alert_triage_worker_persists_classification_and_unknown_review(tmp_path):

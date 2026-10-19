@@ -57,7 +57,8 @@ Ce document formalise l'architecture de distribution publique du package `agenti
 
 * **Nom Officiel** : `agentic-ops`
 * **URL du Registre** : [https://pypi.org/project/agentic-ops/](https://pypi.org/project/agentic-ops/)
-* **Version Active (release publiée)** : `0.1.5`
+* **Dernière version publiée** : `0.1.5`
+* **Prochaine release préparée** : `0.1.6` (publication déclenchée par GitHub Release)
 * **Licence** : `MIT`
 * **Régistre Simple (Index)** : `https://pypi.org/simple/agentic-ops/`
 * **Compatibilité Runtimes** : `Python >= 3.10` (testé et validé unitairement sur 3.10, 3.11, 3.12).
@@ -153,11 +154,11 @@ Pour incrémenter et publier une nouvelle version d'`agentic-ops` (ex: `0.1.1` o
    ```toml
    [project]
    name = "agentic-ops"
-   version = "0.1.5"
+   version = "0.1.6"
    ```
    Aligner également `version` et `appVersion` dans `helm/agentic-ops/Chart.yaml`
-   sur `0.1.5`, et `image.tag` dans `helm/agentic-ops/values.yaml` sur
-   `v0.1.5`. Le workflow refuse la release si une valeur diverge.
+   sur `0.1.6`, et `image.tag` dans `helm/agentic-ops/values.yaml` sur
+   `v0.1.6`. Le workflow refuse la release si une valeur diverge.
 
 2. **Mettre à jour le fichier de verrouillage** :
    ```bash
@@ -173,18 +174,18 @@ Pour incrémenter et publier une nouvelle version d'`agentic-ops` (ex: `0.1.1` o
 4. **Commiter et pousser vers GitHub** :
    ```bash
    git add pyproject.toml uv.lock helm/agentic-ops/Chart.yaml helm/agentic-ops/values.yaml
-   git commit -m "chore(release): bump version to 0.1.5"
+   git commit -m "chore(release): bump version to 0.1.6"
    git push origin main
    ```
 
-5. **Créer et publier une Release GitHub** avec le tag `v0.1.5`. Un tag seul
+5. **Créer et publier une Release GitHub** avec le tag `v0.1.6`. Un tag seul
    ne déclenche pas le workflow. La version doit correspondre exactement à
    `pyproject.toml`.
 
 6. **Vérification post-déploiement** :
    ```bash
    python3 -m pip index versions agentic-ops
-   docker buildx imagetools inspect ghcr.io/nolll77/agentic-ops:v0.1.5
+   docker buildx imagetools inspect ghcr.io/nolll77/agentic-ops:v0.1.6
    ```
 
 Si PyPI réussit mais GHCR échoue, la publication PyPI ne peut pas être annulée.

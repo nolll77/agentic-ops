@@ -6,19 +6,20 @@ Evidence Store systématiques. Zéro import de provider concret.
 
 from __future__ import annotations
 import hashlib
+import logging
+from typing import Any
+
 from agentic_ops.adapters.llm_protocol import LLMPort
-
-
 from agentic_ops.core.approvals import FrozenProposal
-from agentic_ops.core.policy_engine import evaluate, EvalContext, ProposalView
-
 from agentic_ops.core.contracts import (
+    Diagnosis,
     DecisionEnum,
     ActionProposal,
     ActionType,
     Decision,
     Episode,
     ExecutionResult,
+    Finding,
 )
 from agentic_ops.core.evidence import EvidenceStore
 from agentic_ops.core.idempotency import compute_semantic_fingerprint, acquire_idempotency_lock
@@ -29,14 +30,6 @@ from agentic_ops.core import executor as executor_module
 from agentic_ops.adapters.protocol import ObservabilityAdapter
 from agentic_ops.core.circuit_breaker import global_circuit_breaker
 from agentic_ops.core.telemetry import CIRCUIT_BREAKER_STATUS
-
-from agentic_ops.core.approvals import FrozenProposal
-from agentic_ops.core.policy_engine import evaluate, EvalContext, ProposalView
-
-from agentic_ops.core.contracts import Diagnosis, Finding
-from typing import Any
-
-
 
 class Orchestrator:
     def __init__(
@@ -49,6 +42,9 @@ class Orchestrator:
         llm: LLMPort = None,
         llm_by_role: dict[str, LLMPort] | None = None,
         inventory: Any = None,
+        approval_repo: Any = None,
+        approval_requester_id: str | None = None,
+        approval_ttl_seconds: int = 86_400,
     ):
         self.observability = observability
         self.policy_engine = policy_engine
@@ -56,6 +52,9 @@ class Orchestrator:
         self.environment = environment
         self.registry = registry
         self.inventory = inventory
+        self.approval_repo = approval_repo
+        self.approval_requester_id = approval_requester_id
+        self.approval_ttl_seconds = approval_ttl_seconds
         self.llm = llm
         self.llm_by_role = llm_by_role or {}
 
@@ -106,6 +105,7 @@ class Orchestrator:
         else:
             existing = self.evidence_store.find_episode_by_signal_id(signal_id)
             if existing is not None:
+                self.ensure_approval_request(existing)
                 return Episode.model_validate(existing)
             lock_owner = idempotency_key
             fingerprint = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
@@ -237,7 +237,43 @@ class Orchestrator:
 
         path = self.evidence_store.save(episode.model_dump(mode='json', exclude_none=True))
         print(f"[EVIDENCE] {path}")
+        if human_approval_required:
+            self.request_approval(episode, decision, action)
         return episode
+
+    def ensure_approval_request(self, episode_data: dict[str, Any]) -> str | None:
+        episode = Episode.model_validate(episode_data)
+        if not episode.human_approval_required:
+            return None
+        return self.request_approval(
+            episode,
+            episode.policy_evaluation,
+            episode.action_proposal,
+        )
+
+    def request_approval(self, ep: Episode, verdict: Decision, proposal: ActionProposal) -> str | None:
+        if verdict.decision is not DecisionEnum.REQUIRE_APPROVAL:
+            raise ValueError("approval request requires a REQUIRE_APPROVAL decision")
+        if self.approval_repo is None:
+            logging.getLogger(__name__).warning(
+                "episode %s awaits approval but no durable approval repository is configured",
+                ep.episode_id,
+            )
+            return None
+        if not self.approval_requester_id or not self.approval_requester_id.strip():
+            raise RuntimeError("approval_requester_id is required for durable approvals")
+        if not ep.policy_version:
+            raise RuntimeError("episode policy version is required for durable approvals")
+        frozen = FrozenProposal(
+            episode_id=ep.episode_id,
+            action=proposal.type.value,
+            target=proposal.target,
+            risk_id=proposal.risk_id,
+            policy_version=ep.policy_version,
+            required=max(1, verdict.approvals_required),
+            requester_id=self.approval_requester_id.strip(),
+        )
+        return self.approval_repo.open_request(frozen, ttl_s=self.approval_ttl_seconds)
 
     def resume_episode(self, episode_dict: dict) -> Episode:
         # Rehydrate objects
@@ -280,18 +316,27 @@ class Orchestrator:
         self.evidence_store.save(episode_dict)
         return Episode(**episode_dict)
 
-    def request_approval(self, ep, verdict, proposal):
-        # STUB for PR4
-        pass
-
     def current_proposal_hash(self, ep) -> str:
-        # STUB for PR4
-        pass
+        if isinstance(ep, FrozenProposal):
+            return ep.digest()
+        if not isinstance(ep, dict):
+            raise TypeError("current proposal must be a frozen proposal or mapping")
+        data = dict(ep)
+        data["required_groups"] = tuple(data.get("required_groups", ()))
+        return FrozenProposal(**data).digest()
 
-    def resume_from_claim(self, p: FrozenProposal):
-        # STUB for PR4
-        pass
+    def resume_from_claim(
+        self,
+        p: FrozenProposal,
+        *,
+        approvals: list[tuple[str, str]] | None = None,
+    ):
+        return self.evidence_store.append_approval_result(
+            p,
+            decision="APPROVE",
+            result_status="SIMULATED",
+            approvals=approvals or [],
+        )
 
     def close_episode(self, episode_id, reason):
-        # STUB for PR4
-        pass
+        raise NotImplementedError("denial outcome reconciliation is not implemented")
