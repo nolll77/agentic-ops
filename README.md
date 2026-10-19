@@ -1,12 +1,10 @@
 # Agentic-Ops Control Plane
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/agentic-ops)](https://pypi.org/project/agentic-ops/)
 [![GHCR](https://img.shields.io/badge/GHCR-v0.1.6-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
-[![Live Web Chat](https://img.shields.io/badge/💬%20Live%20Chat-%2Fchat-0284c7?style=flat&logo=wechat&logoColor=white)](https://agentic-ops-5ebv.onrender.com/chat)
+[![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 [![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-213%20Passed-brightgreen)](tests/)
-![Status](https://img.shields.io/badge/Status-Production%20Qualification%20Required-yellow)
+[![Tests](https://img.shields.io/badge/Tests-231%20Passed-brightgreen)](tests/)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
