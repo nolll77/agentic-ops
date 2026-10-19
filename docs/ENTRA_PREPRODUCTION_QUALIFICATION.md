@@ -97,13 +97,15 @@ l'image reste construite localement.
 
 ### 3. Publier l'image et déployer le chart
 
-La publication d'image est séparée de PyPI. Ce dépôt utilise GHCR sous
+La publication d'image est coordonnée avec PyPI. Ce dépôt utilise GHCR sous
 `ghcr.io/nolll77/agentic-ops`; le workflow
-`.github/workflows/publish-container.yml` publie les images amd64 et arm64 à
-la publication d'une release, ou via **Actions > Publish container image >
-Run workflow** avec un tag fourni. Pour le premier push, vérifier également
-que le package GHCR est rendu public si les téléchargements anonymes sont
-souhaités. Le tag attendu par ce chart est
+`.github/workflows/publish.yml` publie d'abord le paquet PyPI, puis, si cette
+étape réussit, construit et publie les images amd64 et arm64 depuis le même
+tag de release. Vérifier que la version de `pyproject.toml` correspond au tag
+`vX.Y.Z`. Le workflow utilise le checkout de la source pour Docker : il ne
+télécharge pas le paquet publié sur PyPI. Pour le premier push, vérifier
+également que le package GHCR est rendu public si les téléchargements
+anonymes sont souhaités. Le tag attendu par ce chart est
 `ghcr.io/nolll77/agentic-ops:v0.1.3`.
 
 - [ ] Vérifier dans le registre que le tag `v0.1.3` existe, relever le digest

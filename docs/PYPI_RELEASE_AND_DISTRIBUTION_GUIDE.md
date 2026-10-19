@@ -133,45 +133,15 @@ Historiquement, la publication de packages Python reposait sur des tokens d'API 
 
 ## 4. Spécification du Workflow CI/CD (`publish.yml`)
 
-Le workflow de déploiement continu est défini dans [`.github/workflows/publish.yml`](file:///Users/nolll/Documents/car_acc/agentic-ops-core/.github/workflows/publish.yml) :
-
-```yaml
-name: Publish to PyPI
-
-on:
-  release:
-    types: [published]
-  workflow_dispatch:
-
-jobs:
-  pypi-publish:
-    name: Upload release to PyPI
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/agentic-ops
-    permissions:
-      id-token: write  # Requis pour l'échange de jeton OIDC avec PyPI
-      contents: read
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Build package
-      run: |
-        uv build
-
-    - name: Publish package distributions to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-```
+Le workflow [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)
+est déclenché par la publication d'une release GitHub. Il vérifie que le tag
+`vX.Y.Z`, `project.version`, `version`/`appVersion` du chart et `image.tag`
+correspondent. Il exécute la suite de tests, construit le paquet une seule
+fois, le publie sur PyPI via OIDC, puis publie l'image multi-architecture sur
+GHCR à partir du même commit/tag. Le job GHCR dépend de la réussite PyPI. Le
+Dockerfile installe le code du checkout (`uv pip install -e .`) : il ne
+télécharge pas le paquet PyPI pour fabriquer l'image. La publication
+d'artefacts ne déploie pas à elle seule le cluster Kubernetes.
 
 ---
 
@@ -179,12 +149,15 @@ jobs:
 
 Pour incrémenter et publier une nouvelle version d'`agentic-ops` (ex: `0.1.1` ou `0.2.0`) :
 
-1. **Incrémenter la version dans `pyproject.toml`** :
+1. **Incrémenter la version dans `pyproject.toml` et le chart Helm** :
    ```toml
    [project]
    name = "agentic-ops"
-   version = "0.1.1"
+   version = "0.1.4"
    ```
+   Aligner également `version` et `appVersion` dans `helm/agentic-ops/Chart.yaml`
+   sur `0.1.4`, et `image.tag` dans `helm/agentic-ops/values.yaml` sur
+   `v0.1.4`. Le workflow refuse la release si une valeur diverge.
 
 2. **Mettre à jour le fichier de verrouillage** :
    ```bash
@@ -199,22 +172,24 @@ Pour incrémenter et publier une nouvelle version d'`agentic-ops` (ex: `0.1.1` o
 
 4. **Commiter et pousser vers GitHub** :
    ```bash
-   git add pyproject.toml uv.lock
-   git commit -m "chore(release): bump version to 0.1.1"
+   git add pyproject.toml uv.lock helm/agentic-ops/Chart.yaml helm/agentic-ops/values.yaml
+   git commit -m "chore(release): bump version to 0.1.4"
    git push origin main
    ```
 
-5. **Déclencher le déploiement PyPI** :
-   * **Option 1 (Automatique via GitHub Release)** : Créer une Release GitHub avec le tag `v0.1.1`.
-   * **Option 2 (Manuelle via CLI)** :
-     ```bash
-     gh workflow run publish.yml
-     ```
+5. **Créer et publier une Release GitHub** avec le tag `v0.1.4`. Un tag seul
+   ne déclenche pas le workflow. La version doit correspondre exactement à
+   `pyproject.toml`.
 
 6. **Vérification post-déploiement** :
    ```bash
    python3 -m pip index versions agentic-ops
+   docker buildx imagetools inspect ghcr.io/nolll77/agentic-ops:v0.1.1
    ```
+
+Si PyPI réussit mais GHCR échoue, la publication PyPI ne peut pas être annulée.
+Utiliser **Re-run failed jobs** dans GitHub Actions pour retenter GHCR sans
+republier la version déjà présente sur PyPI.
 
 ---
 
@@ -224,5 +199,5 @@ Pour incrémenter et publier une nouvelle version d'`agentic-ops` (ex: `0.1.1` o
 | :--- | :--- | :--- | :--- |
 | **Authentification PyPI** | OIDC Trusted Publishing certifié sans secret | **100% Conforme** (OIDC GitHub/PyPI actif) | Élimine les failles de fuite de tokens statiques dans GitHub Secrets. |
 | **Génération de Build** | Compilation conteneurisée hermétique multi-arch | `uv build` local et runner standard `ubuntu-latest` | Suffisant et ultra-véloce car le package est un wheel pur Python (`none-any`). |
-| **Déclenchement Release** | Tag sémantique `vX.Y.Z` déclenchant une pipeline CD | Supporte à la fois `release: [published]` et `workflow_dispatch` | Permet le déploiement sur événement officiel ou à la demande par le mainteneur. |
+| **Déclenchement Release** | Tag sémantique `vX.Y.Z` déclenchant une pipeline CD | Release GitHub publiée avec tag correspondant à `project.version` | Un même commit source publie d'abord PyPI, puis GHCR si PyPI réussit. |
 | **Vérification d'Index** | Monitoring temps réel des miroirs mondiaux pip | Test direct HTTP sur l'API JSON PyPI et commande `pip index` | Retour d'état immédiat sous 30 secondes sans complexité superflue. |
