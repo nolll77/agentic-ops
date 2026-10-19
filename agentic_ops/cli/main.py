@@ -3111,6 +3111,22 @@ CHAT_HTML = r"""<!DOCTYPE html>
       flex-direction: column;
       gap: 16px;
     }
+    .qn-intro-banner {
+      background: #0d1527;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e2e8f0;
+    }
+    .qn-intro-banner code {
+      background: #020617;
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
     .qn-section-card {
       background: #0b1329;
       border: 1px solid #1e293b;
@@ -3185,6 +3201,15 @@ CHAT_HTML = r"""<!DOCTYPE html>
       font-size: 12px;
       line-height: 1.5;
       color: #d1fae5;
+    }
+    html[data-theme="light"] .qn-intro-banner {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+    }
+    html[data-theme="light"] .qn-intro-banner code {
+      background: #ede9fe;
+      color: #6b21a8;
     }
     html[data-theme="light"] .qn-section-card {
       background: #ffffff;
@@ -3471,14 +3496,14 @@ CHAT_HTML = r"""<!DOCTYPE html>
       </div>
 
       <div class="qn-content-scroll">
-        <div class="qn-tip-box">
-          <strong>⚡ Mode Dégradé Zero-Token Inclus :</strong> Même sans clé OpenRouter ou en cas de coupure réseau, la base SRE locale répond instantanément aux concepts clés (Circuit Breaker, WORM Ledger, dérive Evidently, Quorum Slack, CAC Pull passif).
+        <div class="qn-intro-banner">
+          Dans l'interface de <strong>Chat Copilot SRE</strong> (<code>/chat</code>), vous interagissez avec l'assistant cognitif d'orchestration MLOps. Vous pouvez lui poser des questions en langage naturel dans <strong>5 grands domaines d'investigation</strong> :
         </div>
 
         <!-- 1. Diagnostic Alertes -->
         <div class="qn-section-card">
           <div class="qn-section-title">📉 1. Diagnostic d'Alertes & Dérives MLOps (Evidently, MLflow, Pandera)</div>
-          <div class="qn-section-desc">Soumettez des symptômes de dégradation de données ou de modèle pour comprendre les flux d'arbitrage.</div>
+          <div class="qn-section-desc">Vous pouvez lui soumettre des symptômes de dégradation ou lui demander d'expliquer comment le système réagit :</div>
           <ul class="qn-samples-list">
             <li class="qn-sample-item">
               <span class="qn-sample-text">"On a une dérive détectée par Evidently sur la distribution des vitesses, quelle est la procédure ?"</span>
@@ -3502,7 +3527,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <!-- 2. Politiques de Gouvernance -->
         <div class="qn-section-card">
           <div class="qn-section-title">⚖️ 2. Politiques de Gouvernance & Veto Déterministe (PolicyEngine & Zero-Trust)</div>
-          <div class="qn-section-desc">Interrogez les règles d'intégrité, le principe Fail-Closed et les bornes de blast radius.</div>
+          <div class="qn-section-desc">Vous pouvez le questionner sur les règles de sécurité, le principe Fail-Closed et l'arbitrage agent/politique :</div>
           <ul class="qn-samples-list">
             <li class="qn-sample-item">
               <span class="qn-sample-text">"Si un agent LLM est sûr à 99% qu'il faut redémarrer un pod, pourquoi le PolicyEngine peut-il mettre son veto ?"</span>
@@ -3526,7 +3551,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
         <!-- 3. Résilience FinOps -->
         <div class="qn-section-card">
           <div class="qn-section-title">⚡ 3. Résilience FinOps & Sécurité du Cluster (Circuit Breaker & WORM Ledger)</div>
-          <div class="qn-section-desc">Vérifiez la protection contre l'épuisement de quotas et la non-répudiation forensique.</div>
+          <div class="qn-section-desc">Vous pouvez interroger les mécanismes d'intégrité et de protection contre les pannes d'API :</div>
           <ul class="qn-samples-list">
             <li class="qn-sample-item">
               <span class="qn-sample-text">"Comment fonctionne le Circuit Breaker en cas d'erreur 429 ou de tempête de requêtes sur OpenRouter ?"</span>
@@ -3549,8 +3574,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
 
         <!-- 4. Télémétrie Distante -->
         <div class="qn-section-card">
-          <div class="qn-section-title">🛡️ 4. Télémétrie Distante & Architecture Réseau (Tailscale & jakatt/cac_mlops)</div>
-          <div class="qn-section-desc">Comprenez l'ingestion passive des 5 endpoints de télémétrie du cluster distant.</div>
+          <div class="qn-section-title">🛡️ 4. Télémétrie Distante & Architecture Réseau (Tailscale & kakatt/cac_mlops)</div>
+          <div class="qn-section-desc">Vous pouvez l'interroger sur l'ingestion passive des métriques du VPS distant :</div>
           <ul class="qn-samples-list">
             <li class="qn-sample-item">
               <span class="qn-sample-text">"Pourquoi le pull CAC vers 100.117.99.62 est-il strictement en lecture seule ?"</span>
@@ -3569,12 +3594,23 @@ CHAT_HTML = r"""<!DOCTYPE html>
 
         <!-- 5. 20 Prompts Cognitifs MCP -->
         <div class="qn-section-card">
-          <div class="qn-section-title">📚 5. Les 20 Prompts Cognitifs MCP Prêts à l'Emploi</div>
-          <div class="qn-section-desc">Accédez directement au catalogue complet des audits structurés prêts à l'emploi.</div>
-          <div style="display:flex;gap:10px;align-items:center;margin-top:6px;">
-            <button class="qn-sample-btn" onclick="toggleQuickNotice(false); toggleCatalog(true);" style="background:#059669;color:#fff;border-color:#10b981;font-weight:600;padding:6px 14px;">📚 Ouvrir le Catalogue des 20 Prompts MCP</button>
-            <span style="font-size:11.5px;color:var(--muted);">Également accessible via le bouton sous le chat.</span>
+          <div class="qn-section-title">📚 5. Les 20 Prompts Cognitifs MCP Prêts à l'Emploi (Bouton 📚 20 Prompts MCP)</div>
+          <div class="qn-section-desc">En cliquant sur le bouton <strong>📚 20 Prompts MCP</strong> juste au-dessus du champ de saisie du chat, vous avez accès à un catalogue de requêtes guidées réparties en 5 catégories :</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;margin:6px 0 10px 0;">
+            • <strong>I. Console Live (4)</strong> : Audits Sandbox Grand Slam, cgroup v2, simulation d'usurpation Slack HMAC.<br>
+            • <strong>II. PolicyEngine (4)</strong> : Simulation de veto sur capteur corrompu, mitigation du flap réseau, blast radius.<br>
+            • <strong>III. WORM Ledger (4)</strong> : Traçabilité SHA-256 / HMAC-512, détection de falsification forensique.<br>
+            • <strong>IV. Taxonomie 435 (4)</strong> : Évaluation des modes de défaillance MLOps documentés dans la matrice.<br>
+            • <strong>V. SecOps & Jury (4)</strong> : Quorum multi-agents, garde-fous d'injection de prompt et sandboxing d'exécution.
           </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="qn-sample-btn" onclick="toggleQuickNotice(false); toggleCatalog(true);" style="background:#059669;color:#fff;border-color:#10b981;font-weight:600;padding:6px 14px;">📚 Ouvrir le Catalogue des 20 Prompts MCP</button>
+          </div>
+        </div>
+
+        <!-- TIP EN BAS -->
+        <div class="qn-tip-box">
+          <strong>💡 Mode Dégradé "Zero-Token" Intégré :</strong> Même si la clé <code>OPENROUTER_API_KEY</code> venait à expirer ou si OpenRouter était indisponible, le chat intègre une base déterministe SRE locale. Poser des questions sur le <em>Circuit Breaker</em>, le <em>WORM Ledger</em>, la <em>dérive Evidently</em>, le <em>pull CAC passif</em> ou le <em>Slack HITL</em> vous fournira instantanément une réponse technique complète sans consommer le moindre token externe !
         </div>
       </div>
     </div>
