@@ -267,7 +267,23 @@ Under **EU AI Act Article 12** and **Article 14**, regulated AI systems must pro
    - The $\mathcal{O}(\log N)$ sibling path: only **3 sibling hashes** for 8 episodes (or **14 hashes for 10,000 episodes**).
 3. The auditor computes 3 hashes, verifies that they arrive at the known Merkle Root, and obtains mathematical certainty that `EP-0001` was part of the sealed ledger—**without ever seeing or receiving a single byte from EP-0002 through EP-0008**.
 
-### B. Audit Proof Generation, Cryptographic Payload Binding & Verification Algorithm
+### B. The Epistemic Boundary of Merkle Proofs: Root Authenticity vs. Leaf Membership
+
+An essential cryptographic distinction must be drawn to avoid qualifying Merkle proofs as "inviolable in absolute terms":
+> **A Merkle audit proof mathematically establishes leaf membership relative to a specific root $R$. It does NOT, on its own, prove that $R$ itself is the genuine, authentic production root.**
+
+If an adversary generates an alternate ledger from scratch, they can compute a valid alternate root $R'$ and emit mathematically valid inclusion proofs against $R'$. Consequently:
+- **What the Merkle proof guarantees**: Given an authentic root $R$, it is computationally infeasible under SHA-256 for an operator to forge a proof for an unsealed or tampered episode, or to substitute an incident without detection.
+- **What requires an external trust anchor**: The authenticity and non-repudiation of the root $R$ itself.
+
+To anchor root authenticity in enterprise production environments (specified in **Chantier 4** of [`PRODUCTION_READINESS_ROADMAP_AND_GAPS.md`](PRODUCTION_READINESS_ROADMAP_AND_GAPS.md)), three complementary external mechanisms are required:
+1. **RFC 3161 Timestamping Authority (TSA)**: Periodically submitting epoch roots to an accredited external timestamping service, producing cryptographically sealed `.tsr` tokens proving that $R$ existed at a certified legal timestamp.
+2. **Public Transparency Logs (Sigstore Rekor / Certificate Transparency)**: Appending epoch roots to a public, append-only, verifiable transparency log to prevent split-view attacks.
+3. **Asymmetric HSM Signatures (AWS/GCP Cloud KMS)**: Signing $R$ with an asymmetric key pair (Ed25519 or ECDSA P-256) residing inside a FIPS 140-2 Level 3 Hardware Security Module.
+
+In the current demonstration and sandbox release, the root is anchored to the reference episodes baked directly into the immutable Docker image layer, while external cloud anchoring constitutes the next planned production milestone.
+
+### C. Audit Proof Generation, Cryptographic Payload Binding & Verification Algorithm
 
 #### 1. Dual Complexity Profile & Zero-Slice Memory Optimization ($\mathcal{O}(N)$ vs. $\mathcal{O}(\log N)$)
 A strict architectural distinction must be maintained:
