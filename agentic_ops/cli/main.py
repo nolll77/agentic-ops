@@ -17,7 +17,18 @@ from agentic_ops.adapters.cac_pull_collector import CacPullCollector
 
 app = FastAPI(
     title="Agentic-Ops Control Plane",
-    description="Deterministic SRE & MLOps Governance Control Plane (Auto-Wake Ready + Web Console + MCP Gateway)",
+    description=(
+        "**Agentic-Ops** is an enterprise-grade, deterministic **MLOps & SRE Governance Control Plane**.\n\n"
+        "### Key Capabilities & Endpoints:\n"
+        "- **🧠 Multi-Agent System (MAS)**: 5 Specialized Cognitive LLM brains (Remediation, Infra, Data, Model, Chat) "
+        "and 6 Zero-Token Deterministic Actuators (`/api/mas/topology`, `/api/llm/status`, `/api/llm/probe`).\n"
+        "- **🎯 Deterministic In-Memory RAG Engine**: Zero-token & zero-cost grounding over the 435 MLOps Failure Modes "
+        "and 36 SRE Simulation Scenarios (`/chat`, `/api/chat`).\n"
+        "- **📚 20 Governed MCP Prompts & Tools**: Model Context Protocol JSON-RPC gateway for IDEs and autonomous agents (`/mcp`, `/api/prompts`).\n"
+        "- **🛡️ Remote Tailscale Telemetry**: Passive read-only ingestion across 5 observability targets on `jakatt/cac_mlops` (`/api/cac/snapshot`).\n"
+        "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Merkle-chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
+        "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
+    ),
     version="0.1.2",
 )
 
@@ -1142,6 +1153,14 @@ def run_diagnostic_command(command: DiagnosticCommand):
         return _redact_pii(header + body.strip() + footer) + guide_block
     except Exception as exc:
         return f"Error executing {command.value}: {exc}\n" + guide_block
+    finally:
+        import gc
+        gc.collect()
+        try:
+            import ctypes
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass
 
 
 MAS_INSPECTOR_CSS = r"""
@@ -3261,6 +3280,26 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-color: #8b5cf6;
       color: #4c1d95;
     }
+    html[data-theme="light"] .btn-rag-taxo {
+      background: #e0f2fe !important;
+      border-color: #7dd3fc !important;
+      color: #0369a1 !important;
+    }
+    html[data-theme="light"] .btn-rag-taxo:hover {
+      background: #bae6fd !important;
+      border-color: #38bdf8 !important;
+      color: #0c4a6e !important;
+    }
+    html[data-theme="light"] .btn-rag-scen {
+      background: #fae8ff !important;
+      border-color: #f0abfc !important;
+      color: #86198f !important;
+    }
+    html[data-theme="light"] .btn-rag-scen:hover {
+      background: #f5d0fe !important;
+      border-color: #e879f9 !important;
+      color: #701a75 !important;
+    }
     html[data-theme="light"] .msg-wrapper.user .msg-bubble {
       background: #f1f5f9;
       border-color: #cbd5e1;
@@ -3406,6 +3445,14 @@ CHAT_HTML = r"""<!DOCTYPE html>
       <button class="btn-catalog-toggle" onclick="toggleQuickNotice(true)" style="background:#1e1b4b;border-color:#6366f1;color:#e0e7ff;" title="Afficher le guide rapide des 5 domaines d'investigation">
         <span>💡</span>
         <span>Guide & Sujets</span>
+      </button>
+      <button class="btn-catalog-toggle btn-rag-taxo" onclick="toggleRagTaxonomy(true)" style="background:#0c4a6e;border-color:#0284c7;color:#e0f2fe;" title="Interroger la Taxonomie des 435 Failure Modes MLOps via RAG Déterministe">
+        <span>🎯</span>
+        <span>RAG Taxonomie (435)</span>
+      </button>
+      <button class="btn-catalog-toggle btn-rag-scen" onclick="toggleRagScenarios(true)" style="background:#701a75;border-color:#c026d3;color:#fae8ff;" title="Interroger le Registre des 36 Scénarios SRE via RAG Déterministe">
+        <span>🎬</span>
+        <span>RAG Scénarios (36)</span>
       </button>
       <button class="btn-theme-toggle" id="chat-theme-btn" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
         <span id="chat-theme-icon">☀️</span>
@@ -3616,6 +3663,194 @@ CHAT_HTML = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- RAG TAXONOMY MODAL -->
+  <div class="catalog-modal-overlay" id="rag-taxonomy-modal" onclick="onRagTaxonomyOverlayClick(event)">
+    <div class="catalog-modal-box qn-modal-box">
+      <div class="catalog-modal-header">
+        <div class="catalog-modal-title">
+          <h2>🎯 RAG Déterministe — Taxonomie des 435 Failure Modes MLOps</h2>
+          <p>Indexation in-memory sub-milliseconde (&lt; 1ms) sans token externe depuis <code>docs/mlops_failure_modes_taxonomy.md</code>.</p>
+        </div>
+        <button class="btn-close-modal" onclick="toggleRagTaxonomy(false)" title="Fermer (Échap)">✕</button>
+      </div>
+
+      <div class="qn-content-scroll">
+        <div class="qn-intro-banner">
+          Le <strong>RAG Déterministe Taxonomie</strong> permet d'interroger la matrice exhaustive des <strong>435 modes de défaillance MLOps</strong> structurée selon nos <strong>10 dimensions système</strong>. En mode connecté, il injecte les fiches de vérité dans le prompt du LLM pour éliminer 100% des hallucinations. En mode dégradé hors-ligne, il génère instantanément la fiche technique Markdown complète (RPN, SLO, Détection, Réponse Auto, Script Chaos) à <strong>0 token consommé</strong>.
+        </div>
+
+        <!-- 1. Recherche Directe par ID -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">🔍 1. Recherche Directe par Identifiant de Risque (DATA, INFRA, SERV, SEC...)</div>
+          <div class="qn-section-desc">Interrogez une panne spécifique pour obtenir son score RPN calibré, son SLO et son plan de mitigation :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Parle-moi de la panne DATA-042 (dérive progressive des données)"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quels sont les détails et le score RPN du risque SEC-054 (Cécité sécuritaire sans SIEM) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelle est la détection et la réponse automatique prévue pour DATA-005 (train-serve skew) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quel est l'impact SLO et le script chaos de la panne INFRA-001 (PostgreSQL indisponible) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. Filtrage par Criticité & RPN -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">📊 2. Filtrage par Criticité & Score RPN (Risk Priority Number / 125)</div>
+          <div class="qn-section-desc">Identifiez les risques prioritaires calculés selon la formule <code>RPN = Gravité × Probabilité × Détectabilité</code> :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelles sont les pannes critiques avec un RPN >= 80 ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelles sont les pannes de la dimension Infrastructure ayant une gravité maximale de 5 ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Donne-moi le top 10 des pannes les plus critiques de la dimension Données."</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 3. Recherche par Composant MLOps -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">⚙️ 3. Recherche par Composant Technologique ou Mot-Clé</div>
+          <div class="qn-section-desc">Explorez les modes de défaillance associés à un outil ou une couche d'infrastructure spécifique :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quels sont les failure modes liés à Feast ou au Feature Store ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quelles sont les pannes liées à la mémoire (OOM, memory leak, saturation RAM) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quels failure modes touchent le registre de modèles MLflow et la promotion d'artefacts ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment se répartissent les 435 pannes à travers les 10 dimensions MLOps ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- TIP EN BAS -->
+        <div class="qn-tip-box">
+          <strong>🎯 Déterminisme & Zéro Hallucination :</strong> Ce RAG n'invente rien. Chaque réponse est extraite en mémoire vive directement depuis la matrice des 435 risques. En mode dégradé, la latence est inférieure à <strong>1 milliseconde</strong> et ne consomme aucun quota d'API !
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RAG SCENARIOS MODAL -->
+  <div class="catalog-modal-overlay" id="rag-scenarios-modal" onclick="onRagScenariosOverlayClick(event)">
+    <div class="catalog-modal-box qn-modal-box">
+      <div class="catalog-modal-header">
+        <div class="catalog-modal-title">
+          <h2>🎬 RAG Déterministe — Registre des 36 Scénarios de Simulation SRE</h2>
+          <p>Exploration des simulations dynamiques d'incidents, timelines T0..T4 et contrats YAML depuis <code>docs/mlops_simulation_scenarios_registry.md</code>.</p>
+        </div>
+        <button class="btn-close-modal" onclick="toggleRagScenarios(false)" title="Fermer (Échap)">✕</button>
+      </div>
+
+      <div class="qn-content-scroll">
+        <div class="qn-intro-banner">
+          Le <strong>RAG Déterministe Scénarios</strong> vous connecte au <strong>Registre des 36 Scénarios de Simulation Industriels (Incident War Room)</strong>. Chaque scénario formalise une propagation d'incident pas-à-pas (Timeline $T_0 \dots T_4$), son analyse de cause racine (Amazon-style 5-Whys RCA), la topologie du garde-fou en ASCII Art et les contrats de test déclaratifs sous <code>tests/scenarios/data/</code>.
+        </div>
+
+        <!-- 1. Scénarios Fondamentaux de Propagation -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">🌊 1. Scénarios Fondamentaux de Propagation & Cascades Silencieuses</div>
+          <div class="qn-section-desc">Analysez comment une micro-défaillance en amont contamine l'ensemble de la chaîne de décision ML :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Explique le Scénario 1 : La Cascade Silencieuse (SIM-001)"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment se déroule le Scénario 2 : Simulation Multi-Fail Simultanée (Catastrophe MLOps) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"En quoi consiste le Scénario 3 : Incident War Room Réel dans Slack ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quel est le fonctionnement du Scénario 4 : SRE Runbook Automatique ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 2. Scénarios d'Attaques Adversariales -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">🛡️ 2. Scénarios d'Attaques Adversariales & Pièges de Gouvernance (SC-101..103)</div>
+          <div class="qn-section-desc">Découvrez comment le Control Plane déjoue les attaques et les hallucinations de l'IA (0 action interdite exécutée) :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Explique le scénario adversarial SC-101 (Prompt Injection dans les logs applicatifs)"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment le PolicyEngine bloque-t-il l'injection shell dans la cible sur SC-102 ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"C'est quoi l'attaque par empoisonnement de runbook RAG dans le scénario SC-103 ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Pourquoi l'agent LLM échoue-t-il à lancer un réentraînement toxique dans le scénario SC-001 ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 3. Chaos Engineering & RCA Avancée -->
+        <div class="qn-section-card">
+          <div class="qn-section-title">🧪 3. Chaos Engineering, Post-Mortems & Méthodes RCA Amazon</div>
+          <div class="qn-section-desc">Interrogez les cadres d'expérimentation de chaos et de résilience organisationnelle :</div>
+          <ul class="qn-samples-list">
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Résume le Scénario 9 : Amazon-Style 5 Whys Deep RCA"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"En quoi consiste le Scénario 18 : AI Adversary (Chaos Engineering piloté par LLM) ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Comment fonctionne le Scénario 16 : Self-Healing System Design sans intervention humaine ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+            <li class="qn-sample-item">
+              <span class="qn-sample-text">"Quel est l'objectif du Scénario 36 : Orchestrateur de Simulation Global et Certification Finale ?"</span>
+              <button class="qn-sample-btn" onclick="applyQuickNoticePrompt(this)">Tester ↵</button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- TIP EN BAS -->
+        <div class="qn-tip-box">
+          <strong>🎬 Rejouer les Scénarios en Direct :</strong> Ces scénarios ne sont pas seulement théoriques : vous pouvez exécuter en direct les tests de validation de la Phase D sur la <a href="/console" target="_blank" style="color:#059669;font-weight:600;">🖥️ Console Web</a> pour constater que <code>forbidden_proposed = 6</code> mais <code>forbidden_executed = 0</code> !
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     let conversationHistory = [];
     let allPrompts = [];
@@ -3652,6 +3887,40 @@ CHAT_HTML = r"""<!DOCTYPE html>
       }
     }
 
+    function toggleRagTaxonomy(open) {
+      const modal = document.getElementById('rag-taxonomy-modal');
+      if (modal) {
+        if (open) {
+          modal.classList.add('open');
+        } else {
+          modal.classList.remove('open');
+        }
+      }
+    }
+
+    function onRagTaxonomyOverlayClick(e) {
+      if (e.target.id === 'rag-taxonomy-modal') {
+        toggleRagTaxonomy(false);
+      }
+    }
+
+    function toggleRagScenarios(open) {
+      const modal = document.getElementById('rag-scenarios-modal');
+      if (modal) {
+        if (open) {
+          modal.classList.add('open');
+        } else {
+          modal.classList.remove('open');
+        }
+      }
+    }
+
+    function onRagScenariosOverlayClick(e) {
+      if (e.target.id === 'rag-scenarios-modal') {
+        toggleRagScenarios(false);
+      }
+    }
+
     function applyQuickNoticePrompt(btn) {
       const parent = btn.closest('.qn-sample-item');
       if (!parent) return;
@@ -3663,6 +3932,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
         text = text.slice(1, -1);
       }
       toggleQuickNotice(false);
+      toggleRagTaxonomy(false);
+      toggleRagScenarios(false);
       sendPrompt(text);
     }
 
@@ -3676,6 +3947,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
       if (e.key === 'Escape') {
         toggleCatalog(false);
         toggleQuickNotice(false);
+        toggleRagTaxonomy(false);
+        toggleRagScenarios(false);
       }
     });
 

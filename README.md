@@ -97,6 +97,22 @@ To prove that these two documents directly shaped the `Agentic-Ops` codebase rat
 > **Scope Transparency (Research Ontology vs. Industrialized Core)**:
 > The **435 failure modes** in [`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md) and **36 War-Room scenarios** in [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) constitute the exhaustive research ontology of MLOps failure dynamics. From this broad cartography, the **critical core** (`DATA-042`, `ML-014`, `INFRA-001`, and the 7 operational/adversarial scenarios mapped above) was extracted and industrialized into the runtime `FSM` and `PolicyEngine` to prove end-to-end deterministic containment (`forbidden_executed = 0`).
 
+### In-Memory Deterministic RAG Engine (Zero-Token & Zero-Cost Grounding for Chat & MCP)
+
+To enable live interrogation of this foundational knowledge base without incurring external API costs, vector DB overhead, or token hallucinations, `Agentic-Ops` includes a **Deterministic In-Memory RAG Engine** (`agentic_ops/core/deterministic_rag.py`):
+
+1. **Sub-4ms In-Memory Cold Start (Zero External Vector DB)**:
+   - Indexes all **435 Failure Modes** from [`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md) (IDs `DATA-042`, `INFRA-001`, `SEC-054`, calibrated `RPN` scores, `SLO` impacts, automated mitigations, and chaos scripts).
+   - Indexes all **36 Simulation Scenarios** from [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) (`SIM-001` to `SIM-036`, timelines $T_0 \dots T_4$, Amazon 5-Whys RCA, and ASCII topologies).
+   - Indexes all **Declarative YAML contracts** from [`tests/scenarios/data/`](tests/scenarios/data/) (`SC-001` to `SC-005`, adversarial `SC-101` to `SC-103`).
+2. **Dual-Mode Execution (Online LLM Grounding + Offline Zero-Token Fallback)**:
+   - **Online Mode (`OpenRouter` / `Gemma 4` / `Nemotron`)**: When a user queries `/chat` about an incident ID, RPN score, or scenario name, the engine extracts the exact authoritative Markdown card and injects it into the LLM system prompt as `[CONTEXTE DE RÉFÉRENCE MLOPS]`, guaranteeing 0 hallucination.
+   - **Offline Degraded Mode (Zero-Token / 0 EUR)**: If cloud LLMs are unreachable or `OPENROUTER_API_KEY` is omitted, the engine returns the complete technical card directly in **under 1 millisecond** with 0 tokens consumed.
+3. **Interactive Web Chat Exploration (`/chat`)**:
+   - Two dedicated header modals: **`🎯 RAG Taxonomie (435)`** and **`🎬 RAG Scénarios (36)`** provide one-click interactive test queries directly within the browser interface.
+4. **Governed MCP Tool Access**:
+   - External IDEs and AI clients (Cursor, Claude Desktop) can query this engine via MCP tools `search_failure_taxonomy(query, max_results)` and `get_scenario_blueprint(scenario_id)`.
+
 ---
 
 ## Global Architecture (Hexagonal)

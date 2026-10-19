@@ -97,6 +97,22 @@ Pour prouver formellement que ces deux documents ont engendré le code de la cou
 > **Transparence sur le Périmètre (Ontologie de Recherche vs Noyau Industrialisé)** :
 > Les **435 failure modes** de [`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md) et les **36 scénarios War-Room** de [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) constituent le corpus de recherche exhaustif modélisant la pathologie des systèmes MLOps. À partir de cette cartographie globale, le **noyau critique** (`DATA-042`, `ML-014`, `INFRA-001` et les 7 scénarios opérationnels et adversariaux mappés ci-dessus) a été extrait et industrialisé dans le code de la `FSM` et du `PolicyEngine` pour prouver de bout en bout le confinement déterministe (`forbidden_executed = 0`).
 
+### Moteur de RAG Déterministe In-Memory (Grounding Zero-Token & Zéro-Coût pour le Chat et MCP)
+
+Pour permettre l'interrogation interactive en direct de ce corpus de connaissances sans encourir de frais d'API externes, de lourdeur de base vectorielle ou d'hallucinations probabilistes, `Agentic-Ops` intègre un **Moteur de RAG Déterministe In-Memory** (`agentic_ops/core/deterministic_rag.py`) :
+
+1. **Démarrage à Froid In-Memory en Moins de 4 ms (Zéro Vector DB Externe)** :
+   - Indexe l'intégralité des **435 Failure Modes** de [`docs/mlops_failure_modes_taxonomy.md`](docs/mlops_failure_modes_taxonomy.md) (identifiants `DATA-042`, `INFRA-001`, `SEC-054`, scores `RPN` calibrés, impacts `SLO`, mitigations automatiques et scripts de chaos).
+   - Indexe l'intégralité des **36 Scénarios de Simulation SRE** de [`docs/mlops_simulation_scenarios_registry.md`](docs/mlops_simulation_scenarios_registry.md) (`SIM-001` à `SIM-036`, timelines $T_0 \dots T_4$, analyses RCA Amazon 5-Whys et topologies ASCII).
+   - Indexe les **Contrats Déclaratifs YAML** sous [`tests/scenarios/data/`](tests/scenarios/data/) (`SC-001` à `SC-005`, adversariaux `SC-101` à `SC-103`).
+2. **Exécution en Double Mode (Grounding LLM en Ligne + Mode Dégradé Hors-Ligne)** :
+   - **Mode Connecté (`OpenRouter` / `Gemma 4` / `Nemotron`)** : Lorsqu'un utilisateur interroge le chat (`/chat`) sur un code d'incident, un seuil RPN ou un nom de scénario, le moteur extrait la fiche Markdown officielle et l'injecte dans le prompt système du LLM (`[CONTEXTE DE RÉFÉRENCE MLOPS]`), garantissant 0 hallucination.
+   - **Mode Dégradé Zero-Token (0 EUR)** : Si l'API cloud est indisponible ou si `OPENROUTER_API_KEY` est omise, le moteur retourne directement la fiche technique formatée en **moins d'une milliseconde** à 0 token consommé.
+3. **Exploration Directe dans le Chat Web (`/chat`)** :
+   - Deux boutons dédiés dans l'en-tête : **`🎯 RAG Taxonomie (435)`** et **`🎬 RAG Scénarios (36)`** ouvrent des fenêtres interactives permettant de tester en un clic des requêtes d'investigation prédéfinies.
+4. **Accès Outils MCP Gouvernés** :
+   - Les IDEs et clients IA externes (Cursor, Claude Desktop) interrogent ce moteur via les outils MCP gouvernés `search_failure_taxonomy(query, max_results)` et `get_scenario_blueprint(scenario_id)`.
+
 ---
 
 ## Architecture Globale (Hexagonale)

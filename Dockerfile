@@ -3,9 +3,11 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-# Invariants de sécurité système
+# Invariants de sécurité système et optimisation mémoire cgroup (Render 512 MiB limit)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONMALLOC=malloc \
+    MALLOC_TRIM_THRESHOLD_=65536 \
     ENVIRONMENT=production \
     PORT=8001 \
     APPROVAL_DB_PATH=/tmp/state/approvals.db \
