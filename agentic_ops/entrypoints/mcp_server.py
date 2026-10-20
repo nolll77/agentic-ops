@@ -59,7 +59,7 @@ SCENARIOS_DATA_DIR = REPO_ROOT / "tests" / "scenarios" / "data"
 MCP_PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "agentic-ops-mcp-gateway",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "description": (
         "Deterministic MLOps & SRE Governance Control Plane MCP Server "
         "(8 Tools, 5 Knowledge Resources, 20 Starter Prompts)"
