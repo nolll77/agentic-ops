@@ -350,6 +350,23 @@ return curr == proof_packet["merkle_root"]
 
 ---
 
+### 6.B Zero-I/O Offline Verification & MCP Exposure (`verify_ledger_inclusion`)
+
+To satisfy **EU AI Act Article 12 (Automatic Record-Keeping)** and enable third-party auditor scrutiny without disclosing the entire ledger or granting local filesystem access, `Agentic-Ops` exposes the verification engine over the Model Context Protocol ([`agentic_ops/entrypoints/mcp_server.py`](../agentic_ops/entrypoints/mcp_server.py)):
+
+1. **Local Lookup Mode (`episode_id`)**:
+   Queries `EvidenceStore.get_merkle_proof(episode_id)` from the local state, verifies it in $\mathcal{O}(\log N)$, and returns the proof packet with its hashing complexity.
+2. **Offline Zero-I/O Verification Mode (`proof_packet` + optional `expected_root`)**:
+   Accepts a standalone JSON proof packet and verifies it strictly in memory without opening or instantiating `EvidenceStore` (guaranteed by `test_offline_verification_zero_disk_io` with disk-blocking mocks).
+3. **Dual Trust Semantics (`expected_root`)**:
+   - `proof_valid_for_declared_root`: `true` certifies mathematical consistency across the $\mathcal{O}(\log N)$ sibling path.
+   - `root_authenticated`: `true` confirms that an external trusted root was supplied by the auditor.
+   - `verified_against_trusted_root`: `true` confirms that the declared root matches the trusted reference, issuing `VALID_AUTHENTICATED_INCLUSION_PROOF`. Divergence yields `ROOT_MISMATCH`.
+4. **Key-Presence Mutual Exclusivity**:
+   Enforces key existence verification: supplying both `episode_id` and `proof_packet` triggers `MUTUALLY_EXCLUSIVE_PARAMS` (`isError: True`), preventing bypass via empty or falsy strings.
+
+---
+
 ## 7. Interactive CLI Commands & Verbatim Live Demonstration
 
 The Trust Ledger CLI ([`agentic_ops/cli/trust_ledger.py`](../agentic_ops/cli/trust_ledger.py)) provides complete forensic inspection:

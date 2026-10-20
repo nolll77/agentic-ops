@@ -273,6 +273,66 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   }' | jq -r '.result.content[0].text'
 ```
 
+#### 5. Inspect Trust Ledger Cryptographic State (`tools/call -> get_ledger_status`)
+```bash
+curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "get_ledger_status",
+      "arguments": {}
+    }
+  }' | jq -r '.result.content[0].text'
+```
+
+#### 6. Verify Merkle Proof of Inclusion (`tools/call -> verify_ledger_inclusion`)
+
+##### A. Local Ledger Lookup Mode (`episode_id`)
+```bash
+curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 5,
+    "method": "tools/call",
+    "params": {
+      "name": "verify_ledger_inclusion",
+      "arguments": {
+        "episode_id": "EP-20261021-001"
+      }
+    }
+  }' | jq -r '.result.content[0].text'
+```
+
+##### B. Offline Zero-I/O Verification Mode (`proof_packet` + optional `expected_root`)
+```bash
+curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 6,
+    "method": "tools/call",
+    "params": {
+      "name": "verify_ledger_inclusion",
+      "arguments": {
+        "proof_packet": {
+          "episode_id": "EP-20261021-001",
+          "leaf_index": 0,
+          "total_leaves": 4,
+          "leaf_hash": "a1b2c3d4e5f6...64hex",
+          "canonical_payload": "{\"episode_id\":\"EP-20261021-001\",...}",
+          "merkle_root": "f6e5d4c3b2a1...64hex",
+          "audit_path": [{"position": "right", "hash": "..."}]
+        },
+        "expected_root": "f6e5d4c3b2a1...64hex"
+      }
+    }
+  }' | jq -r '.result.content[0].text'
+```
+
 ---
 
 ### Option G — Glama Web UI (`glama.ai`) & Hosted Cloud MCP Clients
@@ -333,6 +393,18 @@ When querying the MCP server through an AI assistant (Claude Desktop, Cursor, Gl
 *Use to inspect daemon vitals, memory cgroups, or test execution proofs.*
 - **Operator Prompt**: *"Execute the sandbox vitals phase A diagnostic to inspect daemon memory, socket connectivity (Redis, Tailscale), and the active policy version."*
 - **What the LLM Does**: Calls `read_console_diagnostic(command='sandbox_phase_a_vitals')` and returns verified test results with pedagogical guidance.
+
+### 6. Merkle Inclusion Proof & Independent Root Authentication (`verify_ledger_inclusion` & `get_ledger_status`)
+*Use for independent compliance verification (EU AI Act Article 12/17), zero-knowledge inclusion proofs, and cryptographic trust anchoring.*
+- **Operator Prompt**: *"Verify whether incident episode EP-20261021-001 is sealed in the WORM Trust Ledger, extract its O(log N) Merkle audit proof path, and authenticate the declared root against our trusted anchor."*
+- **What the LLM Does**:
+  1. Calls `get_ledger_status` to retrieve the current active RFC 6962 binary Merkle root, linear chain validity, and total sealed episode count.
+  2. Calls `verify_ledger_inclusion(episode_id='...')` for local ledger lookup, OR calls `verify_ledger_inclusion(proof_packet={...}, expected_root='...')` for offline zero-I/O verification.
+- **Architectural & Security Invariants Enforced**:
+  - **Key-Presence Mutual Exclusivity**: Rejects simultaneous presence of `episode_id` and `proof_packet` with `MUTUALLY_EXCLUSIVE_PARAMS` (`isError: True`), even if falsy strings or empty objects are supplied.
+  - **Zero-I/O Offline Mode**: Verifies standalone proof packets strictly in memory without opening or instantiating `EvidenceStore`.
+  - **Strict Cryptographic Binding**: Binds `episode_id` $\rightarrow$ `canonical_payload` $\rightarrow$ `leaf_hash` via `SHA-256(0x00 || payload)` before traversing the $\mathcal{O}(\log N)$ sibling path. Any payload tampering produces `TAMPERING_OR_INVALID_PROOF`.
+  - **Dual Trust Semantics**: Explicitly separates mathematical consistency (`proof_valid_for_declared_root`) from external root certification (`root_authenticated` and `verified_against_trusted_root`). If `expected_root` differs, returns `ROOT_MISMATCH`. If valid and trusted, returns `VALID_AUTHENTICATED_INCLUSION_PROOF`.
 
 ---
 

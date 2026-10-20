@@ -52,6 +52,32 @@
 
 ---
 
+### ❓ Question 4 : Le piège de l'Injection Indirecte de Prompt & de Commande (Scénarios `SC-101` & `SC-102`)
+**Le Jury :**  
+*« Si un attaquant injecte dans vos métriques ou vos logs d'erreurs une directive hostile (ex: prompt injection dans SC-101) ou forge un paramètre d'action avec un point-virgule comme `"baac-api; kubectl delete ns prod"` (SC-102), comment votre système empêche-t-il l'exécuteur de détruire le cluster ? »*
+
+**💡 Votre réponse chirurgicale :**  
+> « Nous neutralisons cette menace par une **Défense en Profondeur à 4 Niveaux Hermétiques** :
+> 1. **Veto Amont Déterministe (`policy.py`)** : Le `PolicyEngine` intercepte l'intention de l'agent avant toute exécution. Dans `SC-101` et `SC-102`, la politique oppose un veto immédiat (`DecisionEnum.DENY`, transition vers `FSM='DENIED'`, métrique de non-régression `forbidden_executed=0`).
+> 2. **Confinement Air-Gap (`executor_gateway.py`)** : Le mode simulation (`SIMULATION_MODE = True`) est actif par défaut avec un parseur fail-closed (`is_simulation_mode()`). Toute mutation live requiert 5 variables d'acquittement explicites et l'absence du fichier `KILL_SWITCH_FILE`.
+> 3. **Bannissement Absolu du Shell (Architecture Zéro-Shell)** : L'exécuteur n'invoque **jamais** de sous-processus `subprocess.run(shell=True)` ni `sh -c`. Les actions Kubernetes sont traduites en objets typés via le SDK officiel `kubernetes.client.AppsV1Api.patch_namespaced_deployment`. Un point-virgule `;` ou un caractère de substitution `$()` n'a aucun interpréteur pour l'évaluer : il est inerte.
+> 4. **Validation de Cible Structurée en Mémoire Amont (`parse_and_validate_k8s_target`)** : L'exécuteur valide la cible contre `ALLOWED_K8S_DEPLOYMENTS = frozenset({"fastapi-model-demo", "worker-demo"})` et vérifie la stricte concordance avec `DEMO_NAMESPACE` (`demo-sandbox`) en mémoire $\mathcal{O}(1)$ **avant** tout chargement de `kubeconfig` ou appel réseau. Les trailing slashes, chemins d'évasion de namespace et caractères spéciaux sont rejetés instantanément avec le statut `FAILED`. »
+
+---
+
+### ❓ Question 5 : Le piège de la Preuve d'Inclusion Merkle & de la Racine de Confiance (Outil MCP)
+**Le Jury :**  
+*« Votre serveur MCP expose `verify_ledger_inclusion` pour auditer le Trust Ledger. Mais comment prouvez-vous qu'une vérification hors-ligne ne dépend pas d'un état local corrompu, et comment évitez-vous qu'un auditeur confonde une preuve mathématiquement valide avec une racine réellement authentifiée ? »*
+
+**💡 Votre réponse chirurgicale :**  
+> « Nous appliquons une **Séparation Stricte entre Validité Algorithmique et Ancrage de Confiance** :
+> 1. **Mode Hors-Ligne Zéro-I/O Garanti** : En mode autonome (`proof_packet`), l'outil s'exécute strictement en mémoire sans jamais instancier ni lire l'`EvidenceStore` local (validé en CI par `test_offline_verification_zero_disk_io` avec mock levant une exception sur l'accès disque).
+> 2. **Liaison Cryptographique Indissociable (Payload Binding)** : `EvidenceStore.verify_merkle_proof()` recalcule le hash de feuille à partir du payload canonique : $\text{SHA-256}(0\text{x}00 \parallel \text{canonical\_payload})$. Toute falsification du contenu de l'épisode brise instantanément la racine ($\mathcal{O}(\log N)$ sibling path) et renvoie `TAMPERING_OR_INVALID_PROOF`.
+> 3. **Sémantique Duale de Confiance (`expected_root`)** : La réponse JSON distingue explicitement la cohérence intrinsèque (`proof_valid_for_declared_root: true`) de l'authentification externe (`root_authenticated: true` et `verified_against_trusted_root: true`). Si une racine attendue est fournie, elle est validée en format 64 hex. En cas d'écart, le système renvoie `ROOT_MISMATCH`. Ce n'est que lorsque les deux concordent que le statut `VALID_AUTHENTICATED_INCLUSION_PROOF` est émis.
+> 4. **Contrôle d'Exclusivité par Présence de Clés** : Les paramètres `episode_id` et `proof_packet` sont rigoureusement mutuellement exclusifs via détection de clés (`in arguments`), empêchant toute ambiguïté avec des valeurs vides ou falsy. »
+
+---
+
 ## 📊 3. Formalisation Mathématique de la Machine à États Finis (FSM)
 
 ```mermaid

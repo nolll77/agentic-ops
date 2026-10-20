@@ -8,7 +8,7 @@
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-231%20Validés-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-246%20Validés-brightgreen)](tests/)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
