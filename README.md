@@ -1572,4 +1572,14 @@ python -m agentic_ops.entrypoints.mcp_server
     Comprehensive guide to public package distribution on PyPI: software supply chain security, zero-static-secrets architecture using OpenID Connect (OIDC Trusted Publishing), SLSA provenance attestations, installation and CLI consumption options, and release lifecycle runbooks for maintainers.
 13. 🎓 **[Official Thesis Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**:
     Comprehensive 40-page SRE & MLOps thesis defense report covering governance, multi-layer observability, deterministic FSM, cryptographic WORM trust ledger with RFC 6962 Merkle tree, and live production interconnection with `jakatt/cac_mlops`.
+14. 🤝 **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)**:
+    Architectural invariants, development setup, Pull Request workflow, coding standards, and step-by-step participation guidelines for researchers and software engineers.
+15. 🎯 **[Active Community Issues & Open Roadmap](https://github.com/nolll77/agentic-ops/issues)**:
+    - **[#1 — Denial Reconciliation in Evidence Store](https://github.com/nolll77/agentic-ops/issues/1)**: Formal linking of human operator rejection to origin episode in WORM ledger.
+    - **[#2 — Deterministic Worker Failure Drills](https://github.com/nolll77/agentic-ops/issues/2)**: At-least-once delivery, isolated crash injection, and idempotent task recovery.
+    - **[#3 — Local Inventory Lifecycle & Drift](https://github.com/nolll77/agentic-ops/issues/3)**: Staleness, live tampering detection, schema verification, and reload safety.
+    - **[#4 — Local Backup/Restore Drills & DR Verification](https://github.com/nolll77/agentic-ops/issues/4)**: Automated rehearsals of SQLite WAL and WORM snapshot restoration.
+    - **[#5 — Local Alert Ingestion Benchmark](https://github.com/nolll77/agentic-ops/issues/5)**: Scalability and latency percentiles under burst alert storms.
+    - **[#6 — Comprehensive Benchmark of Free OpenRouter LLMs](https://github.com/nolll77/agentic-ops/issues/6)**: Empirical evaluation of 17+ `:free` models across MAS roles (Gemma, Nemotron, Cohere, Liquid).
+
 

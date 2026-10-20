@@ -1573,3 +1573,13 @@ python -m agentic_ops.entrypoints.mcp_server
     Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.
 13. 🎓 **[Rapport Officiel de Soutenance de Mémoire (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)** :
     Rapport de soutenance SRE & MLOps complet de 40 pages couvrant la gouvernance, l'observabilité multi-couches, la FSM déterministe, le grand livre WORM cryptographique avec arbre de Merkle RFC 6962, et l'interconnexion en production avec `jakatt/cac_mlops`.
+14. 🤝 **[Guide de Contribution & Collaboration Communautaire (`CONTRIBUTING.md`)](CONTRIBUTING.md)** :
+    Invariants architecturaux, configuration de l'environnement de développement, workflow de Pull Request, normes de code et directives de participation pour ingénieurs et chercheurs.
+15. 🎯 **[Chantiers Communautaires Actifs & Roadmap Ouverte (Issues GitHub)](https://github.com/nolll77/agentic-ops/issues)** :
+    - **[#1 — Réconciliation du Refus d'Approbation dans le Grand Livre](https://github.com/nolll77/agentic-ops/issues/1)** : Raccordement formel du rejet opérateur à l'épisode source dans le ledger WORM.
+    - **[#2 — Exercices Déterministes de Panne du Worker](https://github.com/nolll77/agentic-ops/issues/2)** : Garantie d'au moins une livraison (*At-Least-Once*), injection de crash et reprise idempotente.
+    - **[#3 — Cycle de Vie de l'Inventaire Local & Drift](https://github.com/nolll77/agentic-ops/issues/3)** : Fraîcheur, détection d'altération en direct, conformité de schéma et rechargement sûr.
+    - **[#4 — Exercices Locaux Backup / Restore & Vérification DR](https://github.com/nolll77/agentic-ops/issues/4)** : Répétitions automatisées de restauration de snapshots SQLite WAL et WORM.
+    - **[#5 — Benchmark Local d'Ingestion d'Alertes](https://github.com/nolll77/agentic-ops/issues/5)** : Passage à l'échelle et percentiles de latence sous rafales d'alertes Loki/Prometheus.
+    - **[#6 — Benchmark Empirique Exhaustif des LLMs Gratuits OpenRouter](https://github.com/nolll77/agentic-ops/issues/6)** : Évaluation systématique de 17+ modèles `:free` selon les rôles du MAS (Gemma, Nemotron, Cohere, Liquid).
+
