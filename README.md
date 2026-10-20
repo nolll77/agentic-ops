@@ -69,6 +69,9 @@ The following public Render instance and reports demonstrate selected features. 
 4. **Target Outage & Scaleway/Tailscale Degradation Resilience Guide**:
    Explains why the Control Plane never crashes if the supervised VPS goes down, detailing `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` error absorption, Fail-Closed governance, autonomous local test execution, and 1-minute self-healing recovery:  
    **[Read the Target Outage & Resilience Guide (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
+5. 🎓 **Official Thesis Defense Report (PDF, 40 Pages)**:
+   Comprehensive SRE & MLOps thesis defense report on governance, multi-layer observability, deterministic FSM, and interconnection with `jakatt/cac_mlops`:  
+   **[Read the Official Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**
 
 ---
 

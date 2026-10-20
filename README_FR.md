@@ -69,6 +69,9 @@ L'instance publique sur Render et les rapports suivants démontrent certaines fo
 4. **Guide de Résilience face aux Pannes Cibles (Scaleway / Déconnexion Tailscale)** :
    Explique pourquoi le Control Plane ne plante jamais en cas de coupure du VPS supervisé, détaillant l'absorption d'erreurs `RemoteServiceStatus.REMOTE_TARGET_OFFLINE`, la gouvernance Fail-Closed, l'exécution autonome des tests locaux et la reconnexion automatique en 1 minute :  
    **[Consulter le Guide de Résilience face aux Pannes Cibles (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
+5. 🎓 **Rapport Officiel de Soutenance de Mémoire (PDF, 40 Pages)** :
+   Rapport de soutenance SRE & MLOps complet sur la gouvernance, l'observabilité multi-couches, la FSM déterministe et l'interconnexion avec `jakatt/cac_mlops` :  
+   **[Consulter le Rapport de Soutenance Officiel (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**
 
 ---
 
