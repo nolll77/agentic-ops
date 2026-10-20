@@ -107,3 +107,35 @@ def test_executor_rejects_injected_or_unauthorized_target_fail_closed(monkeypatc
     assert result.executor == "kubernetes"
     assert "non autorisée par la Policy Executor" in result.details
     assert injected_target in result.details
+
+def test_parse_and_validate_k8s_target_adversarial_matrix():
+    """
+    Validates that Kubernetes workload target parsing enforces structured semantics:
+    whitelisted deployment name, exact namespace match, resource type filtering,
+    and immediate rejection of shell metacharacters, trailing slashes, and namespace escapes.
+    """
+    real_exec = get_real_execute()
+    parse = real_exec.parse_and_validate_k8s_target
+    default_ns = "demo-sandbox"
+
+    # Valid targets
+    assert parse("fastapi-model-demo", default_ns) == (default_ns, "fastapi-model-demo")
+    assert parse("worker-demo", default_ns) == (default_ns, "worker-demo")
+    assert parse("deployment/fastapi-model-demo", default_ns) == (default_ns, "fastapi-model-demo")
+    assert parse("demo-sandbox/fastapi-model-demo", default_ns) == (default_ns, "fastapi-model-demo")
+    assert parse("demo-sandbox/deployment/fastapi-model-demo", default_ns) == (default_ns, "fastapi-model-demo")
+
+    # Invalid targets: unauthorized namespace, injection, illegal format
+    assert parse("production/fastapi-model-demo", default_ns) is None
+    assert parse("kube-system/fastapi-model-demo", default_ns) is None
+    assert parse("deployment/fastapi-model-demo/", default_ns) is None
+    assert parse("/fastapi-model-demo", default_ns) is None
+    assert parse("statefulset/fastapi-model-demo", default_ns) is None
+    assert parse("fastapi-model-demo; kubectl delete ns prod", default_ns) is None
+    assert parse("fastapi-model-demo $(whoami)", default_ns) is None
+    assert parse("fastapi-model-demo | rm -rf /", default_ns) is None
+    assert parse("unauthorized-service", default_ns) is None
+    assert parse(None, default_ns) is None
+    assert parse("", default_ns) is None
+    assert parse("   ", default_ns) is None
+

@@ -7,6 +7,7 @@ WORM Trust Ledger sealing, 435 Failure Modes Taxonomy search, 5 Resources, and 2
 from __future__ import annotations
 
 import json
+import pytest
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 
@@ -614,7 +615,9 @@ def test_mcp_tool_verify_ledger_inclusion_workflow():
     assert offline_resp["result"]["isError"] is False
     odata = json.loads(offline_resp["result"]["content"][0]["text"])
     assert odata["verified"] is True
-    assert odata["status"] == "VALID_INCLUSION_PROOF"
+    assert odata["verified_against_trusted_root"] is True
+    assert odata["root_authenticated"] is True
+    assert odata["status"] == "VALID_AUTHENTICATED_INCLUSION_PROOF"
 
     # 4. Assert root mismatch detection
     fake_root = "b" * 64
@@ -635,6 +638,7 @@ def test_mcp_tool_verify_ledger_inclusion_workflow():
     assert mismatch_resp["result"]["isError"] is False
     mdata = json.loads(mismatch_resp["result"]["content"][0]["text"])
     assert mdata["verified"] is False
+    assert mdata["verified_against_trusted_root"] is False
     assert mdata["status"] == "ROOT_MISMATCH"
 
     # 5. Assert tampering rejection
@@ -669,6 +673,8 @@ def test_mcp_tool_verify_ledger_inclusion_workflow():
         }
     )
     assert missing_resp["result"]["isError"] is True
+    m_data = json.loads(missing_resp["result"]["content"][0]["text"])
+    assert m_data["status"] == "MISSING_PARAMETER"
 
     # 7. Mutually exclusive parameters rejection (both episode_id and proof_packet)
     both_resp = handle_mcp_jsonrpc(
@@ -688,5 +694,83 @@ def test_mcp_tool_verify_ledger_inclusion_workflow():
     assert both_resp["result"]["isError"] is True
     bdata = json.loads(both_resp["result"]["content"][0]["text"])
     assert bdata["status"] == "MUTUALLY_EXCLUSIVE_PARAMS"
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_status", "expected_is_error"),
+    [
+        ({}, "MISSING_PARAMETER", True),
+        ({"episode_id": "ep-123", "proof_packet": {}}, "MUTUALLY_EXCLUSIVE_PARAMS", True),
+        ({"episode_id": "", "proof_packet": {}}, "MUTUALLY_EXCLUSIVE_PARAMS", True),
+        ({"episode_id": ""}, "INVALID_EPISODE_ID", True),
+        ({"episode_id": "   "}, "INVALID_EPISODE_ID", True),
+        ({"proof_packet": None}, "INVALID_PROOF_PACKET", True),
+        ({"proof_packet": []}, "INVALID_PROOF_PACKET", True),
+        ({"proof_packet": "invalid_string"}, "INVALID_PROOF_PACKET", True),
+        ({"proof_packet": {"leaf_hash": "a" * 64}}, "INVALID_PROOF_PACKET", False),
+        ({"proof_packet": {
+            "episode_id": "ep-1",
+            "merkle_root": "a" * 64,
+            "leaf_hash": "b" * 64,
+            "audit_path": [],
+        }, "expected_root": "invalid_length"}, "INVALID_EXPECTED_ROOT_LENGTH", True),
+    ],
+)
+def test_verify_ledger_inclusion_adversarial_inputs(arguments, expected_status, expected_is_error):
+    resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 99,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": arguments,
+            },
+        }
+    )
+    assert resp["result"]["isError"] is expected_is_error
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["status"] == expected_status
+    assert data["verified"] is False
+
+def test_offline_verification_zero_disk_io(monkeypatch):
+    """
+    Assert that verifying a proof_packet runs with strictly zero disk I/O
+    and does not instantiate EvidenceStore.
+    """
+    from agentic_ops.core import evidence
+    from agentic_ops.core.merkle import hash_leaf
+    def fail_on_init(*args, **kwargs):
+        raise AssertionError("EvidenceStore should NEVER be instantiated during offline proof verification!")
+    monkeypatch.setattr(evidence.EvidenceStore, "__init__", fail_on_init)
+
+    canonical_payload = json.dumps({"episode_id": "ep-offline-1", "timestamp": "2026-10-21T00:00:00Z"})
+    leaf_hash = hash_leaf(canonical_payload)
+
+    valid_packet = {
+        "episode_id": "ep-offline-1",
+        "leaf_index": 0,
+        "total_leaves": 1,
+        "leaf_hash": leaf_hash,
+        "canonical_payload": canonical_payload,
+        "merkle_root": leaf_hash,
+        "audit_path": [],
+    }
+    # verify_merkle_proof returns True for 1 leaf where leaf_hash == merkle_root
+    resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 100,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {"proof_packet": valid_packet},
+            },
+        }
+    )
+    assert resp["result"]["isError"] is False
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert data["status"] == "VALID_INCLUSION_PROOF"
+    assert data["root_authenticated"] is False
+    assert data["verified"] is True
 
 

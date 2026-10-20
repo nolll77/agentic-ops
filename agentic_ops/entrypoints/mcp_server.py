@@ -875,30 +875,15 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             }
 
         elif name == "verify_ledger_inclusion":
-            store_dir = os.environ.get("EVIDENCE_STORE_DIR", str(REPO_ROOT / "state" / "episodes"))
-            store = EvidenceStore(store_dir)
-            target_ep = arguments.get("episode_id")
-            proof_packet = arguments.get("proof_packet")
-            expected_root = arguments.get("expected_root")
+            has_episode = "episode_id" in arguments
+            has_packet = "proof_packet" in arguments
 
-            if not target_ep and not proof_packet:
+            if has_episode and has_packet:
                 return {
                     "content": [{
                         "type": "text",
                         "text": json.dumps({
-                            "error": "Missing parameter. Please provide either 'episode_id' (to look up in local ledger) or 'proof_packet' (for offline zero-I/O verification).",
-                            "verified": False,
-                        }, indent=2)
-                    }],
-                    "isError": True,
-                }
-
-            if target_ep and proof_packet:
-                return {
-                    "content": [{
-                        "type": "text",
-                        "text": json.dumps({
-                            "error": "Mutually exclusive parameters: please provide either 'episode_id' (local ledger lookup) OR 'proof_packet' (offline zero-I/O verification), not both.",
+                            "error": "Mutually exclusive parameters: provide either 'episode_id' (local ledger lookup) OR 'proof_packet' (offline zero-I/O verification), not both.",
                             "verified": False,
                             "status": "MUTUALLY_EXCLUSIVE_PARAMS",
                         }, indent=2)
@@ -906,7 +891,37 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                     "isError": True,
                 }
 
-            if target_ep and not proof_packet:
+            if not has_episode and not has_packet:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps({
+                            "error": "Missing parameter: provide either 'episode_id' (local ledger lookup) or 'proof_packet' (offline zero-I/O verification).",
+                            "verified": False,
+                            "status": "MISSING_PARAMETER",
+                        }, indent=2)
+                    }],
+                    "isError": True,
+                }
+
+            proof_packet = None
+            if has_episode:
+                target_ep = arguments.get("episode_id")
+                if not isinstance(target_ep, str) or not target_ep.strip():
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": "Invalid episode_id: must be a non-empty string.",
+                                "verified": False,
+                                "status": "INVALID_EPISODE_ID",
+                            }, indent=2)
+                        }],
+                        "isError": True,
+                    }
+                target_ep = target_ep.strip()
+                store_dir = os.environ.get("EVIDENCE_STORE_DIR", str(REPO_ROOT / "state" / "episodes"))
+                store = EvidenceStore(store_dir)
                 proof_packet = store.get_merkle_proof(target_ep)
                 if not proof_packet:
                     return {
@@ -921,21 +936,23 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                         }],
                         "isError": False,
                     }
+            else:
+                raw_packet = arguments.get("proof_packet")
+                if not isinstance(raw_packet, dict):
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": "Invalid proof_packet format: expected a JSON object.",
+                                "verified": False,
+                                "status": "INVALID_PROOF_PACKET",
+                            }, indent=2)
+                        }],
+                        "isError": True,
+                    }
+                proof_packet = raw_packet
 
-            if not isinstance(proof_packet, dict):
-                return {
-                    "content": [{
-                        "type": "text",
-                        "text": json.dumps({
-                            "error": "Invalid proof_packet format: expected a JSON object.",
-                            "verified": False,
-                            "status": "MALFORMED_PROOF",
-                        }, indent=2)
-                    }],
-                    "isError": True,
-                }
-
-            # Security validation on required fields
+            # Security validation on required fields in proof_packet
             for field in ["leaf_hash", "merkle_root", "episode_id", "audit_path"]:
                 if field not in proof_packet:
                     return {
@@ -944,7 +961,7 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                             "text": json.dumps({
                                 "error": f"Malformed proof packet: missing required field '{field}'.",
                                 "verified": False,
-                                "status": "MALFORMED_PROOF",
+                                "status": "INVALID_PROOF_PACKET",
                             }, indent=2)
                         }],
                         "isError": False,
@@ -953,12 +970,14 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             # Hex string validation
             leaf_hash = str(proof_packet.get("leaf_hash", "")).strip()
             merkle_root = str(proof_packet.get("merkle_root", "")).strip()
-            if len(leaf_hash) != 64 or len(merkle_root) != 64:
+            import re
+            hex_re = re.compile(r"^[0-9a-fA-F]{64}$")
+            if not hex_re.match(leaf_hash) or not hex_re.match(merkle_root):
                 return {
                     "content": [{
                         "type": "text",
                         "text": json.dumps({
-                            "error": "Invalid cryptographic hash length: leaf_hash and merkle_root must be 64-character hex strings.",
+                            "error": "Invalid cryptographic hash format: leaf_hash and merkle_root must be 64-character hex strings.",
                             "verified": False,
                             "status": "INVALID_HASH_LENGTH",
                         }, indent=2)
@@ -966,27 +985,33 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                     "isError": False,
                 }
 
-            # Root assertion check
-            if expected_root:
-                expected_root_clean = str(expected_root).strip()
-                if len(expected_root_clean) != 64:
+            # Root assertion check if provided
+            expected_root_clean = None
+            if "expected_root" in arguments and arguments["expected_root"] is not None:
+                raw_expected = arguments["expected_root"]
+                if not isinstance(raw_expected, str) or not hex_re.match(raw_expected.strip()):
                     return {
                         "content": [{
                             "type": "text",
                             "text": json.dumps({
-                                "error": "Invalid expected_root: must be a 64-character hex string.",
+                                "error": "Invalid expected_root: must be a 64-character hexadecimal string.",
                                 "verified": False,
                                 "status": "INVALID_EXPECTED_ROOT_LENGTH",
                             }, indent=2)
                         }],
-                        "isError": False,
+                        "isError": True,
                     }
-                if merkle_root.lower() != expected_root_clean.lower():
+                expected_root_clean = raw_expected.strip().lower()
+
+                if merkle_root.lower() != expected_root_clean:
                     return {
                         "content": [{
                             "type": "text",
                             "text": json.dumps({
                                 "verified": False,
+                                "verified_against_trusted_root": False,
+                                "proof_valid_for_declared_root": False,
+                                "root_authenticated": False,
                                 "episode_id": proof_packet.get("episode_id"),
                                 "leaf_hash": leaf_hash,
                                 "merkle_root": merkle_root,
@@ -1003,18 +1028,29 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
             total_leaves = proof_packet.get("total_leaves", 1)
             audit_path = proof_packet.get("audit_path", [])
 
+            root_authenticated = expected_root_clean is not None
+            verified_against_trusted = is_valid and root_authenticated and (merkle_root.lower() == expected_root_clean)
+
+            if is_valid:
+                status = "VALID_AUTHENTICATED_INCLUSION_PROOF" if root_authenticated else "VALID_INCLUSION_PROOF"
+            else:
+                status = "TAMPERING_OR_INVALID_PROOF"
+
             result = {
                 "verified": is_valid,
+                "verified_against_trusted_root": verified_against_trusted,
+                "proof_valid_for_declared_root": is_valid,
+                "root_authenticated": root_authenticated,
                 "episode_id": proof_packet.get("episode_id"),
                 "leaf_index": proof_packet.get("leaf_index"),
                 "total_leaves": total_leaves,
                 "leaf_hash": leaf_hash,
                 "merkle_root": merkle_root,
-                "expected_root": expected_root or merkle_root,
+                "expected_root": expected_root_clean or merkle_root,
                 "audit_path_steps": len(audit_path),
                 "audit_path": audit_path,
                 "complexity": f"O(log2({total_leaves})) = {len(audit_path)} hashing steps",
-                "status": "VALID_INCLUSION_PROOF" if is_valid else "TAMPERING_OR_INVALID_PROOF",
+                "status": status,
             }
             return {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2, ensure_ascii=False)}],

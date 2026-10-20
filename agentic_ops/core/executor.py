@@ -13,14 +13,65 @@ logger = logging.getLogger("Executor")
 _issue_counter = itertools.count(start=1)
 _issue_counter_lock = Lock()
 
-SIMULATION_MODE = os.environ.get("SIMULATION_MODE", "true").lower() == "true"
+def is_simulation_mode() -> bool:
+    if not globals().get("SIMULATION_MODE", True):
+        return False
+    raw = os.environ.get("SIMULATION_MODE", "true").strip().lower()
+    # Fail-closed: only explicit "false", "0", "no", "off" turns simulation off
+    return raw not in ("false", "0", "no", "off")
+
+SIMULATION_MODE = True
 DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "demo-sandbox")
 
 # Safeguard strict: Liste d'actions K8s autorisées (Fail-Closed)
-ALLOWED_K8S_DEPLOYMENTS = ["fastapi-model-demo", "worker-demo"]
+ALLOWED_K8S_DEPLOYMENTS = frozenset({"fastapi-model-demo", "worker-demo"})
+
+def parse_and_validate_k8s_target(target: str | None, default_namespace: str) -> tuple[str, str] | None:
+    """
+    Strictly parses and validates a Kubernetes target against ALLOWED_K8S_DEPLOYMENTS.
+    Accepts:
+      - "<deployment_name>" (e.g. "fastapi-model-demo")
+      - "deployment/<deployment_name>"
+      - "<namespace>/<deployment_name>"
+      - "<namespace>/deployment/<deployment_name>"
+    Rejects trailing slashes, empty segments, shell metacharacters, or unauthorized namespaces.
+    Returns (namespace, deployment_name) if valid, else None.
+    """
+    if not target or not isinstance(target, str):
+        return None
+    clean = target.strip()
+    if not clean or clean.endswith("/") or clean.startswith("/"):
+        return None
+
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-\.\/]+$", clean):
+        return None
+
+    parts = [p for p in clean.split("/") if p]
+    if len(parts) == 1:
+        dep = parts[0]
+        ns = default_namespace
+    elif len(parts) == 2:
+        if parts[0] == "deployment":
+            ns = default_namespace
+            dep = parts[1]
+        else:
+            ns = parts[0]
+            dep = parts[1]
+    elif len(parts) == 3 and parts[1] == "deployment":
+        ns = parts[0]
+        dep = parts[2]
+    else:
+        return None
+
+    if ns != default_namespace:
+        return None
+    if dep not in ALLOWED_K8S_DEPLOYMENTS:
+        return None
+    return ns, dep
 
 def create_real_github_issue(action: ActionProposal) -> ExecutionResult:
-    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    blocked = live_execution_block_reason(action, is_simulation_mode())
     if blocked:
         return ExecutionResult(status="FAILED", executor="github", details=f"Exécution bloquée: {blocked}.")
     token = os.environ.get("GITHUB_TOKEN")
@@ -49,15 +100,18 @@ def create_real_github_issue(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="github", details=f"Échec API GitHub: {e}")
 
 def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
-    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    blocked = live_execution_block_reason(action, is_simulation_mode())
     if blocked:
         return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Exécution bloquée: {blocked}.")
     
-    target = action.target or ""
-    deployment_name = target.split("/")[-1]
-    
-    if deployment_name not in ALLOWED_K8S_DEPLOYMENTS:
-        return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Cible {deployment_name} non autorisée par la Policy Executor.")
+    validated = parse_and_validate_k8s_target(action.target, DEMO_NAMESPACE)
+    if not validated:
+        return ExecutionResult(
+            status="FAILED",
+            executor="kubernetes",
+            details=f"Cible '{action.target}' invalide ou non autorisée par la Policy Executor.",
+        )
+    target_ns, deployment_name = validated
 
     try:
         from kubernetes import client, config
@@ -72,12 +126,12 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
             
         if action.type.value == "scale_to_zero":
             body = {"spec": {"replicas": 0}}
-            apps_v1.patch_namespaced_deployment(deployment_name, DEMO_NAMESPACE, body)
+            apps_v1.patch_namespaced_deployment(deployment_name, target_ns, body)
             
             # Vérification (Read-After-Write)
-            updated = apps_v1.read_namespaced_deployment(deployment_name, DEMO_NAMESPACE)
+            updated = apps_v1.read_namespaced_deployment(deployment_name, target_ns)
             if updated.spec.replicas == 0:
-                return ExecutionResult(status="SUCCESS", executor="kubernetes.scale", details=f"Déploiement {deployment_name} scalé à 0 avec succès dans {DEMO_NAMESPACE}.")
+                return ExecutionResult(status="SUCCESS", executor="kubernetes.scale", details=f"Déploiement {deployment_name} scalé à 0 avec succès dans {target_ns}.")
             else:
                 return ExecutionResult(status="FAILED", executor="kubernetes.scale", details="La vérification post-exécution a échoué (répliques > 0).")
                 
@@ -88,7 +142,8 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
 
 
 def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
-    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    sim_mode = is_simulation_mode() and SIMULATION_MODE
+    blocked = live_execution_block_reason(action, sim_mode)
     if blocked:
         return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Exécution bloquée: {blocked}.")
     # Récupération de l'URL cible depuis les variables de la Sandbox
@@ -109,7 +164,8 @@ def execute_real_prefect_retrain(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="prefect.retrain", details=f"Échec réseau Tailscale ou API Prefect: {e}")
 
 def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
-    blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    sim_mode = is_simulation_mode() and SIMULATION_MODE
+    blocked = live_execution_block_reason(action, sim_mode)
     if blocked:
         return ExecutionResult(status="FAILED", executor="mlflow.promote", details=f"Exécution bloquée: {blocked}.")
     mlflow_url = os.environ.get("TARGET_MLFLOW_URL", "http://100.117.99.62:5001")
@@ -130,6 +186,8 @@ def execute_real_mlflow_promote(action: ActionProposal) -> ExecutionResult:
         return ExecutionResult(status="FAILED", executor="mlflow.promote", details=f"Échec API MLflow: {e}")
 
 def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
+    sim_mode = is_simulation_mode() and SIMULATION_MODE
+
     if action.type.value == "investigate":
         return ExecutionResult(
             status="SIMULATED",
@@ -137,8 +195,8 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
             details="Investigation enregistrée; aucune action externe exécutée.",
         )
 
-    if not SIMULATION_MODE:
-        blocked = live_execution_block_reason(action, SIMULATION_MODE)
+    if not sim_mode:
+        blocked = live_execution_block_reason(action, sim_mode)
         if blocked:
             return ExecutionResult(
                 status="FAILED",
@@ -148,7 +206,7 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
 
     # 1. GitHub Issue
     if action.type.value == "create_issue":
-        if SIMULATION_MODE:
+        if sim_mode:
             with _issue_counter_lock:
                 n = next(_issue_counter)
             return ExecutionResult(
@@ -162,7 +220,7 @@ def execute(action: ActionProposal, registry: Any = None) -> ExecutionResult:
             
     # 2. Kubernetes Scale To Zero
     if action.type.value == "scale_to_zero":
-        if SIMULATION_MODE:
+        if sim_mode:
             return ExecutionResult(status="SIMULATED", executor="local_simulated.scale", details="Scale to zero simulé.")
         else:
             return execute_real_k8s_action(action)
