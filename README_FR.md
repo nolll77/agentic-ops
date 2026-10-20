@@ -72,18 +72,11 @@ L'instance publique sur Render et les rapports suivants démontrent certaines fo
 
 ---
 
-## Slides de Présentation Explicatives du Dépôt (6 Slides)
-
-- **Présentation Google Slides en ligne** : **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)** *(Archive locale des slides dans le dépôt : **[`docs/PRESENTATION_SLIDES.md`](docs/PRESENTATION_SLIDES.md)**)*
-
-1. **`Slide 1` (`Flux Agentic-Ops & Gouvernance SecOps`)** : `Agentic-Ops` surveille les modèles d'IA et les systèmes qui les font fonctionner, consulte les informations sans rien modifier en production, repère les problèmes et transmet son diagnostic à un humain.
-2. **`Slide 2` (`Du Signal Brut au Diagnostic Cognitif`)** : Le système rassemble les alertes et les informations techniques pour comprendre le problème, isole les messages suspects pour éviter qu'ils donnent de fausses instructions à l'IA, puis cherche si le problème vient des machines ou des données avant de proposer une solution.
-3. **`Slide 3` (`L'IA Propose, le Code Autorise`)** : L'IA propose une action, mais des règles programmées décident si elle est autorisée : les actions interdites sont bloquées (`0/6` exécutée lors des tests) et les actions sensibles attendent une validation humaine.
-4. **`Slide 4` (`L'Humain Décide, le Registre Prouve`)** : Pour une action sensible, l'ingénieur reçoit un message `Slack` avec le diagnostic et les preuves pour approuver ou refuser (avec une vérification de sécurité contre les fausses approbations), tandis qu'un historique cryptographique permet de détecter toute modification après coup.
-5. **`Slide 5` (`Production Live 24/7 & Mode Dégradé`)** : Le service fonctionne en continu sur la plateforme `Render` via une connexion privée vers le serveur surveillé, et reste disponible pour les tests et les contrôles même si ce serveur distant est éteint.
-6. **`Slide 6` (`Démonstration Live : la Console Glass-Box`)** : Une console web permet de lancer les démonstrations avec douze boutons et un code couleur expliquant ce qui est testé et pourquoi chaque test réussit, avec un bilan de 42 tests réussis sans action interdite exécutée ni modification de la production.
-
----
+## Slides de Présentation Explicatives du Dépôt
+ 
+- **Présentation Google Slides en ligne** : **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)**
+ 
+ ---
 
 ## Socle Fondateur d'Ingénierie de la Connaissance : La Taxonomie des Défaillances MLOps & le Registre des Scénarios War-Room
 

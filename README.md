@@ -72,16 +72,9 @@ The following public Render instance and reports demonstrate selected features. 
 
 ---
 
-## Presentation Slides Explaining this Repository (6 Slides)
+## Presentation Slides Explaining this Repository
 
-- **Online Google Slides Presentation**: **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)** *(Local archive in repository: **[`docs/PRESENTATION_SLIDES.md`](docs/PRESENTATION_SLIDES.md)**)*
-
-1. **`Slide 1` (`Flux Agentic-Ops & Gouvernance SecOps`)**: `Agentic-Ops` monitors AI models and the systems that run them in strict read-only mode without modifying anything in production, detects issues, and forwards its diagnosis to a human operator.
-2. **`Slide 2` (`Du Signal Brut au Diagnostic Cognitif`)**: The system gathers alerts and technical telemetry to understand the issue, isolates suspicious messages (`<untrusted_telemetry>`) so they cannot inject false instructions into the AI, determines whether the root cause comes from infrastructure or data, and proposes a solution.
-3. **`Slide 3` (`L'IA Propose, le Code Autorise`)**: The AI proposes an action, but programmed deterministic rules (`FSM` + `PolicyEngine`) decide whether it is authorized—blocking forbidden actions (`0/6` forbidden actions executed across the test suite) and holding sensitive actions for human approval.
-4. **`Slide 4` (`L'Humain Décide, le Registre Prouve`)**: For any sensitive action, the engineer receives a `Slack` message with the diagnosis and evidence to approve or deny (protected by `HMAC-SHA256` against forged approvals), while a cryptographic `WORM` ledger detects any post-hoc tampering.
-5. **`Slide 5` (`Production Live 24/7 & Mode Dégradé`)**: The service runs continuously on `Render` and uses a private `Tailscale` connection to pull telemetry from the monitored server, remaining fully available for tests and governance checks even if the remote server is powered off (`status="offline"`).
-6. **`Slide 6` (`Démonstration Live : la Console Glass-Box`)**: An interactive Web Console (`/console`) launches all demonstrations via 12 buttons with color-coded guides explaining what is tested and why each test passes, certifying 42 passed tests with zero forbidden actions executed and zero production modifications.
+- **Online Google Slides Presentation**: **[`https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing`](https://docs.google.com/presentation/d/1fi5rEGww1CexT4OUcDj1d9W8YQhkL5GoXZwWDtCjLA0/edit?usp=sharing)**
 
 ---
 
