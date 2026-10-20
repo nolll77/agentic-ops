@@ -21,9 +21,7 @@ from agentic_ops.core.entra_oidc import (
 log = logging.getLogger(__name__)
 
 PROTECTED_PATH_PREFIXES = (
-    "/api/diagnostics/",
     "/api/alerts/",
-    "/api/llm/probe",
     "/mcp",
 )
 

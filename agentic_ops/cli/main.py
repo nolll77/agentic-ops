@@ -2034,7 +2034,7 @@ async function probeAgentModel(agentId) {
   }
   try {
     const url = '/api/llm/probe?role=' + encodeURIComponent(agentId || 'global') + '&timeout=20.0';
-    const res = await fetchAdminApi(url, { method: 'POST' });
+    const res = await fetch(url, { method: 'POST' });
     const rawText = await res.text();
     let data;
     try {
@@ -2063,24 +2063,9 @@ async function probeAgentModel(agentId) {
 let pageAdminApiKey = '';
 
 async function fetchAdminApi(url, options = {}) {
-  const send = (key) => {
-    const headers = new Headers(options.headers || {});
-    if (key) headers.set('x-api-key', key);
-    return fetch(url, { ...options, headers });
-  };
-
-  let response = await send(pageAdminApiKey);
-  if (response.status !== 401) return response;
-
-  const key = window.prompt(
-    'Cette action est protégée. Saisissez la clé ADMIN_API_KEY configurée par l’administrateur Render. Elle reste en mémoire dans cet onglet.'
-  );
-  if (!key) return response;
-
-  pageAdminApiKey = key.trim();
-  response = await send(pageAdminApiKey);
-  if (response.status === 401) pageAdminApiKey = '';
-  return response;
+  const headers = new Headers(options.headers || {});
+  if (pageAdminApiKey) headers.set('x-api-key', pageAdminApiKey);
+  return fetch(url, { ...options, headers });
 }
 
 function adminApiErrorMessage(status, data) {
