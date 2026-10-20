@@ -2,6 +2,8 @@
 # Agentic-Ops Control Plane
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
+[![Official MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.nolll77%2Fagentic--ops-black?logo=anthropic&logoColor=white)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions)
+[![Glama Server](https://img.shields.io/badge/Glama-agentic--ops-purple?logo=glama&logoColor=white)](https://glama.ai/mcp/servers/nolll77/agentic-ops)
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-nolll78%2Fagentic--ops-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/nolll78/agentic-ops)
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
@@ -12,7 +14,8 @@
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
 
 > **Language / Langue** : **English (Main Documentation)** | **[Lire la documentation complète en Français (README_FR.md)](README_FR.md)**
-> **Model Context Protocol Registry**: `mcp-name: io.github.nolll77/agentic-ops`
+> **Official Anthropic Model Context Protocol Registry**: [`io.github.nolll77/agentic-ops` (`v0.1.12` Active)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions) | **Glama MCP Catalog**: [`glama.ai/mcp/servers/nolll77/agentic-ops`](https://glama.ai/mcp/servers/nolll77/agentic-ops)
+> `mcp-name: io.github.nolll77/agentic-ops`
 
 **Agentic-Ops** is a personal MLOps control-plane project for exploring how AI agents (LLMs) can help investigate operational signals such as `Data Drift`, `Model Staleness`, and `OOMKilled Pods`.
 
@@ -982,6 +985,7 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 ```
 
 #### E. Connect `Glama` Web UI (`glama.ai`) or Remote Cloud MCP Clients
+View the verified live listing directly on the [Glama MCP Directory (`glama.ai/mcp/servers/nolll77/agentic-ops`)](https://glama.ai/mcp/servers/nolll77/agentic-ops).
 In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using the direct hosted HTTP JSON-RPC 2.0 endpoint:
 ```json
 {
@@ -995,6 +999,13 @@ In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using 
 
 #### F. Connect `LibreChat` Web UI (`OpenRouter AI Hub` + `Agentic-Ops MCP Gateway`)
 [LibreChat](https://www.librechat.ai) is the open-source ChatGPT equivalent supporting both **OpenRouter models** and **the `MCP` Protocol**. By mounting the included [`librechat.yaml`](librechat.yaml) configuration file into your LibreChat container (`volumes: [./librechat.yaml:/app/librechat.yaml]`), any chosen OpenRouter model (`deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free`, `mistralai/mistral-large-2411`) gains full direct tool-calling access to the live Render Control Plane via `https://agentic-ops-5ebv.onrender.com/mcp`.
+
+#### G. Official Anthropic Model Context Protocol Registry (`registry.modelcontextprotocol.io`)
+`Agentic-Ops` is officially registered and actively indexed on the [Official Model Context Protocol Registry](https://registry.modelcontextprotocol.io):
+- **Canonical Reverse-DNS Namespace**: `io.github.nolll77/agentic-ops`
+- **Live Registry API Endpoint**: [`https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions`](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions)
+- **Official Manifest**: [`server.json`](server.json) conforming to schema `2025-12-11`.
+- **Ecosystem Discovery**: Compatible MCP clients (Claude Desktop, Cursor, Windsurf, Zed, Glama, PulseMCP) can automatically discover and resolve the server using its canonical name `io.github.nolll77/agentic-ops`.
 
 ---
 

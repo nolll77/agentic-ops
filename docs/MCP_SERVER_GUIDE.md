@@ -275,6 +275,8 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ### Option G — Glama Web UI (`glama.ai`) & Hosted Cloud MCP Clients
 
+View the verified live listing directly on the [Glama MCP Directory (`glama.ai/mcp/servers/nolll77/agentic-ops`)](https://glama.ai/mcp/servers/nolll77/agentic-ops).
+
 In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using the direct hosted HTTP JSON-RPC 2.0 endpoint:
 ```json
 {
@@ -286,6 +288,16 @@ In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using 
 }
 ```
 When submitted under `Runs from source` on Glama (`https://github.com/nolll77/agentic-ops`), Glama executes the server container inside its own isolated cloud sandbox, ensuring zero compute load and zero billing impact on your personal infrastructure.
+
+---
+
+### Option H — Official Anthropic Model Context Protocol Registry (`registry.modelcontextprotocol.io`)
+
+`Agentic-Ops` is officially registered and active on the Anthropic-governed [Official Model Context Protocol Registry](https://registry.modelcontextprotocol.io):
+- **Canonical Reverse-DNS Namespace**: `io.github.nolll77/agentic-ops`
+- **Live Registry API Endpoint**: [`https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions`](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions)
+- **Official Manifest Specification**: [`server.json`](../server.json) conforming to schema `https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json`.
+- **Ecosystem Discovery**: Enables instant auto-discovery across all modern MCP clients (Claude Desktop, Cursor, Windsurf, Zed, Glama, PulseMCP).
 
 ---
 
