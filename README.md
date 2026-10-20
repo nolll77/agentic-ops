@@ -17,9 +17,9 @@ Unlike frameworks that prioritize agent autonomy, it explores SRE-inspired contr
 
 ## Current release and honest qualification status
 
-- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); the current release candidate targets [`ghcr.io/nolll77/agentic-ops:v0.1.6`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- The Python package is distributed on [PyPI](https://pypi.org/project/agentic-ops/); multi-architecture container images (`linux/amd64`, `linux/arm64`) are distributed on [GHCR](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops) (`ghcr.io/nolll77/agentic-ops`) and [Docker Hub](https://hub.docker.com/r/nolll78/agentic-ops) (`nolll78/agentic-ops`).
 - A local Docker/kind exercise validated an alert webhook through the worker to a simulated investigation episode, and confirmed that its state survived a pod restart on the same PVC. This is local single-node evidence, not a backup-restore or cluster-loss test.
-- Release automation tests and version-checks a GitHub release, publishes Python distributions to PyPI, then publishes the matching AMD64/ARM64 container to GHCR. See [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
+- Release automation tests and version-checks a GitHub release, publishes Python distributions to PyPI, then builds and publishes the matching AMD64/ARM64 container to both GHCR and Docker Hub. See [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
 - Release `v0.1.4` adds a fail-closed local inventory, SQLite backup/restore commands, and a synthetic load/crash-recovery benchmark. These tools do not themselves qualify a production deployment.
 - Release `v0.1.5` improves protected console/LLM-probe authentication UX. Render must still have a private `ADMIN_API_KEY` configured for these protected actions.
 - Release `v0.1.6` adds verified multi-database/evidence backup sets, a simulation-only approval continuation on the original episode, expanded worker crash and inventory lifecycle tests, and a size-matrix benchmark. It does not certify an off-host restore or enable live actions.

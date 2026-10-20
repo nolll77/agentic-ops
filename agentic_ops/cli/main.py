@@ -37,7 +37,7 @@ app = FastAPI(
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.10",
+    version="0.1.11",
 )
 
 app.add_middleware(AdminAPIKeyMiddleware)

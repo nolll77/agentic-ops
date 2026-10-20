@@ -1,4 +1,4 @@
-name: Publish release to PyPI and GHCR
+name: Publish release to PyPI, GHCR and Docker Hub
 
 on:
   release:
@@ -95,7 +95,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
   ghcr-publish:
-    name: Build and publish container image to GHCR
+    name: Build and publish container image to GHCR and Docker Hub
     needs: pypi-publish
     runs-on: ubuntu-latest
     permissions:
@@ -120,11 +120,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Generate image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/nolll77/agentic-ops
+          images: |
+            ghcr.io/nolll77/agentic-ops
+            nolll78/agentic-ops
           tags: |
             type=raw,value=${{ github.event.release.tag_name }}
             type=raw,value=latest

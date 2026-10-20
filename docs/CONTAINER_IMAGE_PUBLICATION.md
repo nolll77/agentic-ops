@@ -1,8 +1,8 @@
-# Publication de l'image sur GitHub Container Registry
+# Publication de l'image sur GitHub Container Registry (GHCR) et Docker Hub
 
-L'image de ce dépôt est destinée à GitHub Container Registry (GHCR), sous
-`ghcr.io/nolll77/agentic-ops`. Le workflow de release publie aussi le paquet
-Python sur PyPI; les deux artefacts restent des distributions distinctes.
+L'image de ce dépôt est distribuée simultanément sur GitHub Container Registry (GHCR)
+sous `ghcr.io/nolll77/agentic-ops` et sur Docker Hub sous `nolll78/agentic-ops`.
+Le workflow de release publie également le paquet Python sur PyPI.
 
 ## Contenu et vérifications de sécurité
 
@@ -21,13 +21,14 @@ toute publication publique.
 
 ## Publication coordonnée par GitHub Actions
 
-Le workflow `.github/workflows/publish.yml` publie PyPI et GHCR dans la même
+Le workflow `.github/workflows/publish.yml` publie PyPI, GHCR et Docker Hub dans la même
 chaîne de release. Il installe le projet et exécute la suite de tests, vérifie
 les versions puis construit les distributions Python à partir du tag. Après
 publication sur PyPI, et **seulement si cette étape réussit**, il construit et
-publie l'image `linux/amd64` et `linux/arm64` sur GHCR à partir du même tag
-source. Il utilise `GITHUB_TOKEN` avec `packages: write`; aucun mot de passe
-Docker Hub ni PAT n'est requis.
+publie l'image `linux/amd64` et `linux/arm64` sur GHCR (`ghcr.io/nolll77/agentic-ops`)
+et Docker Hub (`nolll78/agentic-ops`) à partir du même tag source.
+Il utilise `GITHUB_TOKEN` avec `packages: write` pour GHCR, et les secrets de dépôt
+`DOCKERHUB_USERNAME` et `DOCKERHUB_TOKEN` pour Docker Hub.
 
 1. Mettre à jour `project.version` dans `pyproject.toml` et `version` /
    `appVersion` dans le chart Helm à `X.Y.Z`, ainsi que `image.tag` dans

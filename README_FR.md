@@ -17,9 +17,9 @@ Contrairement aux frameworks privilégiant l'autonomie des agents, il explore de
 
 ## Version actuelle et statut de qualification
 
-- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; la candidate de release vise [`ghcr.io/nolll77/agentic-ops:v0.1.6`](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops).
+- Le paquet Python est distribué sur [PyPI](https://pypi.org/project/agentic-ops/) ; les images de conteneur multi-architectures (`linux/amd64`, `linux/arm64`) sont distribuées sur [GHCR](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops) (`ghcr.io/nolll77/agentic-ops`) et sur [Docker Hub](https://hub.docker.com/r/nolll78/agentic-ops) (`nolll78/agentic-ops`).
 - Un essai local Docker/kind a vérifié le parcours webhook d'alerte → worker → épisode d'investigation simulé, puis la conservation de l'état après redémarrage du pod avec le même PVC. Cela ne valide ni une restauration de sauvegarde ni la perte du volume/cluster.
-- À la publication d'une release GitHub, l'automatisation teste et vérifie les versions, publie le paquet Python sur PyPI, puis l'image AMD64/ARM64 correspondante sur GHCR. Voir [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
+- À la publication d'une release GitHub, l'automatisation teste et vérifie les versions, publie le paquet Python sur PyPI, puis compile et publie l'image AMD64/ARM64 correspondante sur GHCR et Docker Hub. Voir [`docs/CONTAINER_IMAGE_PUBLICATION.md`](docs/CONTAINER_IMAGE_PUBLICATION.md).
 - La release `v0.1.4` ajoute un inventaire local fail-closed, les commandes SQLite de sauvegarde/restauration et un benchmark synthétique de charge/reprise. Ces outils ne qualifient pas à eux seuls un déploiement de production.
 - La release `v0.1.5` améliore l'authentification de l'interface console et des sondes LLM protégées. Render doit toujours avoir une variable secrète `ADMIN_API_KEY` configurée pour autoriser ces actions.
 - La release `v0.1.6` ajoute les sauvegardes multi-bases avec preuves vérifiées, la reprise d'approbation en simulation sur l'épisode d'origine, des tests élargis de pannes/inventaire et un benchmark multi-tailles. Elle ne qualifie pas une restauration hors machine et n'active aucune action réelle.
