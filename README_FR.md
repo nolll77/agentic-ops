@@ -980,12 +980,57 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
 ```
 
-#### E. Connexion `LibreChat` Web UI (`Hub IA OpenRouter` + `Passerelle MCP Agentic-Ops`)
+#### E. Connexion `Glama` Web UI (`glama.ai`) ou Clients MCP Cloud Distants
+Dans [Glama](https://glama.ai), LibreChat, ou tout client MCP cloud, connectez-vous via l'endpoint direct HTTP JSON-RPC 2.0 :
+```json
+{
+  "mcpServers": {
+    "agentic-ops": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+
+#### F. Connexion `LibreChat` Web UI (`Hub IA OpenRouter` + `Passerelle MCP Agentic-Ops`)
 [LibreChat](https://www.librechat.ai) est l'équivalent open-source de ChatGPT supportant à la fois **les modèles OpenRouter** et **le protocole `MCP`**. En montant le gabarit de configuration fourni [`librechat.yaml`](librechat.yaml) dans votre conteneur LibreChat (`volumes: [./librechat.yaml:/app/librechat.yaml]`), n'importe quel modèle OpenRouter (`deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free`, `mistralai/mistral-large-2411`) accède directement aux outils du Control Plane Render via `https://agentic-ops-5ebv.onrender.com/mcp`.
 
+---
 
+### 3. Comment Prompter le Serveur MCP : Le Guide de l'Opérateur SRE & MLOps
 
-### 3. Catalogue Complet des 20 Starter Prompts Cognitifs (`prompts/list` & `prompts/get`)
+> **Invariant Architectural Fondamental** : Le serveur MCP d'`Agentic-Ops` n'est **PAS** une API métier CRUD destinée à manipuler les bases de données d'accidents de la route ou à effectuer des calculs de sinistralité. C'est un **Poste de Pilotage et de Gouvernance SRE / MLOps** conçu pour aider un ingénieur d'exploitation à investiguer des incidents de pipeline, auditer les vetos de politique, vérifier les preuves cryptographiques et inspecter la télémétrie en temps réel.
+
+Lors de l'interrogation du serveur MCP via un assistant IA (Claude Desktop, Cursor, Glama avec DeepSeek, ou ChatGPT), structurez vos prompts autour de ces **5 schémas opérationnels majeurs** :
+
+#### 1. Investigation dans la Taxonomie des Pannes MLOps (`search_failure_taxonomy`)
+*À utiliser lors de la détection de données anormales, de dérive de distribution ou de dégradation de modèle.*
+- **Prompt Opérateur** : *"Nous constatons une dérive de données (Data Drift) sur les features d'entrée et une augmentation de latence. Recherche dans la taxonomie des 435 pannes MLOps les causes racines associées, la cascade de propagation et les remédiations recommandées."*
+- **Action de l'IA** : Appelle `search_failure_taxonomy` avec des mots-clés (`"drift"`, `"latency"`, `"poisoning"`), et cartographie le symptôme sur les 10 dimensions d'architecture MLOps.
+
+#### 2. Vérification Préalable de Politique & Veto Amont (`evaluate_governance_policy`)
+*À utiliser pour vérifier si une remédiation proposée par une IA autonome est conforme aux règles de sécurité.*
+- **Prompt Opérateur** : *"Un agent IA propose de redémarrer le pod d'inférence ou de lancer un réentraînement automatique alors que la couche DATA amont est en sévérité CRITICAL. Vérifie si le PolicyEngine déterministe autorise cette action ou applique un veto strict (DENY)."*
+- **Action de l'IA** : Appelle `evaluate_governance_policy` avec la cible et la sévérité exacte, et justifie le veto de sécurité (*Fail-Closed* : règles `R-001 upstream_masks_service` ou `rate_limit_exceeded`).
+
+#### 3. Audit Forensique du WORM Trust Ledger & Preuves Merkle (`inspect_worm_trust_ledger`)
+*À utiliser lors d'un post-mortem, d'un audit de conformité EU AI Act ou d'une suspicion d'altération.*
+- **Prompt Opérateur** : *"Vérifie l'intégrité cryptographique de la chaîne de hachage linéaire SHA-256 dans le WORM Trust Ledger et présente la preuve scellée du dernier épisode d'incident."*
+- **Action de l'IA** : Appelle `inspect_worm_trust_ledger`, contrôle les signatures HMAC-SHA512 et la racine de Merkle binaire RFC 6962, certifiant l'absence totale de falsification.
+
+#### 4. Blueprints de Scénarios de Crise en War-Room (`get_scenario_blueprint`)
+*À utiliser lors d'exercices de simulation, d'entraînement d'équipe ou de chaos engineering.*
+- **Prompt Opérateur** : *"Récupère la spécification architecturale et les invariants du scénario SC-101 (attaque par empoisonnement de données) et détaille les approbations humaines (Slack HITL) obligatoires."*
+- **Action de l'IA** : Appelle `get_scenario_blueprint` pour extraire les contrats de crise YAML, le rayon d'impact (*blast-radius*) et le niveau de quorum exigé.
+
+#### 5. Diagnostic SRE Glass-Box en Direct (`read_console_diagnostic`)
+*À utiliser pour inspecter la santé du daemon, l'empreinte mémoire cgroups ou les preuves d'exécution de tests.*
+- **Prompt Opérateur** : *"Exécute la phase de diagnostic sandbox A pour auditer la mémoire du daemon, les sockets réseau (Redis, Tailscale) et la version de politique active."*
+- **Action de l'IA** : Appelle `read_console_diagnostic(command='sandbox_phase_a_vitals')` et restitue le bilan vérifié accompagné des guides pédagogiques.
+
+---
+
+### 4. Catalogue Complet des 20 Starter Prompts Cognitifs (`prompts/list` & `prompts/get`)
 
 | # | Identifiant Prompt | Domaine | Résumé du Starter Prompt & Chaînage d'Outils `MCP` |
 | :--- | :--- | :--- | :--- |

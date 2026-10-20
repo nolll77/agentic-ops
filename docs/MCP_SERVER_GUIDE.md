@@ -273,7 +273,56 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
 
 ---
 
-## 6. Complete Catalog of the 20 Cognitive Starter Prompts
+### Option G — Glama Web UI (`glama.ai`) & Hosted Cloud MCP Clients
+
+In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using the direct hosted HTTP JSON-RPC 2.0 endpoint:
+```json
+{
+  "mcpServers": {
+    "agentic-ops": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+When submitted under `Runs from source` on Glama (`https://github.com/nolll77/agentic-ops`), Glama executes the server container inside its own isolated cloud sandbox, ensuring zero compute load and zero billing impact on your personal infrastructure.
+
+---
+
+## 6. How to Prompt the MCP Server: The SRE & MLOps Operator Guide
+
+> **Core Architectural Invariant**: The `Agentic-Ops` MCP server is **NOT** a business-domain CRUD API for querying raw target datasets or counting road accidents. It is an **SRE & MLOps Governance Cockpit** designed to empower an operations engineer with AI-assisted incident investigation, policy veto auditing, cryptographic evidence verification, and runtime telemetry inspection.
+
+When querying the MCP server through an AI assistant (Claude Desktop, Cursor, Glama with DeepSeek, or ChatGPT), structure your prompts around the following **5 operational patterns**:
+
+### 1. MLOps Failure Taxonomy Investigation (`search_failure_taxonomy`)
+*Use when investigating anomalous telemetry, data drift, or model degradation.*
+- **Operator Prompt**: *"We detected significant data drift on input features and elevated latency spikes. Search the 435 MLOps failure taxonomy for matching root causes, propagation cascades, and recommended mitigations."*
+- **What the LLM Does**: Calls `search_failure_taxonomy` with keywords like `"drift"`, `"latency"`, or `"poisoning"`, mapping the symptom across the 10 MLOps architectural dimensions.
+
+### 2. Pre-Execution Policy & Veto Verification (`evaluate_governance_policy`)
+*Use when verifying whether an autonomous agent's proposed action is safe to execute.*
+- **Operator Prompt**: *"An AI remediation agent proposes to restart the prediction pod or trigger an automated retrain under CRITICAL upstream data severity. Check if the deterministic PolicyEngine permits this action or issues a hard veto (DENY)."*
+- **What the LLM Does**: Calls `evaluate_governance_policy` with exact target and severity parameters, explaining the fail-closed veto (`R-001 upstream_masks_service` or `1/hour rate_limit_exceeded`).
+
+### 3. WORM Trust Ledger & Merkle Audit (`inspect_worm_trust_ledger`)
+*Use for forensic post-mortems, EU AI Act compliance checks, or tamper detection.*
+- **Operator Prompt**: *"Verify the cryptographic integrity of the linear SHA-256 hash chain in the WORM Trust Ledger and show the sealed proof for the latest incident episode."*
+- **What the LLM Does**: Calls `inspect_worm_trust_ledger` to verify the HMAC-SHA512 signatures and RFC 6962 binary Merkle root, certifying zero tampering.
+
+### 4. War-Room Crisis Blueprints (`get_scenario_blueprint`)
+*Use during tabletop exercises, fire drills, or chaos engineering preparations.*
+- **Operator Prompt**: *"Retrieve the architectural specification and invariants for scenario SC-101 (adversarial data poisoning) and explain what human-in-the-loop approvals are required."*
+- **What the LLM Does**: Calls `get_scenario_blueprint` to extract YAML crisis contracts, blast-radius boundaries, and required quorum levels.
+
+### 5. Live Glass-Box SRE Diagnostics (`read_console_diagnostic`)
+*Use to inspect daemon vitals, memory cgroups, or test execution proofs.*
+- **Operator Prompt**: *"Execute the sandbox vitals phase A diagnostic to inspect daemon memory, socket connectivity (Redis, Tailscale), and the active policy version."*
+- **What the LLM Does**: Calls `read_console_diagnostic(command='sandbox_phase_a_vitals')` and returns verified test results with pedagogical guidance.
+
+---
+
+## 7. Complete Catalog of the 20 Cognitive Starter Prompts
 
 All 20 prompts below are natively registered inside `agentic_ops/entrypoints/mcp_server.py` (retrievable via `prompts/list`, `prompts/get`, `GET /mcp/manifest`, and `GET /api/prompts`).
 
@@ -326,7 +375,7 @@ They are also **directly executable in 1 click** inside the Standalone Web Chat 
 
 ---
 
-## 7. Universal LLM Provider Hub Configuration
+## 8. Universal LLM Provider Hub Configuration
 
 The Control Plane decouples reasoning from infrastructure via `agentic_ops/adapters/llm_provider_registry.py` and `llm_protocol.py`. The active provider can be selected dynamically via environment variables without code modification:
 
@@ -348,11 +397,11 @@ If the primary model is throttled or raises a rate-limit error (`429 Too Many Re
 
 ---
 
-## 8. M8ven Trust Index & Ecosystem Security Standards (Behavioral Tool Annotations, Licensing, and 100% Test Coverage)
+## 9. M8ven Trust Index & Ecosystem Security Standards (Behavioral Tool Annotations, Licensing, and 100% Test Coverage)
 
 To achieve autonomous production grade on public Model Context Protocol indexes (such as the **M8ven Trust Index**, OpenAI's directory, and Anthropic's catalog), `agentic-ops` satisfies strict determinism and safety requirements, achieving **Grade A (95-100 / 100) Verified Enterprise Control Plane** rating.
 
-### 8.1 Technical Analysis: MLOps Theory vs. Solo Engineering Reality
+### 9.1 Technical Analysis: MLOps Theory vs. Solo Engineering Reality
 
 * **MLOps Theory & Ecosystem Standards**:
   Autonomous agent ecosystems require programmatic guarantees before connecting an LLM to infrastructure. These platforms evaluate four critical security dimensions:
@@ -365,7 +414,7 @@ To achieve autonomous production grade on public Model Context Protocol indexes 
 
 ---
 
-### 8.2 Comprehensive Taxonomy of the 17 Annotated Tools
+### 9.2 Comprehensive Taxonomy of the 17 Annotated Tools
 
 All 17 tools declare explicit boolean hints formatted in both `camelCase` (for official MCP and OpenAI directory compatibility) and `snake_case` (for native Python client compatibility):
 
@@ -391,7 +440,7 @@ All 17 tools declare explicit boolean hints formatted in both `camelCase` (for o
 
 ---
 
-### 8.3 Automated Verification & Suite Coverage
+### 9.3 Automated Verification & Suite Coverage
 
 The verification suite in `tests/entrypoints/test_mcp_server.py` validates this architecture through:
 * `test_mcp_tools_declare_all_four_hints`: Programmatically asserts that all 8 tools exposed via JSON-RPC declare `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` as genuine `bool` instances.

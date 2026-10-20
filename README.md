@@ -979,12 +979,57 @@ curl -s -X POST https://agentic-ops-5ebv.onrender.com/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_console_diagnostic","arguments":{"command":"sandbox_phase_d_mlops_scenarios","include_guides":false}}}' | jq -r '.result.content[0].text'
 ```
 
-#### E. Connect `LibreChat` Web UI (`OpenRouter AI Hub` + `Agentic-Ops MCP Gateway`)
+#### E. Connect `Glama` Web UI (`glama.ai`) or Remote Cloud MCP Clients
+In [Glama](https://glama.ai), LibreChat, or any cloud MCP client, connect using the direct hosted HTTP JSON-RPC 2.0 endpoint:
+```json
+{
+  "mcpServers": {
+    "agentic-ops": {
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  }
+}
+```
+
+#### F. Connect `LibreChat` Web UI (`OpenRouter AI Hub` + `Agentic-Ops MCP Gateway`)
 [LibreChat](https://www.librechat.ai) is the open-source ChatGPT equivalent supporting both **OpenRouter models** and **the `MCP` Protocol**. By mounting the included [`librechat.yaml`](librechat.yaml) configuration file into your LibreChat container (`volumes: [./librechat.yaml:/app/librechat.yaml]`), any chosen OpenRouter model (`deepseek/deepseek-r1:free`, `meta-llama/llama-3.3-70b-instruct:free`, `mistralai/mistral-large-2411`) gains full direct tool-calling access to the live Render Control Plane via `https://agentic-ops-5ebv.onrender.com/mcp`.
 
+---
 
+### 3. How to Prompt the MCP Server: The SRE & MLOps Operator Guide
 
-### 3. Complete Catalog of the 20 Cognitive Starter Prompts (`prompts/list` & `prompts/get`)
+> **Core Architectural Invariant**: The `Agentic-Ops` MCP server is **NOT** a business-domain CRUD API for querying raw target datasets or counting road accidents. It is an **SRE & MLOps Governance Cockpit** designed to empower an operations engineer with AI-assisted incident investigation, policy veto auditing, cryptographic evidence verification, and runtime telemetry inspection.
+
+When querying the MCP server through an AI assistant (Claude Desktop, Cursor, Glama with DeepSeek, or ChatGPT), structure your prompts around the following **5 operational patterns**:
+
+#### 1. MLOps Failure Taxonomy Investigation (`search_failure_taxonomy`)
+*Use when investigating anomalous telemetry, data drift, or model degradation.*
+- **Operator Prompt**: *"We detected significant data drift on input features and elevated latency spikes. Search the 435 MLOps failure taxonomy for matching root causes, propagation cascades, and recommended mitigations."*
+- **What the LLM Does**: Calls `search_failure_taxonomy` with keywords like `"drift"`, `"latency"`, or `"poisoning"`, mapping the symptom across the 10 MLOps architectural dimensions.
+
+#### 2. Pre-Execution Policy & Veto Verification (`evaluate_governance_policy`)
+*Use when verifying whether an autonomous agent's proposed action is safe to execute.*
+- **Operator Prompt**: *"An AI remediation agent proposes to restart the prediction pod or trigger an automated retrain under CRITICAL upstream data severity. Check if the deterministic PolicyEngine permits this action or issues a hard veto (DENY)."*
+- **What the LLM Does**: Calls `evaluate_governance_policy` with exact target and severity parameters, explaining the fail-closed veto (`R-001 upstream_masks_service` or `1/hour rate_limit_exceeded`).
+
+#### 3. WORM Trust Ledger & Merkle Audit (`inspect_worm_trust_ledger`)
+*Use for forensic post-mortems, EU AI Act compliance checks, or tamper detection.*
+- **Operator Prompt**: *"Verify the cryptographic integrity of the linear SHA-256 hash chain in the WORM Trust Ledger and show the sealed proof for the latest incident episode."*
+- **What the LLM Does**: Calls `inspect_worm_trust_ledger` to verify the HMAC-SHA512 signatures and RFC 6962 binary Merkle root, certifying zero tampering.
+
+#### 4. War-Room Crisis Blueprints (`get_scenario_blueprint`)
+*Use during tabletop exercises, fire drills, or chaos engineering preparations.*
+- **Operator Prompt**: *"Retrieve the architectural specification and invariants for scenario SC-101 (adversarial data poisoning) and explain what human-in-the-loop approvals are required."*
+- **What the LLM Does**: Calls `get_scenario_blueprint` to extract YAML crisis contracts, blast-radius boundaries, and required quorum levels.
+
+#### 5. Live Glass-Box SRE Diagnostics (`read_console_diagnostic`)
+*Use to inspect daemon vitals, memory cgroups, or test execution proofs.*
+- **Operator Prompt**: *"Execute the sandbox vitals phase A diagnostic to inspect daemon memory, socket connectivity (Redis, Tailscale), and the active policy version."*
+- **What the LLM Does**: Calls `read_console_diagnostic(command='sandbox_phase_a_vitals')` and returns verified test results with pedagogical guidance.
+
+---
+
+### 4. Complete Catalog of the 20 Cognitive Starter Prompts (`prompts/list` & `prompts/get`)
 
 | # | Prompt ID | Domain | Starter Prompt Summary & Chained `MCP` Tools |
 | :--- | :--- | :--- | :--- |
