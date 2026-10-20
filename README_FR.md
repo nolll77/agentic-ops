@@ -1,7 +1,8 @@
 # Agentic-Ops Control Plane
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)
-[![GHCR](https://img.shields.io/badge/GHCR-v0.1.6-blue?logo=docker)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-nolll78%2Fagentic--ops-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/nolll78/agentic-ops)
+[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
 [![Tests](https://img.shields.io/badge/Tests-231%20Validés-brightgreen)](tests/)
@@ -1534,6 +1535,27 @@ python -m agentic_ops.cli.trust_ledger merkle-root
 python -m agentic_ops.cli.trust_ledger merkle-proof EP-0001
 python -m agentic_ops.entrypoints.mcp_server
 
+```
+
+### Option C : Exécuter le Conteneur Clé en Main (Docker Hub & GHCR)
+
+Les images de conteneur multi-architectures OCI pré-compilées (`linux/amd64`, `linux/arm64`) sont distribuées sur [Docker Hub](https://hub.docker.com/r/nolll78/agentic-ops) et sur [GHCR](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops) :
+
+```bash
+# Téléchargement depuis Docker Hub
+docker pull nolll78/agentic-ops:latest
+
+# Ou téléchargement depuis GitHub Container Registry
+docker pull ghcr.io/nolll77/agentic-ops:latest
+
+# Lancement immédiat du Plan de Contrôle complet
+docker run -d -p 8000:8000 --name agentic-ops nolll78/agentic-ops:latest
+
+# Accès aux interfaces :
+# -> Web Chat :     http://localhost:8000/chat
+# -> Console SRE :  http://localhost:8000/console
+# -> Swagger API :  http://localhost:8000/docs
+# -> Serveur MCP :  http://localhost:8000/mcp
 ```
 
 ---
