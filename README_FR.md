@@ -69,7 +69,7 @@ L'instance publique sur Render et les rapports suivants démontrent certaines fo
 4. **Guide de Résilience face aux Pannes Cibles (Scaleway / Déconnexion Tailscale)** :
    Explique pourquoi le Control Plane ne plante jamais en cas de coupure du VPS supervisé, détaillant l'absorption d'erreurs `RemoteServiceStatus.REMOTE_TARGET_OFFLINE`, la gouvernance Fail-Closed, l'exécution autonome des tests locaux et la reconnexion automatique en 1 minute :  
    **[Consulter le Guide de Résilience face aux Pannes Cibles (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
-5. 🎓 **Rapport Officiel de Soutenance de Mémoire (PDF, 40 Pages)** :
+5. **Rapport Officiel de Soutenance de Mémoire (PDF, 40 Pages)** :
    Rapport de soutenance SRE & MLOps complet sur la gouvernance, l'observabilité multi-couches, la FSM déterministe et l'interconnexion avec `jakatt/cac_mlops` :  
    **[Consulter le Rapport de Soutenance Officiel (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**
 
@@ -1571,11 +1571,11 @@ python -m agentic_ops.entrypoints.mcp_server
     Guide exhaustif sur les 5 rôles d'agents spécialisés (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatAssistant`), la logique de routage taxonomique dans `_get_specialist()`, la séparation judiciaire anti-biais entre diagnostic et remédiation, et les justifications opérationnelles établissant `DataSpecialist` comme repli universel de la plateforme. Inclut la dissection architecturale des composants non-cognitifs (`CircuitBreakerFallback`, `ActionExecutor`, `CacPullCollector`, `SlackWebhookAgent`, 8 `AgentTools` et `MCPServerGateway`) fonctionnant avec **zéro LLM (0-token, Python déterministe pur)** selon le modèle de sécurité Zero-Trust, ainsi que l'encart d'inspection interactif **Topologie MAS & LLMs Live** intégré nativement dans la Console Web (`/console`) et le Chat Web (`/chat`) alimenté par l'endpoint `GET /api/mas/topology`.
 12. **[Guide d'Ingénierie de Distribution PyPI & Release (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)** :
     Guide exhaustif sur la distribution publique du package sur PyPI : sécurisation de la chaîne d'approvisionnement logicielle, architecture sans secret statique via OpenID Connect (OIDC Trusted Publishing), attestations numériques SLSA, modes d'installation et d'exécution CLI, et runbooks de release pour les mainteneurs.
-13. 🎓 **[Rapport Officiel de Soutenance de Mémoire (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)** :
+13. **[Rapport Officiel de Soutenance de Mémoire (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)** :
     Rapport de soutenance SRE & MLOps complet de 40 pages couvrant la gouvernance, l'observabilité multi-couches, la FSM déterministe, le grand livre WORM cryptographique avec arbre de Merkle RFC 6962, et l'interconnexion en production avec `jakatt/cac_mlops`.
-14. 🤝 **[Guide de Contribution & Collaboration Communautaire (`CONTRIBUTING.md`)](CONTRIBUTING.md)** :
+14. **[Guide de Contribution & Collaboration Communautaire (`CONTRIBUTING.md`)](CONTRIBUTING.md)** :
     Invariants architecturaux, configuration de l'environnement de développement, workflow de Pull Request, normes de code et directives de participation pour ingénieurs et chercheurs.
-15. 🎯 **[Chantiers Communautaires Actifs & Roadmap Ouverte (Issues GitHub)](https://github.com/nolll77/agentic-ops/issues)** :
+15. **[Chantiers Communautaires Actifs & Roadmap Ouverte (Issues GitHub)](https://github.com/nolll77/agentic-ops/issues)** :
     - **[#1 — Réconciliation du Refus d'Approbation dans le Grand Livre](https://github.com/nolll77/agentic-ops/issues/1)** : Raccordement formel du rejet opérateur à l'épisode source dans le ledger WORM.
     - **[#2 — Exercices Déterministes de Panne du Worker](https://github.com/nolll77/agentic-ops/issues/2)** : Garantie d'au moins une livraison (*At-Least-Once*), injection de crash et reprise idempotente.
     - **[#3 — Cycle de Vie de l'Inventaire Local & Drift](https://github.com/nolll77/agentic-ops/issues/3)** : Fraîcheur, détection d'altération en direct, conformité de schéma et rechargement sûr.

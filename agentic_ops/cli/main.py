@@ -37,7 +37,7 @@ app = FastAPI(
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.9",
+    version="0.1.10",
 )
 
 app.add_middleware(AdminAPIKeyMiddleware)
@@ -2770,13 +2770,18 @@ CHAT_HTML = r"""<!DOCTYPE html>
     header {
       background: var(--card);
       border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
+      padding: 10px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .header-top-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
       gap: 12px;
-      flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .brand {
       display: flex;
@@ -2784,36 +2789,84 @@ CHAT_HTML = r"""<!DOCTYPE html>
       gap: 10px;
     }
     .brand-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--text);
       display: flex;
       align-items: center;
       gap: 8px;
+      white-space: nowrap;
+    }
+    .brand-short-name {
+      display: none;
     }
     .brand-sub {
       font-size: 11px;
       color: var(--muted);
       margin-top: 1px;
     }
-    .header-right {
+    .header-nav {
       display: flex;
       align-items: center;
-      gap: 12px;
-      font-size: 12px;
+      gap: 8px;
+    }
+    .btn-console-nav {
+      background: #064e3b;
+      border: 1px solid #059669;
+      color: #a7f3d0;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-console-nav:hover {
+      background: #047857;
+      color: #ffffff;
+      border-color: #34d399;
+      text-decoration: none;
+    }
+    .nav-link-item {
+      color: var(--accent-blue);
+      text-decoration: none;
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .nav-link-item:hover {
+      background: rgba(56, 189, 248, 0.1);
+      text-decoration: none;
+    }
+    .header-action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .badge-llm {
       background: #022c22;
       color: var(--accent);
       border: 1px solid #059669;
-      padding: 5px 12px;
+      padding: 4px 10px;
       border-radius: 9999px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 1;
     }
     .badge-dot {
       width: 7px;
@@ -2822,6 +2875,15 @@ CHAT_HTML = r"""<!DOCTYPE html>
       border-radius: 50%;
       box-shadow: 0 0 6px var(--accent);
       display: inline-block;
+      flex-shrink: 0;
+    }
+    .badge-prov {
+      white-space: nowrap;
+    }
+    .badge-model {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .btn-catalog-toggle {
       background: #3b0764;
@@ -2836,25 +2898,30 @@ CHAT_HTML = r"""<!DOCTYPE html>
       align-items: center;
       gap: 6px;
       transition: all 0.15s;
+      white-space: nowrap;
     }
     .btn-catalog-toggle:hover {
       background: #581c87;
       border-color: #a855f7;
       color: #fff;
     }
+    .btn-text-short {
+      display: none;
+    }
     .btn-theme-toggle {
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 5px 12px;
+      padding: 4px 10px;
       border-radius: 9999px;
       font-size: 11.5px;
       font-weight: 600;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: all 0.15s;
+      white-space: nowrap;
     }
     .btn-theme-toggle:hover {
       border-color: var(--accent);
@@ -2862,7 +2929,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     }
     .nav-links {
       display: flex;
-      gap: 12px;
+      gap: 8px;
     }
     .nav-links a {
       color: var(--accent-blue);
@@ -3564,6 +3631,21 @@ CHAT_HTML = r"""<!DOCTYPE html>
     }
 
     /* COMPREHENSIVE LIGHT THEME OVERRIDES */
+    html[data-theme="light"] .btn-console-nav {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #15803d;
+    }
+    html[data-theme="light"] .btn-console-nav:hover {
+      background: #bbf7d0;
+      color: #14532d;
+    }
+    html[data-theme="light"] .nav-link-item {
+      color: #0284c7;
+    }
+    html[data-theme="light"] .nav-link-item:hover {
+      background: #f0f9ff;
+    }
     html[data-theme="light"] .badge-llm {
       background: #dcfce7;
       color: #15803d;
@@ -3724,33 +3806,63 @@ CHAT_HTML = r"""<!DOCTYPE html>
     html[data-theme="light"] .prompt-id-badge.cat-IV { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
     html[data-theme="light"] .prompt-id-badge.cat-V { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
 
-    /* Smartphone / Mobile Responsiveness for Chat */
-    @media (max-width: 768px) {
+    /* Smartphone & Tablet Responsive Breakpoints (Portrait & Landscape) */
+    @media (max-width: 900px) {
       header {
-        padding: 8px 12px;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
+        padding: 6px 12px;
+        gap: 6px;
       }
       .brand-title {
         font-size: 13.5px;
       }
+      .brand-full-name {
+        display: none;
+      }
+      .brand-short-name {
+        display: inline;
+      }
       .brand-sub {
         display: none;
       }
-      .header-right {
+      .header-top-row {
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
+      .header-nav {
+        gap: 5px;
+      }
+      .btn-console-nav, .nav-link-item, .btn-theme-toggle {
+        font-size: 10.5px;
+        padding: 3px 8px;
+      }
+      .header-action-row {
         gap: 6px;
         overflow-x: auto;
         white-space: nowrap;
         padding-bottom: 2px;
         -webkit-overflow-scrolling: touch;
       }
-      .badge-llm, .btn-catalog-toggle, .btn-theme-toggle, .btn-repo-link {
-        font-size: 10.5px;
-        padding: 4px 8px;
+      .header-action-row::-webkit-scrollbar {
+        height: 3px;
       }
-      .nav-links {
+      .header-action-row::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 2px;
+      }
+      .badge-llm {
+        max-width: 190px;
+        font-size: 10.5px;
+        padding: 3px 8px;
+      }
+      .btn-catalog-toggle {
+        font-size: 10.5px;
+        padding: 3px 8px;
+      }
+      .btn-text-full {
         display: none;
+      }
+      .btn-text-short {
+        display: inline;
       }
       .chat-container {
         padding: 8px 10px;
@@ -3822,45 +3934,124 @@ CHAT_HTML = r"""<!DOCTYPE html>
         padding: 12px 14px;
       }
     }
+
+    /* Extra-compact optimization for mobile phones in Landscape (short screen height) */
+    @media (orientation: landscape) and (max-height: 550px) {
+      header {
+        padding: 4px 10px;
+        gap: 4px;
+      }
+      .brand-title {
+        font-size: 12px;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .brand-full-name {
+        display: none;
+      }
+      .brand-short-name {
+        display: inline;
+      }
+      .btn-console-nav, .nav-link-item, .btn-theme-toggle, .btn-catalog-toggle, .badge-llm {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+      .badge-llm {
+        max-width: 160px;
+      }
+      .btn-text-full {
+        display: none;
+      }
+      .btn-text-short {
+        display: inline;
+      }
+      .chat-container {
+        padding: 4px 8px;
+      }
+      .chat-messages {
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+      .msg-bubble {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .chips-bar {
+        margin-bottom: 4px;
+        padding-bottom: 4px;
+      }
+      .chip-btn {
+        padding: 2px 8px;
+        font-size: 10px;
+      }
+      .input-box {
+        padding: 4px 6px;
+        border-radius: 6px;
+      }
+      .input-box textarea {
+        min-height: 28px;
+        max-height: 70px;
+        font-size: 12px;
+        padding: 2px;
+      }
+      .btn-send {
+        padding: 4px 10px;
+        font-size: 11px;
+      }
+      .btn-clear {
+        padding: 4px 6px;
+        font-size: 10px;
+      }
+      .input-hint {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
   <header>
-    <div class="brand">
-      <div class="header-left">
-        <div class="brand-title">
-          <span>💬</span>
-          <span>Agentic-Ops — Cognitive SRE & MLOps Assistant</span>
+    <div class="header-top-row">
+      <div class="brand">
+        <div class="header-left">
+          <div class="brand-title">
+            <span>💬</span>
+            <span class="brand-full-name">Agentic-Ops — Cognitive SRE & MLOps Assistant</span>
+            <span class="brand-short-name">Agentic-Ops SRE</span>
+          </div>
+          <div class="brand-sub">Universal LLM Interface (OpenRouter, Gemini, Claude, OpenAI, Ollama) | Zero-Dependency Web Client</div>
         </div>
-        <div class="brand-sub">Universal LLM Interface (OpenRouter, Gemini, Claude, OpenAI, Ollama) | Zero-Dependency Web Client</div>
+      </div>
+      <div class="header-nav nav-links">
+        <a href="/console" target="_blank" class="btn-console-nav" title="Ouvrir la Console SRE interactive">🖥️ Console</a>
+        <a href="/docs" target="_blank" class="nav-link-item" title="Documentation API Interactive Swagger">Swagger</a>
+        <a href="/mcp/manifest" target="_blank" class="nav-link-item" title="Manifeste Protocole MCP (Model Context Protocol)">MCP</a>
+        <button class="btn-theme-toggle" id="chat-theme-btn" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
+          <span id="chat-theme-icon">☀️</span>
+          <span id="chat-theme-text">Clair</span>
+        </button>
       </div>
     </div>
-    <div class="header-right">
+    <div class="header-right header-action-row">
       <div class="badge-llm" id="llm-status-badge" onclick="openMasModal()" style="cursor:pointer;" title="Cliquez pour inspecter la topologie MAS et les LLMs actifs">
         <span class="badge-dot"></span>
         <span>Loading LLM Provider...</span>
       </div>
       <button class="btn-catalog-toggle" onclick="toggleQuickNotice(true)" style="background:#1e1b4b;border-color:#6366f1;color:#e0e7ff;" title="Afficher le guide rapide des 5 domaines d'investigation">
         <span>💡</span>
-        <span>Guide & Sujets</span>
+        <span class="btn-text-full">Guide & Sujets</span>
+        <span class="btn-text-short">Guide</span>
       </button>
       <button class="btn-catalog-toggle btn-rag-taxo" onclick="toggleRagTaxonomy(true)" style="background:#0c4a6e;border-color:#0284c7;color:#e0f2fe;" title="Interroger la Taxonomie des 435 Failure Modes MLOps via RAG Déterministe">
         <span>🎯</span>
-        <span>RAG Taxonomie (435)</span>
+        <span class="btn-text-full">RAG Taxonomie (435)</span>
+        <span class="btn-text-short">Taxonomie (435)</span>
       </button>
       <button class="btn-catalog-toggle btn-rag-scen" onclick="toggleRagScenarios(true)" style="background:#701a75;border-color:#c026d3;color:#fae8ff;" title="Interroger le Registre des 36 Scénarios SRE via RAG Déterministe">
         <span>🎬</span>
-        <span>RAG Scénarios (36)</span>
+        <span class="btn-text-full">RAG Scénarios (36)</span>
+        <span class="btn-text-short">Scénarios (36)</span>
       </button>
-      <button class="btn-theme-toggle" id="chat-theme-btn" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
-        <span id="chat-theme-icon">☀️</span>
-        <span id="chat-theme-text">Clair</span>
-      </button>
-      <div class="nav-links">
-        <a href="/console" target="_blank">🖥️ Console</a>
-        <a href="/docs" target="_blank">Swagger (/docs)</a>
-        <a href="/mcp/manifest" target="_blank">MCP Manifest</a>
-      </div>
     </div>
   </header>
 
@@ -4483,7 +4674,13 @@ CHAT_HTML = r"""<!DOCTYPE html>
         const data = await res.json();
         const badge = document.getElementById('llm-status-badge');
         if (badge && data.provider) {
-          badge.innerHTML = `<span class="badge-dot"></span> Active: <strong>${data.provider}</strong> (${data.model}) — ${data.api_key_masked}`;
+          let cleanModel = data.model || '';
+          if (cleanModel.startsWith(data.provider + '/')) {
+            cleanModel = cleanModel.slice(data.provider.length + 1);
+          }
+          const fullTitle = `Provider: ${data.provider} | Model: ${data.model} | Key: ${data.api_key_masked || 'N/A'}`;
+          badge.setAttribute('title', fullTitle + ' (Cliquer pour inspecter la topologie MAS)');
+          badge.innerHTML = `<span class="badge-dot"></span><span class="badge-prov">Active: <strong>${data.provider}</strong></span> <span class="badge-model">(${escapeHtml(cleanModel)})</span>`;
         }
       } catch (err) {
         console.error('Failed to load LLM status:', err);

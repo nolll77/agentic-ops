@@ -69,7 +69,7 @@ The following public Render instance and reports demonstrate selected features. 
 4. **Target Outage & Scaleway/Tailscale Degradation Resilience Guide**:
    Explains why the Control Plane never crashes if the supervised VPS goes down, detailing `RemoteServiceStatus.REMOTE_TARGET_OFFLINE` error absorption, Fail-Closed governance, autonomous local test execution, and 1-minute self-healing recovery:  
    **[Read the Target Outage & Resilience Guide (`docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md`)](docs/TARGET_OUTAGE_AND_RESILIENCE_GUIDE.md)**
-5. 🎓 **Official Thesis Defense Report (PDF, 40 Pages)**:
+5. **Official Thesis Defense Report (PDF, 40 Pages)**:
    Comprehensive SRE & MLOps thesis defense report on governance, multi-layer observability, deterministic FSM, and interconnection with `jakatt/cac_mlops`:  
    **[Read the Official Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**
 
@@ -1570,11 +1570,11 @@ python -m agentic_ops.entrypoints.mcp_server
     In-depth guide to the 5 specialized agent roles (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatAssistant`), taxonomic routing logic in `_get_specialist()`, anti-bias judicial separation between investigation and remediation, and the rationale behind `DataSpecialist` as the universal platform default. Includes the exhaustive breakdown of non-cognitive components operating with **zero LLMs (0-token, pure deterministic Python)** under the Zero-Trust security model, as well as the interactive **Live MAS Topology & Agent Inspector** embedded directly in both the Web Console (`/console`) and Web Chat (`/chat`) backed by `GET /api/mas/topology`.
 12. **[PyPI Release & Distribution Engineering Guide (`docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md`)](docs/PYPI_RELEASE_AND_DISTRIBUTION_GUIDE.md)**:
     Comprehensive guide to public package distribution on PyPI: software supply chain security, zero-static-secrets architecture using OpenID Connect (OIDC Trusted Publishing), SLSA provenance attestations, installation and CLI consumption options, and release lifecycle runbooks for maintainers.
-13. 🎓 **[Official Thesis Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**:
+13. **[Official Thesis Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**:
     Comprehensive 40-page SRE & MLOps thesis defense report covering governance, multi-layer observability, deterministic FSM, cryptographic WORM trust ledger with RFC 6962 Merkle tree, and live production interconnection with `jakatt/cac_mlops`.
-14. 🤝 **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)**:
+14. **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)**:
     Architectural invariants, development setup, Pull Request workflow, coding standards, and step-by-step participation guidelines for researchers and software engineers.
-15. 🎯 **[Active Community Issues & Open Roadmap](https://github.com/nolll77/agentic-ops/issues)**:
+15. **[Active Community Issues & Open Roadmap](https://github.com/nolll77/agentic-ops/issues)**:
     - **[#1 — Denial Reconciliation in Evidence Store](https://github.com/nolll77/agentic-ops/issues/1)**: Formal linking of human operator rejection to origin episode in WORM ledger.
     - **[#2 — Deterministic Worker Failure Drills](https://github.com/nolll77/agentic-ops/issues/2)**: At-least-once delivery, isolated crash injection, and idempotent task recovery.
     - **[#3 — Local Inventory Lifecycle & Drift](https://github.com/nolll77/agentic-ops/issues/3)**: Staleness, live tampering detection, schema verification, and reload safety.
