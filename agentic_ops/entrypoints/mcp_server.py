@@ -893,6 +893,19 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                     "isError": True,
                 }
 
+            if target_ep and proof_packet:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps({
+                            "error": "Mutually exclusive parameters: please provide either 'episode_id' (local ledger lookup) OR 'proof_packet' (offline zero-I/O verification), not both.",
+                            "verified": False,
+                            "status": "MUTUALLY_EXCLUSIVE_PARAMS",
+                        }, indent=2)
+                    }],
+                    "isError": True,
+                }
+
             if target_ep and not proof_packet:
                 proof_packet = store.get_merkle_proof(target_ep)
                 if not proof_packet:

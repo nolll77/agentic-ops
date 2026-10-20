@@ -670,3 +670,23 @@ def test_mcp_tool_verify_ledger_inclusion_workflow():
     )
     assert missing_resp["result"]["isError"] is True
 
+    # 7. Mutually exclusive parameters rejection (both episode_id and proof_packet)
+    both_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 95,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {
+                    "episode_id": ep_id,
+                    "proof_packet": packet,
+                },
+            },
+        }
+    )
+    assert both_resp["result"]["isError"] is True
+    bdata = json.loads(both_resp["result"]["content"][0]["text"])
+    assert bdata["status"] == "MUTUALLY_EXCLUSIVE_PARAMS"
+
+
