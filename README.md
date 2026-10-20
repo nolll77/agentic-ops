@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.nolll77/agentic-ops -->
 # Agentic-Ops Control Plane
 
 [![PyPI - Version](https://img.shields.io/pypi/v/agentic-ops?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/agentic-ops/)

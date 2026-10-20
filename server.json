@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nolll77/agentic-ops",
+  "title": "Agentic-Ops Control Plane",
+  "description": "Autonomous and governed SRE & MLOps control plane for AI agent platforms.",
+  "version": "0.1.11",
+  "websiteUrl": "https://agentic-ops-5ebv.onrender.com",
+  "repository": {
+    "url": "https://github.com/nolll77/agentic-ops",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "agentic-ops",
+      "version": "0.1.11",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://agentic-ops-5ebv.onrender.com/mcp"
+    }
+  ]
+}
