@@ -925,12 +925,7 @@ In enterprise AI operations, connecting autonomous IDE or desktop clients (`Clau
 
 #### A. Connect `Claude Desktop` Locally (`STDIO` on macOS & Windows)
 
-**Option 1: 1-Click Install via Smithery.ai (Recommended)**
-```bash
-npx -y @smithery/cli install agentic-ops --client claude
-```
-
-**Option 2: Native `uvx` Configuration (No local clone needed, uses PyPI)**
+**Option 1: Native `uvx` Configuration (Recommended — Zero-install, uses PyPI)**
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 ```json
 {
@@ -943,7 +938,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-**Option 3: Containerized via Docker Hub**
+**Option 2: Containerized via Docker Hub (Zero Python dependencies)**
 ```json
 {
   "mcpServers": {

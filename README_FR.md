@@ -926,12 +926,7 @@ En entreprise, brancher des clients IA autonomes (`Claude Desktop`, `Cursor`, `W
 
 #### A. Connexion Locale `Claude Desktop` (`STDIO` sous macOS & Windows)
 
-**Option 1 : Installation en 1 clic via Smithery.ai (Recommandé)**
-```bash
-npx -y @smithery/cli install agentic-ops --client claude
-```
-
-**Option 2 : Configuration native `uvx` (Sans clone local, utilise PyPI)**
+**Option 1 : Configuration native `uvx` (Recommandé — Zéro installation, utilise PyPI)**
 Ajoutez dans `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows) :
 ```json
 {
@@ -944,7 +939,7 @@ Ajoutez dans `~/Library/Application Support/Claude/claude_desktop_config.json` (
 }
 ```
 
-**Option 3 : Conteneurisé via Docker Hub**
+**Option 2 : Conteneurisé via Docker Hub (Zéro dépendance Python)**
 ```json
 {
   "mcpServers": {

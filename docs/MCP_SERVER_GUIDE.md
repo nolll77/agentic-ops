@@ -88,12 +88,7 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 The Model Context Protocol (`MCP`) is natively supported by Anthropic's **Claude Desktop** application.
 
-**Option 1: 1-Click Install via Smithery.ai (Recommended)**
-```bash
-npx -y @smithery/cli install agentic-ops --client claude
-```
-
-**Option 2: Native `uvx` Configuration (No local clone needed, uses PyPI)**
+**Option 1: Native `uvx` Configuration (Recommended — Zero-install, uses PyPI)**
 Add to your Claude Desktop configuration file:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -109,7 +104,7 @@ Add to your Claude Desktop configuration file:
 }
 ```
 
-**Option 3: Containerized via Docker Hub**
+**Option 2: Containerized via Docker Hub (Zero Python dependencies)**
 ```json
 {
   "mcpServers": {
