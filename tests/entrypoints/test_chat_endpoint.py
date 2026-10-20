@@ -171,7 +171,7 @@ def test_get_console_ui_contains_mas_inspector():
     html = resp.text
     assert 'id="mas-modal"' in html
     assert 'openMasModal()' in html
-    assert "Topologie MAS & LLMs Live" in html
+    assert "Topologie MAS & Inspecteur des LLMs" in html
     assert "/api/mas/topology" in html
     assert "fetchAdminApi('/api/diagnostics/' + cmd)" in html
     assert "adminApiErrorMessage(res.status, data)" in html

@@ -37,7 +37,7 @@ app = FastAPI(
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.7",
+    version="0.1.8",
 )
 
 app.add_middleware(AdminAPIKeyMiddleware)
@@ -1662,6 +1662,54 @@ MAS_INSPECTOR_CSS = r"""
       background: #e2e8f0;
       color: #0f172a;
     }
+
+    @media (max-width: 768px) {
+      .mas-modal-overlay {
+        padding: 6px;
+      }
+      .mas-modal-box {
+        height: 96vh;
+        max-height: 96vh;
+        border-radius: 10px;
+      }
+      .mas-modal-header {
+        padding: 12px 14px;
+      }
+      .mas-modal-title h2 {
+        font-size: 14.5px;
+      }
+      .mas-modal-title p {
+        font-size: 11px;
+      }
+      .mas-pills-bar {
+        padding: 8px 12px;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mas-split-body {
+        flex-direction: column;
+      }
+      .mas-list-pane {
+        width: 100%;
+        max-height: 180px;
+        border-right: none;
+        border-bottom: 1px solid #1e293b;
+        padding: 8px;
+        flex-shrink: 0;
+      }
+      .mas-details-pane {
+        padding: 14px 12px;
+        flex: 1;
+      }
+      .mas-detail-hero h3 {
+        font-size: 16px;
+      }
+      .mas-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
 """
 
 MAS_INSPECTOR_HTML = r"""
@@ -2314,6 +2362,76 @@ def web_console():
     .ln-cmd { color: #93c5fd; font-weight: bold; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
+
+    /* Smartphone / Mobile Responsiveness */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      header {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      h1 {
+        font-size: 15px;
+        line-height: 1.3;
+      }
+      .subtitle {
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .badges {
+        width: 100%;
+        gap: 6px;
+      }
+      .badge, .btn-theme-toggle {
+        font-size: 10.5px;
+        padding: 3px 8px;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      button {
+        padding: 10px;
+      }
+      button strong {
+        font-size: 12px;
+      }
+      button span {
+        font-size: 10.5px;
+      }
+      .legend {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 10px;
+      }
+      .legend-items {
+        gap: 6px;
+      }
+      .pill {
+        font-size: 10.5px;
+        padding: 2px 6px;
+      }
+      .toggle-btn {
+        width: 100%;
+        text-align: center;
+      }
+      pre {
+        padding: 10px;
+        font-size: 11px;
+        min-height: 320px;
+        max-height: 520px;
+      }
+      .terminal-bar {
+        padding: 6px 10px;
+        font-size: 11px;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2324,7 +2442,6 @@ def web_console():
         <div class="subtitle">Résultats Bruts Immédiats en Haut + Guides Pédagogiques Colorés en Bas | <a href="/chat" target="_blank" style="color:#34d399;font-weight:bold;">💬 Open Live AI Chat (/chat)</a> | <a href="/docs" target="_blank">Swagger UI (/docs)</a> | <a href="/mcp/manifest" target="_blank">MCP Manifest (/mcp/manifest)</a></div>
       </div>
       <div class="badges">
-        <span class="badge" style="cursor:pointer;background:#4c1d95;color:#e9d5ff;border:1px solid #7c3aed;font-weight:bold;" onclick="openMasModal()" title="Inspecter l'architecture MAS et les LLMs">🤖 Topologie MAS & LLMs Live</span>
         <button class="btn-theme-toggle" id="btn-theme-toggle" onclick="toggleTheme()" title="Basculer entre Mode Sombre et Mode Clair">
           <span id="theme-icon">☀️</span>
           <span id="theme-text">Clair</span>
@@ -3606,6 +3723,105 @@ CHAT_HTML = r"""<!DOCTYPE html>
     html[data-theme="light"] .prompt-id-badge.cat-III { background: #fef3c7; color: #b45309; border-color: #fde68a; }
     html[data-theme="light"] .prompt-id-badge.cat-IV { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
     html[data-theme="light"] .prompt-id-badge.cat-V { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
+
+    /* Smartphone / Mobile Responsiveness for Chat */
+    @media (max-width: 768px) {
+      header {
+        padding: 8px 12px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .brand-title {
+        font-size: 13.5px;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .header-right {
+        gap: 6px;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .badge-llm, .btn-catalog-toggle, .btn-theme-toggle, .btn-repo-link {
+        font-size: 10.5px;
+        padding: 4px 8px;
+      }
+      .nav-links {
+        display: none;
+      }
+      .chat-container {
+        padding: 8px 10px;
+      }
+      .chat-messages {
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .msg-wrapper {
+        max-width: 95%;
+      }
+      .msg-bubble {
+        padding: 10px 12px;
+        font-size: 12.5px;
+      }
+      .chips-bar {
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .chip-btn {
+        padding: 4px 10px;
+        font-size: 11px;
+      }
+      .input-box {
+        padding: 6px 8px;
+        gap: 6px;
+        border-radius: 8px;
+      }
+      .input-box textarea {
+        font-size: 13px;
+        min-height: 36px;
+        padding: 4px 2px;
+      }
+      .btn-send {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+      .btn-clear {
+        padding: 6px 8px;
+        font-size: 11px;
+      }
+      .input-hint {
+        font-size: 10px;
+      }
+      .catalog-modal-overlay {
+        padding: 6px;
+      }
+      .catalog-modal-box {
+        max-height: 94vh;
+        border-radius: 10px;
+      }
+      .catalog-modal-header {
+        padding: 10px 14px;
+      }
+      .catalog-search-bar {
+        padding: 8px 14px;
+      }
+      .catalog-categories {
+        padding: 8px 12px;
+      }
+      .catalog-cards-grid {
+        padding: 10px 12px;
+      }
+      .qn-modal-box {
+        max-height: 94vh;
+        border-radius: 10px;
+      }
+      .qn-content-scroll {
+        padding: 12px 14px;
+      }
+    }
   </style>
 </head>
 <body>
