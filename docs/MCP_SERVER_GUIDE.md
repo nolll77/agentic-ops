@@ -450,6 +450,7 @@ All 17 tools declare explicit boolean hints formatted in both `camelCase` (for o
 | **16** | `execute_sql` | `agentic_ops/tools/data.py` | `False` | `True` | `False` | `True` | Executes raw SQL (DML/DDL) on target database; strictly guarded by Least Privilege and human approval (`requires_approval=True`). |
 | **17** | `create_github_issue` | `agentic_ops/tools/github.py` | `False` | `False` | `False` | `True` | Calls GitHub REST API to post incident tracking issues; guarded by approval. |
 
+
 ---
 
 ### 9.3 Automated Verification & Suite Coverage
@@ -459,5 +460,17 @@ The verification suite in `tests/entrypoints/test_mcp_server.py` validates this 
 * `test_mcp_tool_poll_target_mlops_snapshot`: Validates full mocked HTTP pull pipeline execution.
 * Individual unit tests for each of the 9 operational `AgentTool` implementations (`test_tool_get_mlflow_model_info`, `test_tool_execute_sql`, etc.) ensuring sub-process OS isolation, SIGTERM timeouts, and proper argument schema validation.
 * `test_all_17_tools_audit_and_coverage`: Comprehensive parity audit ensuring all 17 tools are unique, declared, and covered without omission.
+
+---
+
+## 10. Architectural Roadmap & Community Contributions
+
+For upcoming R&D phases covering Server-Sent Events (`SSE`), EU AI Act Article 12 cryptographic compliance packs, and Judicial Multi-Agent Quorum architectures, please consult:
+
+- **[Model Context Protocol (`MCP`) Engineering Roadmap (`docs/MCP_ROADMAP.md`)](MCP_ROADMAP.md)** (Version française : [`docs/MCP_ROADMAP_FR.md`](MCP_ROADMAP_FR.md))
+- **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](../CONTRIBUTING.md)** (Version française : [`docs/CONTRIBUTING_FR.md`](CONTRIBUTING_FR.md))
+- **[Active Community Issues on GitHub](https://github.com/nolll77/agentic-ops/issues)**
+
+
 
 

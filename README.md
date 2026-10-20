@@ -1647,8 +1647,8 @@ docker run -d -p 8000:8000 --name agentic-ops nolll78/agentic-ops:latest
    Exhaustive 435-entry failure taxonomy across 10 MLOps dimensions (`RPN` calibration, `SLO` impact, detection sensors, automated mitigations, and Chaos waves).
 6. **[MLOps Incident War-Room Simulation Scenarios Registry (`docs/mlops_simulation_scenarios_registry.md`)](docs/mlops_simulation_scenarios_registry.md)**:
    36 multi-failure simulation scenarios structured around a 7-block SRE blueprint (with the first 8–9 foundational scenarios expanded to full mathematical, architectural, and executable Python depth).
-7. **[Model Context Protocol (`MCP`) Governance Gateway Guide (`docs/MCP_SERVER_GUIDE.md`)](docs/MCP_SERVER_GUIDE.md)**:
-   Complete reference for the `MCP` Server (`STDIO` & `HTTP JSON-RPC 2.0` on `/mcp`), live `/console` reading via `read_console_diagnostic`, 8 governed tools, 5 knowledge resources, client configuration files (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`), and the 20 Cognitive Starter Prompts catalog.
+7. **[Model Context Protocol (`MCP`) Governance Gateway Guide (`docs/MCP_SERVER_GUIDE.md`)](docs/MCP_SERVER_GUIDE.md)** & **[MCP Engineering Roadmap (`docs/MCP_ROADMAP.md`)](docs/MCP_ROADMAP.md)**:
+   Complete reference for the `MCP` Server (`STDIO` & `HTTP JSON-RPC 2.0` on `/mcp`), live `/console` reading via `read_console_diagnostic`, 8 governed tools, 5 knowledge resources, client configuration files (`Claude Desktop`, `Cursor`, `Windsurf`, `Antigravity`), 20 Cognitive Starter Prompts, and the multi-phase R&D roadmap (SSE streaming, RFC 6962 inclusion proofs, EU AI Act Art. 12 compliance pack, and Judicial Multi-Agent Quorums).
 8. **[Historical Security Audit & Technical Remediation Matrix (`docs/HISTORICAL_AUDIT_AND_REMEDIATION.md`)](docs/HISTORICAL_AUDIT_AND_REMEDIATION.md)**:
    Full verbatim transcription of the early external architectural critique, followed by an exhaustive 9-point technical remediation matrix (`P0.1` to `P1.3`) demonstrating how every single flagged vulnerability (Slack HITL HMAC, sub-process isolation, Merkle cryptographic ledger, atomic Redis rate limiting, out-of-band blast radius calculation, and Prompt Hygiene) was systematically engineered, audited, and verified across 54 automated tests.
 9. **[Universal LLM Provider Hub & Configuration Template (`.env.example`)](.env.example)**:
@@ -1662,7 +1662,7 @@ docker run -d -p 8000:8000 --name agentic-ops nolll78/agentic-ops:latest
 13. **[Official Thesis Defense Report (`docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf`)](docs/Rapport_soutenance_Mar25_MLOps_Agentic_Car_Accident.pdf)**:
     Comprehensive 40-page SRE & MLOps thesis defense report covering governance, multi-layer observability, deterministic FSM, cryptographic WORM trust ledger with RFC 6962 Merkle tree, and live production interconnection with `jakatt/cac_mlops`.
 14. **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)**:
-    Architectural invariants, development setup, Pull Request workflow, coding standards, and step-by-step participation guidelines for researchers and software engineers.
+    Architectural invariants, development setup (`uv sync`), Pull Request workflow, coding standards, and step-by-step participation guidelines for researchers and software engineers (French version: [`docs/CONTRIBUTING_FR.md`](docs/CONTRIBUTING_FR.md)).
 15. **[Foundational MLOps Risk Bibles & Architecture Reference Dossiers (`docs/`)](docs/)**:
     - **[`docs/bible_ontologie.md`](docs/bible_ontologie.md)**: Comprehensive MLOps Risk Ontology (337 KB) detailing the full taxonomy of failure modes across the 10 architecture dimensions.
     - **[`docs/annexes_debats_paradoxes.md`](docs/annexes_debats_paradoxes.md)**: Conceptual debates and architectural paradoxes underlying each failure mode category.

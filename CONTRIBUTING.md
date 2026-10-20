@@ -1,100 +1,134 @@
-# Guide de Contribution & Collaboration — Agentic-Ops
+# Contributing to Agentic-Ops
 
-Bienvenue sur le projet **Agentic-Ops** ! Ce guide formalise les principes d'architecture, les normes de développement, les protocoles de test et les règles de gouvernance pour tous les ingénieurs et chercheurs souhaitant contribuer au projet.
+Welcome to **Agentic-Ops**! We appreciate your interest in contributing to our autonomous SRE and MLOps governance control plane.
 
----
+This document outlines our engineering standards, architectural invariants, testing methodologies, and Pull Request workflows for all software engineers and researchers.
 
-## 1. Principes Fondateurs & Règles Constitutionnelles
-
-Toute contribution au projet doit obligatoirement respecter ces trois invariants architecturaux :
-
-1. **Honnêteté Radicale & Transparence Scientifique :**
-   - Différencier systématiquement ce qui est qualifié en environnement de test local de ce qui exige un déploiement externe ou multi-nœuds.
-   - Ne jamais revendiquer un SLO, un RPO/RTO ou une conformité de production sans métrique instrumentée et reproductible.
-2. **L'IA Propose, le Code Déterministe Décide :**
-   - Les Grands Modèles de Langage (LLM) sont cantonnés aux rôles d'analyse sémiotique, d'investigation et de formulation d'hypothèses (`ActionProposal`).
-   - L'arbitrage de sécurité, le filtrage de cibles, le calcul de blast radius et les vetos sont exécutés à **100% par du code Python déterministe (0 token)** sans hallucination possible.
-3. **Auditabilité Cryptographique Immuable :**
-   - Toute décision et trace d'exécution est scellée dans un registre WORM (*Write Once, Read Many*) lié par chaîne de hash linéaire SHA-256 et vérifiable par arbre de Merkle conforme à la norme **RFC 6962**.
+> **French Version / Version Française** : Consultez le guide en français sur [`docs/CONTRIBUTING_FR.md`](docs/CONTRIBUTING_FR.md).
 
 ---
 
-## 2. Environnement de Développement Local
+## 1. Architectural Invariants (Non-Negotiable)
 
-Le projet exploite le gestionnaire de paquets ultra-rapide `uv` sous Python 3.11+.
+Every contribution must strictly adhere to the following **five foundational invariants**:
 
-### Installation
+1. **Hexagonal Architecture (Ports & Adapters)**:
+   - Core domain logic (`agentic_ops/core/`) must remain pure, decoupled from external frameworks, network protocols, and persistence mechanisms.
+   - External transports (FastAPI, Model Context Protocol JSON-RPC, Slack Webhooks, CLI commands) live strictly in `agentic_ops/entrypoints/` and `agentic_ops/adapters/`.
+2. **AI Proposes, Deterministic Code Decides (0-Token Safety Kernel)**:
+   - Large Language Models (LLMs) are restricted to semiotic triage, anomaly root-cause investigation, and proposing candidate remediations (`ActionProposal`).
+   - Safety arbitration, blast-radius boundaries, target filtering, rate limiting, and vetoes are executed by **100% deterministic Python code with zero tokens and zero hallucinations** (`PolicyEngine`).
+3. **Cryptographic WORM Auditability (RFC 6962)**:
+   - Every operational decision, policy verdict, and execution trace is immutably appended to a Write-Once, Read-Many (`WORM`) trust ledger (`agentic_ops/core/evidence_store.py`).
+   - Entries are chained via SHA-256 linear hashes, HMAC-SHA512 signatures, and provable in $\mathcal{O}(\log N)$ via an RFC 6962 binary Merkle tree (`RFC6962MerkleTree`).
+4. **Hard Sub-Process Isolation & Resource Envelopes**:
+   - All tool invocations (`AgentTool`) execute inside isolated OS child processes (`multiprocessing.Process`) with strict resource cgroups and a hard OS timeout (`SIGKILL` after 15 seconds) to prevent infinite loops, memory leaks, and runaway processes.
+5. **Radical Honesty & Scientific Transparency**:
+   - Differentiate what is verified by automated in-memory tests from what requires live multi-node infrastructure or cloud deployments. Never claim production SLOs without reproducible benchmarks.
+
+---
+
+## 2. Local Development Environment
+
+`Agentic-Ops` leverages the ultra-fast Python package manager `uv` under Python 3.11+.
+
+### Prerequisites
+
+- Python `3.11+`
+- `uv` package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- `git`
+- *(Optional)* Docker for containerized validation
+
+### Setup
 
 ```bash
-# Cloner le dépôt
+# Clone the repository
 git clone https://github.com/nolll77/agentic-ops.git
 cd agentic-ops
 
-# Installer les dépendances avec le groupe de développement
+# Install dependencies including the development extras
 uv sync --all-extras
 
-# Exécuter la suite de tests complète (231 tests)
+# Run the complete test suite (231 automated tests)
 uv run pytest tests/ -q -p no:randomly
 ```
 
-### Lancement du Serveur de Développement Local
+### Running the Local Development Servers
 
 ```bash
-# Démarrer le plan de contrôle (Console Web sur :8001/console, Chat sur :8001/chat)
+# Start the full Control Plane (Web Console on :8001/console, Chat on :8001/chat, API on :8001/docs)
 uv run agentic-start --port 8001
+
+# Or start the Model Context Protocol (MCP) Governance Gateway in standalone mode
+uv run agentic-mcp --port 8000
 ```
 
 ---
 
-## 3. Chantiers Prioritaires & Roadmap Ouverte (Issues GitHub)
+## 3. Active Community Issues & Strategic Roadmap
 
-Les travaux de R&D et d'industrialisation sont structurés autour de 6 issues majeures :
+Our current engineering priorities are tracked across 6 open GitHub issues:
 
-| Issue GitHub | Sujet & Périmètre Technique | Complexité | Documentation Associée |
-| :--- | :--- | :--- | :--- |
-| **[#1](https://github.com/nolll77/agentic-ops/issues/1)** | **Réconciliation du Refus d'Approbation** dans l'épisode d'origine et scellage WORM. | Moyenne | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
-| **[#2](https://github.com/nolll77/agentic-ops/issues/2)** | **Exercices de Panne du Worker** et garantie *At-Least-Once Delivery* avec déduplication. | Haute | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
-| **[#3](https://github.com/nolll77/agentic-ops/issues/3)** | **Cycle de Vie de l'Inventaire Local** (`LocalInventory`), détection de drift et rechargement atomique. | Moyenne | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
-| **[#4](https://github.com/nolll77/agentic-ops/issues/4)** | **Répétition Locale Backup / Restore**, manifestes d'intégrité et rejet de corruption SQLite/WORM. | Moyenne | `agentic_ops/core/sqlite_backup.py` |
-| **[#5](https://github.com/nolll77/agentic-ops/issues/5)** | **Benchmark d'Ingestion d'Alertes** et passage à l'échelle sous rafales d'alertes Loki/Prometheus. | Moyenne | `agentic_ops/entrypoints/alert_benchmark.py` |
-| **[#6](https://github.com/nolll77/agentic-ops/issues/6)** | **Benchmark Empirique des LLMs Gratuits OpenRouter** selon les 5 rôles cognitifs du MAS. | Haute | `docs/OPENROUTER_FREE_MODELS_GUIDE.md` |
+| Issue | Title & Technical Scope | Complexity | Reference Documentation |
+| :--- | :--- | :---: | :--- |
+| **[#1](https://github.com/nolll77/agentic-ops/issues/1)** | **Denial Reconciliation in Evidence Store**: Link operator rejection back to origin episode in WORM ledger. | Medium | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
+| **[#2](https://github.com/nolll77/agentic-ops/issues/2)** | **Deterministic Worker Failure Drills**: At-least-once delivery, isolated crash injection, and idempotent recovery. | High | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
+| **[#3](https://github.com/nolll77/agentic-ops/issues/3)** | **Local Inventory Lifecycle & Drift**: Staleness, tampering detection, schema verification, and atomic reloads. | Medium | `docs/SELF_HOSTED_SCOPE_EXECUTION_PLAN_NOV_2026.md` |
+| **[#4](https://github.com/nolll77/agentic-ops/issues/4)** | **Local Backup / Restore Drills**: Automated rehearsals of SQLite WAL and WORM snapshot restoration. | Medium | `agentic_ops/core/sqlite_backup.py` |
+| **[#5](https://github.com/nolll77/agentic-ops/issues/5)** | **Local Alert Ingestion Benchmark**: Scalability and latency percentiles under burst alert storms. | Medium | `agentic_ops/entrypoints/alert_benchmark.py` |
+| **[#6](https://github.com/nolll77/agentic-ops/issues/6)** | **Benchmark of Free OpenRouter LLMs**: Empirical evaluation of 17+ `:free` models across MAS roles. | High | `docs/OPENROUTER_FREE_MODELS_GUIDE.md` |
 
----
-
-## 4. Zoom sur l'Issue #6 : Participer au Benchmark des LLMs Gratuits
-
-Nous cherchons des contributeurs pour évaluer les modèles gratuits d'OpenRouter (`:free`) sur nos cas d'usage SRE :
-
-1. **Rôles Cognitifs à Évaluer :**
-   - `DataSpecialist` (Parsing de matrices de covariance, analyse de dérive Evidently).
-   - `ModelSpecialist` (Détection d'instabilités de calibration, dérive de scores F1).
-   - `InfraSpecialist` (Dépouillement de logs Grafana Loki volumineux).
-   - `RemediationAgent` (Raisonnement CoT, règle du veto amont, blast radius).
-   - `WebChatAssistant` (Dialogue conversationnel fluide, latence TTFT).
-2. **Métriques d'Évaluation :**
-   - Respect strict des schémas JSON Pydantic v2 (taux d'erreur de parsing).
-   - Résistance aux attaques contradictoires par injection de prompt (`SC-101`, `SC-102`).
-   - Latence roundtrip et tolérance aux rate-limits HTTP 429.
+For future milestones covering Server-Sent Events (`SSE`), EU AI Act Article 12 compliance exports, and Judicial Multi-Agent Quorums, please consult the **[Model Context Protocol Roadmap (`docs/MCP_ROADMAP.md`)](docs/MCP_ROADMAP.md)**.
 
 ---
 
-## 5. Workflow de Contribution (Pull Requests)
+## 4. Contributing to Issue #6: OpenRouter Free Models Benchmark
 
-1. **Créer une branche descriptive** :
+We actively seek researchers and engineers to benchmark free models (`:free`) on OpenRouter across our **5 cognitive MAS roles**:
+
+1. **Target Cognitive Roles**:
+   - `DataSpecialist`: Parsing covariance matrices, evaluating Evidently AI drift reports.
+   - `ModelSpecialist`: Detecting calibration drift, tracking F1 degradation.
+   - `InfraSpecialist`: Triaging voluminous Grafana Loki logs and Prometheus metrics.
+   - `RemediationAgent`: Generating step-by-step CoT action plans adhering to blast-radius limits.
+   - `WebChatAssistant`: Fluid human operator interaction with low Time-to-First-Token (`TTFT`).
+2. **Evaluation Metrics**:
+   - Pydantic v2 JSON schema adherence (parsing failure rate).
+   - Resistance to adversarial prompt injections (`SC-101`, `SC-102`).
+   - Roundtrip latency and behavior under HTTP 429 rate-limiting.
+
+---
+
+## 5. Coding Standards & Review Guidelines
+
+1. **Strict Monospace Typographical Formatting**:
+   - All code symbols, function names, classes, commands, files, and environment variables must be enclosed in backticks (e.g. `PolicyEngine`, `ActionProposal`, `uv sync`, `server.json`).
+2. **Type Hints & Schemas**:
+   - All new functions must include Python 3.11+ type hints (`from typing import Optional, Dict, List` or native `dict[str, Any]`).
+   - All external data structures must be modeled as Pydantic v2 `BaseModel` classes with explicit field validations.
+3. **Deterministic Safety over AI Cleverness**:
+   - Never replace deterministic checks with prompt instructions. If a condition can be checked with a Python `if` statement or regex, it **must** be implemented in Python.
+4. **Test Coverage**:
+   - Every bug fix or new feature must be accompanied by automated tests in `tests/`.
+   - Tests must run deterministically with `uv run pytest tests/ -q -p no:randomly`.
+
+---
+
+## 6. Pull Request Workflow
+
+1. **Create a focused topic branch**:
    ```bash
-   git checkout -b feat/reconcile-denial-issue-1
-   # ou
-   git checkout -b bench/openrouter-gemma-nemotron
+   git checkout -b feat/merkle-inclusion-proof
+   # or
+   git checkout -b bench/openrouter-qwen-nemotron
    ```
-2. **Respecter la typographie technique** :
-   Tous les noms de fonctions, classes, commandes, fichiers et variables doivent être encapsulés dans des backticks (ex: `PolicyEngine`, `ActionProposal`, `uv sync`).
-3. **Valider les tests avant toute soumission** :
+2. **Run linting, formatting, and tests**:
    ```bash
    uv run pytest tests/ -q -p no:randomly
    ```
-4. **Ouvrir une Pull Request** :
-   - Référencer explicitement l'issue liée (ex: `Closes #1` ou `Relates to #6`).
-   - Joindre les résultats bruts des tests et les métriques de mesure.
-   - Ne jamais inclure de tokens d'API, d'identifiants privés ou de données sensibles.
+3. **Submit the Pull Request**:
+   - Reference the related GitHub issue in your PR description (e.g. `Closes #1` or `Relates to #6`).
+   - Provide concrete test execution output demonstrating your changes.
+   - Never commit sensitive secrets, API tokens, or internal credentials.
 
-Merci pour votre engagement à bâtir un écosystème de supervision MLOps souverain, auditable et résilient !
+Thank you for helping us build a resilient, sovereign, and cryptographically verifiable MLOps control plane!
