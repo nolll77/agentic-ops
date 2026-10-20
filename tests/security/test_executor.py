@@ -74,3 +74,36 @@ def test_simulation_never_mutates_model_registry():
     result = real_exec.execute(make_action(ActionType.ROLLBACK), registry=registry)
     assert result.status == "SIMULATED"
     registry.rollback_model.assert_not_called()
+
+def test_executor_rejects_injected_or_unauthorized_target_fail_closed(monkeypatch, tmp_path):
+    """
+    Validates defense against SC-102 command/param injection at the executor level:
+    Even if the gateway were configured with this target, the executor kernel
+    enforces ALLOWED_K8S_DEPLOYMENTS fail-closed whitelist before any K8s interaction.
+    """
+    real_exec = get_real_execute()
+    from agentic_ops.core import executor_gateway
+    monkeypatch.setattr(executor_gateway, "QUALIFIED_LIVE_ACTIONS", frozenset({"scale_to_zero"}))
+    monkeypatch.setattr(real_exec, "SIMULATION_MODE", False)
+    monkeypatch.setenv("ALLOW_LIVE_EXECUTION", "true")
+    monkeypatch.setenv("LIVE_EXECUTION_ACK", "I_UNDERSTAND_LIVE_MUTATIONS")
+    monkeypatch.setenv("EXECUTION_PROFILE", "staging")
+    monkeypatch.setenv("LIVE_EXECUTION_ACTIONS", "scale_to_zero")
+    # Even if target is present in gateway env:
+    injected_target = "baac-api; kubectl delete ns prod"
+    monkeypatch.setenv("LIVE_EXECUTION_TARGETS", injected_target)
+    switch = tmp_path / "kill-switch-inactive"
+    monkeypatch.setenv("KILL_SWITCH_FILE", str(switch))
+
+    malicious_action = ActionProposal(
+        type=ActionType.SCALE_TO_ZERO,
+        target=injected_target,
+        risk_id="INFRA-001",
+        parameters={},
+        requested_by="red_team_sc102"
+    )
+    result = real_exec.execute(malicious_action)
+    assert result.status == "FAILED"
+    assert result.executor == "kubernetes"
+    assert "non autorisée par la Policy Executor" in result.details
+    assert injected_target in result.details

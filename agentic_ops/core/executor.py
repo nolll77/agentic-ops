@@ -52,6 +52,13 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
     blocked = live_execution_block_reason(action, SIMULATION_MODE)
     if blocked:
         return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Exécution bloquée: {blocked}.")
+    
+    target = action.target or ""
+    deployment_name = target.split("/")[-1]
+    
+    if deployment_name not in ALLOWED_K8S_DEPLOYMENTS:
+        return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Cible {deployment_name} non autorisée par la Policy Executor.")
+
     try:
         from kubernetes import client, config
         # En cluster, config.load_incluster_config()
@@ -62,12 +69,6 @@ def execute_real_k8s_action(action: ActionProposal) -> ExecutionResult:
             config.load_kube_config()
             
         apps_v1 = client.AppsV1Api()
-        
-        target = action.target or ""
-        deployment_name = target.split("/")[-1]
-        
-        if deployment_name not in ALLOWED_K8S_DEPLOYMENTS:
-            return ExecutionResult(status="FAILED", executor="kubernetes", details=f"Cible {deployment_name} non autorisée par la Policy Executor.")
             
         if action.type.value == "scale_to_zero":
             body = {"spec": {"replicas": 0}}
