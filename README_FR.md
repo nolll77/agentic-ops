@@ -1575,7 +1575,12 @@ python -m agentic_ops.entrypoints.mcp_server
     Rapport de soutenance SRE & MLOps complet de 40 pages couvrant la gouvernance, l'observabilité multi-couches, la FSM déterministe, le grand livre WORM cryptographique avec arbre de Merkle RFC 6962, et l'interconnexion en production avec `jakatt/cac_mlops`.
 14. **[Guide de Contribution & Collaboration Communautaire (`CONTRIBUTING.md`)](CONTRIBUTING.md)** :
     Invariants architecturaux, configuration de l'environnement de développement, workflow de Pull Request, normes de code et directives de participation pour ingénieurs et chercheurs.
-15. **[Chantiers Communautaires Actifs & Roadmap Ouverte (Issues GitHub)](https://github.com/nolll77/agentic-ops/issues)** :
+15. **[Bibles de Risques MLOps & Dossiers d'Architecture Fondateurs (`docs/`)](docs/)** :
+    - **[`docs/bible_ontologie.md`](docs/bible_ontologie.md)** : Bible de l'ontologie des risques MLOps (337 Ko) détaillant l'ensemble des pannes classées selon les 10 dimensions d'architecture.
+    - **[`docs/annexes_debats_paradoxes.md`](docs/annexes_debats_paradoxes.md)** : Débats conceptuels et paradoxes architecturaux MLOps sous-jacents aux modes de défaillance.
+    - **[`docs/mlops_failure_propagation_graph.md`](docs/mlops_failure_propagation_graph.md)** : Graphe de propagation causale des pannes (Mermaid), cascades silencieuses et *Silent Failure Factory* (`Feature + Temps + Data`).
+    - **[`docs/bi_observability_genesis.md`](docs/bi_observability_genesis.md)** : Genèse de l'observabilité des données, défense d'Apache Superset vs `Grafana`/`Metabase` pour le requêtage SQL Lab complexe.
+16. **[Chantiers Communautaires Actifs & Roadmap Ouverte (Issues GitHub)](https://github.com/nolll77/agentic-ops/issues)** :
     - **[#1 — Réconciliation du Refus d'Approbation dans le Grand Livre](https://github.com/nolll77/agentic-ops/issues/1)** : Raccordement formel du rejet opérateur à l'épisode source dans le ledger WORM.
     - **[#2 — Exercices Déterministes de Panne du Worker](https://github.com/nolll77/agentic-ops/issues/2)** : Garantie d'au moins une livraison (*At-Least-Once*), injection de crash et reprise idempotente.
     - **[#3 — Cycle de Vie de l'Inventaire Local & Drift](https://github.com/nolll77/agentic-ops/issues/3)** : Fraîcheur, détection d'altération en direct, conformité de schéma et rechargement sûr.

@@ -1574,7 +1574,12 @@ python -m agentic_ops.entrypoints.mcp_server
     Comprehensive 40-page SRE & MLOps thesis defense report covering governance, multi-layer observability, deterministic FSM, cryptographic WORM trust ledger with RFC 6962 Merkle tree, and live production interconnection with `jakatt/cac_mlops`.
 14. **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](CONTRIBUTING.md)**:
     Architectural invariants, development setup, Pull Request workflow, coding standards, and step-by-step participation guidelines for researchers and software engineers.
-15. **[Active Community Issues & Open Roadmap](https://github.com/nolll77/agentic-ops/issues)**:
+15. **[Foundational MLOps Risk Bibles & Architecture Reference Dossiers (`docs/`)](docs/)**:
+    - **[`docs/bible_ontologie.md`](docs/bible_ontologie.md)**: Comprehensive MLOps Risk Ontology (337 KB) detailing the full taxonomy of failure modes across the 10 architecture dimensions.
+    - **[`docs/annexes_debats_paradoxes.md`](docs/annexes_debats_paradoxes.md)**: Conceptual debates and architectural paradoxes underlying each failure mode category.
+    - **[`docs/mlops_failure_propagation_graph.md`](docs/mlops_failure_propagation_graph.md)**: Causal failure propagation graph (Mermaid) analyzing domino cascades across Infra, Data, Features, Time, and Observability layers.
+    - **[`docs/bi_observability_genesis.md`](docs/bi_observability_genesis.md)**: Data Observability genesis justifying Apache Superset vs Grafana/Metabase for complex SQL Lab and schema drift monitoring.
+16. **[Active Community Issues & Open Roadmap](https://github.com/nolll77/agentic-ops/issues)**:
     - **[#1 — Denial Reconciliation in Evidence Store](https://github.com/nolll77/agentic-ops/issues/1)**: Formal linking of human operator rejection to origin episode in WORM ledger.
     - **[#2 — Deterministic Worker Failure Drills](https://github.com/nolll77/agentic-ops/issues/2)**: At-least-once delivery, isolated crash injection, and idempotent task recovery.
     - **[#3 — Local Inventory Lifecycle & Drift](https://github.com/nolll77/agentic-ops/issues/3)**: Staleness, live tampering detection, schema verification, and reload safety.
