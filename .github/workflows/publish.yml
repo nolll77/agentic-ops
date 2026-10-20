@@ -156,3 +156,28 @@ jobs:
           repository: nolll78/agentic-ops
           readme-filepath: ./docs/DOCKERHUB_README.md
 
+  mcp-registry-publish:
+    name: Publish to Official Anthropic MCP Registry
+    needs: pypi-publish
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
+          sudo mv mcp-publisher /usr/local/bin/
+
+      - name: Authenticate via GitHub Actions OIDC
+        run: mcp-publisher login github-oidc
+
+      - name: Publish server.json to Official Registry
+        run: mcp-publisher publish server.json
+
+

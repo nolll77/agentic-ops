@@ -3,7 +3,7 @@
   "name": "io.github.nolll77/agentic-ops",
   "title": "Agentic-Ops Control Plane",
   "description": "Autonomous and governed SRE & MLOps control plane for AI agent platforms.",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "websiteUrl": "https://agentic-ops-5ebv.onrender.com",
   "repository": {
     "url": "https://github.com/nolll77/agentic-ops",
@@ -13,7 +13,7 @@
     {
       "registryType": "pypi",
       "identifier": "agentic-ops",
-      "version": "0.1.11",
+      "version": "0.1.12",
       "transport": {
         "type": "stdio"
       }

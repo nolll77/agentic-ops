@@ -12,6 +12,7 @@
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
 
 > **Language / Langue** : **[Read the main documentation in English (README.md)](README.md)** | **Version Française (actuelle)**
+> **Model Context Protocol Registry**: `mcp-name: io.github.nolll77/agentic-ops`
 
 **Agentic-Ops** est un projet personnel de control plane MLOps qui explore comment des agents IA (LLMs) peuvent aider à investiguer des signaux opérationnels tels que `Data Drift`, `Model Staleness` et `OOMKilled Pods`.
 
