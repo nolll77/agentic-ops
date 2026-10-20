@@ -1,0 +1,26 @@
+# Smithery configuration file
+# See https://smithery.ai/docs/config#smitheryyaml for details
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      adminApiKey:
+        type: string
+        description: "Optional Admin API Key for accessing protected live console actions"
+      openrouterApiKey:
+        type: string
+        description: "Optional OpenRouter API Key for cognitive LLM investigation agents"
+  commandFunction: |-
+    (config) => ({
+      command: "uvx",
+      args: ["--from", "agentic-ops", "agentic-mcp"],
+      env: {
+        ...(config.adminApiKey ? { ADMIN_API_KEY: config.adminApiKey } : {}),
+        ...(config.openrouterApiKey ? { OPENROUTER_API_KEY: config.openrouterApiKey } : {})
+      }
+    })
+
+exampleConfig:
+  adminApiKey: "demo-admin-key"

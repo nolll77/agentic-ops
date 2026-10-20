@@ -925,18 +925,32 @@ En entreprise, brancher des clients IA autonomes (`Claude Desktop`, `Cursor`, `W
 ### 2. Comment se brancher dessus ? (`STDIO` Local vs Cloud `Render` `HTTP JSON-RPC 2.0`)
 
 #### A. Connexion Locale `Claude Desktop` (`STDIO` sous macOS & Windows)
+
+**Option 1 : Installation en 1 clic via Smithery.ai (Recommandé)**
+```bash
+npx -y @smithery/cli install agentic-ops --client claude
+```
+
+**Option 2 : Configuration native `uvx` (Sans clone local, utilise PyPI)**
 Ajoutez dans `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows) :
 ```json
 {
   "mcpServers": {
-    "agentic-ops-governance": {
-      "command": "/Users/nolll/Documents/car_acc/agentic-ops-core/.venv/bin/python",
-      "args": ["-m", "agentic_ops.entrypoints.mcp_server", "--stdio"],
-      "cwd": "/Users/nolll/Documents/car_acc/agentic-ops-core",
-      "env": {
-        "AGENTIC_OPS_ENV": "production",
-        "PYTHONPATH": "/Users/nolll/Documents/car_acc/agentic-ops-core"
-      }
+    "agentic-ops": {
+      "command": "uvx",
+      "args": ["--from", "agentic-ops", "agentic-mcp"]
+    }
+  }
+}
+```
+
+**Option 3 : Conteneurisé via Docker Hub**
+```json
+{
+  "mcpServers": {
+    "agentic-ops": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "nolll78/agentic-ops:latest", "agentic-mcp"]
     }
   }
 }

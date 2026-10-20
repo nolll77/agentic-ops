@@ -88,32 +88,40 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 The Model Context Protocol (`MCP`) is natively supported by Anthropic's **Claude Desktop** application.
 
-1. Open your Claude Desktop configuration file:
-   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-2. Insert the `agentic-ops-governance` server definition:
+**Option 1: 1-Click Install via Smithery.ai (Recommended)**
+```bash
+npx -y @smithery/cli install agentic-ops --client claude
+```
+
+**Option 2: Native `uvx` Configuration (No local clone needed, uses PyPI)**
+Add to your Claude Desktop configuration file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "agentic-ops-governance": {
-      "command": "/Users/nolll/Documents/car_acc/agentic-ops-core/.venv/bin/python",
-      "args": [
-        "-m",
-        "agentic_ops.entrypoints.mcp_server",
-        "--stdio"
-      ],
-      "cwd": "/Users/nolll/Documents/car_acc/agentic-ops-core",
-      "env": {
-        "AGENTIC_OPS_ENV": "production",
-        "PYTHONPATH": "/Users/nolll/Documents/car_acc/agentic-ops-core"
-      }
+    "agentic-ops": {
+      "command": "uvx",
+      "args": ["--from", "agentic-ops", "agentic-mcp"]
     }
   }
 }
 ```
 
-3. Restart Claude Desktop. An icon indicating available tools will appear in the chat prompt area, giving Claude direct local access to all 8 governed tools and 5 knowledge resources.
+**Option 3: Containerized via Docker Hub**
+```json
+{
+  "mcpServers": {
+    "agentic-ops": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "nolll78/agentic-ops:latest", "agentic-mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. An icon indicating available tools will appear in the chat prompt area, giving Claude direct access to all 8 governed tools and 5 knowledge resources.
 
 *(Note: The web version at `claude.ai` does not yet support arbitrary third-party local `MCP` processes; Claude Desktop is the official and supported Anthropic client for `MCP`).*
 
