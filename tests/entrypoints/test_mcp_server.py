@@ -38,16 +38,18 @@ def test_mcp_initialize_handshake():
     assert "prompts" in resp["result"]["capabilities"]
 
 
-def test_mcp_tools_list_exposes_8_governed_tools():
+def test_mcp_tools_list_exposes_10_governed_tools():
     resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     tools = resp["result"]["tools"]
-    assert len(tools) == 8
+    assert len(tools) == 10
     names = {t["name"] for t in tools}
     assert names == {
         "read_console_diagnostic",
         "evaluate_governance_policy",
         "run_governed_incident_episode",
         "inspect_worm_trust_ledger",
+        "get_ledger_status",
+        "verify_ledger_inclusion",
         "search_failure_taxonomy",
         "get_scenario_blueprint",
         "poll_target_mlops_snapshot",
@@ -318,7 +320,7 @@ def test_fastapi_http_mcp_endpoints():
     manifest_res = client.get("/mcp/manifest")
     assert manifest_res.status_code == 200
     m = manifest_res.json()
-    assert m["counts"]["tools"] == 8
+    assert m["counts"]["tools"] == 10
     assert m["counts"]["resources"] == 5
     assert m["counts"]["starter_prompts"] == 20
 
@@ -365,7 +367,7 @@ def test_mcp_tool_poll_target_mlops_snapshot(monkeypatch):
 def test_mcp_tools_declare_all_four_hints():
     resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 17, "method": "tools/list"})
     tools = resp["result"]["tools"]
-    assert len(tools) == 8
+    assert len(tools) == 10
     for tool in tools:
         assert isinstance(tool.get("readOnlyHint"), bool), f"Missing readOnlyHint in {tool['name']}"
         assert isinstance(tool.get("destructiveHint"), bool), f"Missing destructiveHint in {tool['name']}"
@@ -495,13 +497,15 @@ def test_tool_create_github_issue():
     assert "DATA-042" in res
 
 
-def test_all_17_tools_audit_and_coverage():
-    all_17_tools = [
-        # 8 Governed MCP Gateway Tools
+def test_all_19_tools_audit_and_coverage():
+    all_19_tools = [
+        # 10 Governed MCP Gateway Tools
         "read_console_diagnostic",
         "evaluate_governance_policy",
         "run_governed_incident_episode",
         "inspect_worm_trust_ledger",
+        "get_ledger_status",
+        "verify_ledger_inclusion",
         "search_failure_taxonomy",
         "get_scenario_blueprint",
         "poll_target_mlops_snapshot",
@@ -517,5 +521,152 @@ def test_all_17_tools_audit_and_coverage():
         "execute_sql",
         "create_github_issue",
     ]
-    assert len(all_17_tools) == 17
-    assert len(set(all_17_tools)) == 17
+    assert len(all_19_tools) == 19
+    assert len(set(all_19_tools)) == 19
+
+
+def test_mcp_tool_get_ledger_status():
+    resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 88,
+            "method": "tools/call",
+            "params": {
+                "name": "get_ledger_status",
+                "arguments": {},
+            },
+        }
+    )
+    assert resp["result"]["isError"] is False
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert "worm_ledger_file" in data
+    assert "total_episodes" in data
+    assert "linear_chain_valid" in data
+    assert "hmac_signatures_valid" in data
+    assert "merkle_root" in data
+    assert len(data["merkle_root"]) == 64
+    assert data["status"] in ("HEALTHY", "CORRUPTED_OR_TAMPERED")
+
+
+def test_mcp_tool_verify_ledger_inclusion_workflow():
+    # 1. Seal an episode first
+    seal_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 89,
+            "method": "tools/call",
+            "params": {
+                "name": "run_governed_incident_episode",
+                "arguments": {
+                    "scenario_id": "SC-101",
+                    "action_name": "scale_to_zero",
+                    "target_service": "accident_prediction_api",
+                },
+            },
+        }
+    )
+    sealed = json.loads(seal_resp["result"]["content"][0]["text"])
+    ep_id = sealed["episode_id"]
+
+    # 2. Verify inclusion by episode_id
+    verify_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 90,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {"episode_id": ep_id},
+            },
+        }
+    )
+    assert verify_resp["result"]["isError"] is False
+    vdata = json.loads(verify_resp["result"]["content"][0]["text"])
+    assert vdata["verified"] is True
+    assert vdata["status"] == "VALID_INCLUSION_PROOF"
+    assert vdata["episode_id"] == ep_id
+    assert len(vdata["leaf_hash"]) == 64
+    assert len(vdata["merkle_root"]) == 64
+    assert "complexity" in vdata
+
+    # 3. Verify offline with complete proof packet
+    from agentic_ops.core.evidence import EvidenceStore
+    import os
+    from pathlib import Path
+    store = EvidenceStore(os.environ.get("EVIDENCE_STORE_DIR", str(Path(__file__).resolve().parent.parent.parent / "state" / "episodes")))
+    packet = store.get_merkle_proof(ep_id)
+    assert packet is not None
+
+    offline_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 91,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {
+                    "proof_packet": packet,
+                    "expected_root": packet["merkle_root"],
+                },
+            },
+        }
+    )
+    assert offline_resp["result"]["isError"] is False
+    odata = json.loads(offline_resp["result"]["content"][0]["text"])
+    assert odata["verified"] is True
+    assert odata["status"] == "VALID_INCLUSION_PROOF"
+
+    # 4. Assert root mismatch detection
+    fake_root = "b" * 64
+    mismatch_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 92,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {
+                    "proof_packet": packet,
+                    "expected_root": fake_root,
+                },
+            },
+        }
+    )
+    assert mismatch_resp["result"]["isError"] is False
+    mdata = json.loads(mismatch_resp["result"]["content"][0]["text"])
+    assert mdata["verified"] is False
+    assert mdata["status"] == "ROOT_MISMATCH"
+
+    # 5. Assert tampering rejection
+    tampered_packet = dict(packet)
+    tampered_packet["leaf_hash"] = "0" * 64
+    tampered_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 93,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {"proof_packet": tampered_packet},
+            },
+        }
+    )
+    assert tampered_resp["result"]["isError"] is False
+    tdata = json.loads(tampered_resp["result"]["content"][0]["text"])
+    assert tdata["verified"] is False
+    assert tdata["status"] == "TAMPERING_OR_INVALID_PROOF"
+
+    # 6. Missing parameters rejection
+    missing_resp = handle_mcp_jsonrpc(
+        {
+            "jsonrpc": "2.0",
+            "id": 94,
+            "method": "tools/call",
+            "params": {
+                "name": "verify_ledger_inclusion",
+                "arguments": {},
+            },
+        }
+    )
+    assert missing_resp["result"]["isError"] is True
+

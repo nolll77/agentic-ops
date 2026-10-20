@@ -55,14 +55,16 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 ---
 
-## 3. Reference of the 8 Governed `MCP Tools`
+## 3. Reference of the 10 Governed `MCP Tools`
 
 | Tool Name | Underlying Module | Input Arguments | Deterministic Guarantee & Output |
 | :--- | :--- | :--- | :--- |
 | `read_console_diagnostic` | `agentic_ops/cli/main.py` (`run_diagnostic_command`) | `command` (`sandbox_phase_a_vitals` .. `pytest_all`), `include_guides` (`bool`) | Executes whitelisted `/console` suites in-container with `_redact_pii()` anonymization. |
 | `evaluate_governance_policy` | `agentic_ops/core/policy_engine.py` (`evaluate`) | `risk_id`, `action`, `target`, `upstream_data_severity`, `recent_executions_last_hour`, `target_replicas`, `target_criticality` | Purely functional evaluation against `autonomy_policy.yaml`, `action_catalog.yaml`, and `risk_register.yaml`. Returns `ALLOW`, `REQUIRE_APPROVAL`, or `DENY` + rule IDs (`R-001`, `R-002`). |
 | `run_governed_incident_episode` | `agentic_ops/core/evidence.py` (`EvidenceStore.save`) | `risk_id`, `action`, `target`, `finding_summary`, `confidence_score` | Runs policy evaluation, traces FSM transitions (`DETECTED -> ... -> RESOLVED/DENIED/AWAITING_APPROVAL`), and seals the episode in `ledger.jsonl` with `SHA-256` + `HMAC-SHA512`. |
-| `inspect_worm_trust_ledger` | `agentic_ops/core/evidence.py` (`verify_chain`) | `episode_id` (optional), `limit` (`int`) | Verifies the entire `SHA-256` linear hash chain (`previous_hash`) and `HMAC-SHA512` signatures across `ledger.jsonl`. |
+| `inspect_worm_trust_ledger` | `agentic_ops/core/evidence.py` (`verify_chain`) | `episode_id` (optional), `limit` (`int`) | Verifies the entire `SHA-256` linear hash chain (`previous_hash`), `HMAC-SHA512` signatures, and current Merkle Root across `ledger.jsonl`. |
+| `get_ledger_status` | `agentic_ops/core/evidence.py` (`get_merkle_root`, `verify_chain`) | *(none)* | Returns complete WORM ledger health: total sealed episodes, linear chain integrity, HMAC-SHA512 signatures, and active RFC 6962 Merkle Root. |
+| `verify_ledger_inclusion` | `agentic_ops/core/evidence.py` (`verify_merkle_proof`) & `agentic_ops/core/merkle.py` | `episode_id` (optional), `proof_packet` (optional), `expected_root` (optional) | Verifies an RFC 6962 binary Merkle inclusion proof in $\mathcal{O}(\log N)$ time, binding episode payload to leaf hash and Merkle root (supports local lookup or offline zero-I/O verification). |
 | `search_failure_taxonomy` | `docs/mlops_failure_modes_taxonomy.md` | `query` (`str`), `max_results` (`int`) | Searches all `435` cataloged MLOps failure modes across the 10 dimensions and returns line-indexed matches. |
 | `get_scenario_blueprint` | `docs/mlops_simulation_scenarios_registry.md` & `tests/scenarios/data/` | `scenario_id` (`SC-101`, `SC-001`, `SIM-1`, `all`) | Retrieves both the prose architectural blueprint and the executable YAML test contract. |
 | `poll_target_mlops_snapshot` | `agentic_ops/adapters/cac_pull_collector.py` | `use_proxy` (`bool`), `timeout` (`float`) | Performs a `100% Read-Only` (`HTTP GET`) collection across the 5 `jakatt/cac_mlops` endpoints via the `Tailscale SOCKS5` proxy (`127.0.0.1:1055`). |
@@ -426,9 +428,9 @@ To achieve autonomous production grade on public Model Context Protocol indexes 
 
 ---
 
-### 9.2 Comprehensive Taxonomy of the 17 Annotated Tools
+### 9.2 Comprehensive Taxonomy of the 19 Annotated Tools
 
-All 17 tools declare explicit boolean hints formatted in both `camelCase` (for official MCP and OpenAI directory compatibility) and `snake_case` (for native Python client compatibility):
+All 19 tools declare explicit boolean hints formatted in both `camelCase` (for official MCP and OpenAI directory compatibility) and `snake_case` (for native Python client compatibility):
 
 | # | Tool Identifier | Source File | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` | SRE Safety & Blast Radius Rationale |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -436,19 +438,21 @@ All 17 tools declare explicit boolean hints formatted in both `camelCase` (for o
 | **2** | `evaluate_governance_policy` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Pure functional arbitration against YAML policy manifests with zero mutation. |
 | **3** | `run_governed_incident_episode` | `agentic_ops/entrypoints/mcp_server.py` | `False` | `False` | `False` | `False` | Seals a new cryptographic record into `ledger.jsonl`; state-mutating but non-destructive. |
 | **4** | `inspect_worm_trust_ledger` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Audits the SHA-256 linear hash chain and HMAC-SHA512 signatures without modification. |
-| **5** | `search_failure_taxonomy` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Performs exact read-only substring matching across `docs/mlops_failure_modes_taxonomy.md`. |
-| **6** | `get_scenario_blueprint` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Reads scenario registry Markdown and executable YAML scenario contracts. |
-| **7** | `poll_target_mlops_snapshot` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `True` | Pulls external telemetry via `CacPullCollector` over Tailscale SOCKS5 (`127.0.0.1:1055`). |
-| **8** | `inspect_control_plane_vitals` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Inspects local Unix sockets, cgroup v2 memory telemetry, and active `PolicyBundle` hash. |
-| **9** | `get_mlflow_model_info` | `agentic_ops/tools/model.py` | `True` | `False` | `True` | `True` | Queries remote MLflow Model Registry metadata via read-only GET requests. |
-| **10** | `get_prometheus_metric` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Queries Prometheus metric endpoints over the observability network. |
-| **11** | `get_evidently_report` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Fetches Evidently AI data drift reports from external storage. |
-| **12** | `check_database_health` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `True` | Performs low-overhead TCP socket ping against the PostgreSQL instance. |
-| **13** | `check_docker_container` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `False` | Queries local Docker daemon socket for container status. |
-| **14** | `check_dvc_status` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | Reads local `.dvc` lock files to verify dataset cryptographic hash parity. |
-| **15** | `validate_pandera_schema` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | In-memory schema validation against data contract specifications. |
-| **16** | `execute_sql` | `agentic_ops/tools/data.py` | `False` | `True` | `False` | `True` | Executes raw SQL (DML/DDL) on target database; strictly guarded by Least Privilege and human approval (`requires_approval=True`). |
-| **17** | `create_github_issue` | `agentic_ops/tools/github.py` | `False` | `False` | `False` | `True` | Calls GitHub REST API to post incident tracking issues; guarded by approval. |
+| **5** | `get_ledger_status` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Reads total episodes, linear chain integrity, and current RFC 6962 binary Merkle root. |
+| **6** | `verify_ledger_inclusion` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Verifies RFC 6962 inclusion proofs in $\mathcal{O}(\log N)$ time, binding episode payload to leaf hash and root. |
+| **7** | `search_failure_taxonomy` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Performs exact read-only substring matching across `docs/mlops_failure_modes_taxonomy.md`. |
+| **8** | `get_scenario_blueprint` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Reads scenario registry Markdown and executable YAML scenario contracts. |
+| **9** | `poll_target_mlops_snapshot` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `True` | Pulls external telemetry via `CacPullCollector` over Tailscale SOCKS5 (`127.0.0.1:1055`). |
+| **10** | `inspect_control_plane_vitals` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Inspects local Unix sockets, cgroup v2 memory telemetry, and active `PolicyBundle` hash. |
+| **11** | `get_mlflow_model_info` | `agentic_ops/tools/model.py` | `True` | `False` | `True` | `True` | Queries remote MLflow Model Registry metadata via read-only GET requests. |
+| **12** | `get_prometheus_metric` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Queries Prometheus metric endpoints over the observability network. |
+| **13** | `get_evidently_report` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Fetches Evidently AI data drift reports from external storage. |
+| **14** | `check_database_health` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `True` | Performs low-overhead TCP socket ping against the PostgreSQL instance. |
+| **15** | `check_docker_container` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `False` | Queries local Docker daemon socket for container status. |
+| **16** | `check_dvc_status` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | Reads local `.dvc` lock files to verify dataset cryptographic hash parity. |
+| **17** | `validate_pandera_schema` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | In-memory schema validation against data contract specifications. |
+| **18** | `execute_sql` | `agentic_ops/tools/data.py` | `False` | `True` | `False` | `True` | Executes raw SQL (DML/DDL) on target database; strictly guarded by Least Privilege and human approval (`requires_approval=True`). |
+| **19** | `create_github_issue` | `agentic_ops/tools/github.py` | `False` | `False` | `False` | `True` | Calls GitHub REST API to post incident tracking issues; guarded by approval. |
 
 
 ---
@@ -456,10 +460,10 @@ All 17 tools declare explicit boolean hints formatted in both `camelCase` (for o
 ### 9.3 Automated Verification & Suite Coverage
 
 The verification suite in `tests/entrypoints/test_mcp_server.py` validates this architecture through:
-* `test_mcp_tools_declare_all_four_hints`: Programmatically asserts that all 8 tools exposed via JSON-RPC declare `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` as genuine `bool` instances.
+* `test_mcp_tools_declare_all_four_hints`: Programmatically asserts that all 10 tools exposed via JSON-RPC declare `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` as genuine `bool` instances.
 * `test_mcp_tool_poll_target_mlops_snapshot`: Validates full mocked HTTP pull pipeline execution.
 * Individual unit tests for each of the 9 operational `AgentTool` implementations (`test_tool_get_mlflow_model_info`, `test_tool_execute_sql`, etc.) ensuring sub-process OS isolation, SIGTERM timeouts, and proper argument schema validation.
-* `test_all_17_tools_audit_and_coverage`: Comprehensive parity audit ensuring all 17 tools are unique, declared, and covered without omission.
+* `test_all_19_tools_audit_and_coverage`: Comprehensive parity audit ensuring all 19 tools are unique, declared, and covered without omission.
 
 ---
 

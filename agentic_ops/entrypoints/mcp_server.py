@@ -62,7 +62,7 @@ SERVER_INFO = {
     "version": "0.1.13",
     "description": (
         "Deterministic MLOps & SRE Governance Control Plane MCP Server "
-        "(8 Tools, 5 Knowledge Resources, 20 Starter Prompts)"
+        "(10 Governed Tools, 5 Knowledge Resources, 20 Starter Prompts)"
     ),
 }
 
@@ -241,6 +241,59 @@ MCP_TOOLS: List[Dict[str, Any]] = [
                     "type": "integer",
                     "default": 10,
                     "description": "Max recent episodes to return.",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_ledger_status",
+        "description": (
+            "Returns the cryptographic health and status of the WORM Trust Ledger: "
+            "total sealed entries, RFC 6962 Merkle Root (SHA-256), linear hash chain continuity, "
+            "and HMAC-SHA512 tamper signatures."
+        ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "verify_ledger_inclusion",
+        "description": (
+            "Verifies an RFC 6962 binary Merkle Tree inclusion proof in O(log N) time. "
+            "Can verify a local sealed episode by ID (e.g. EP-0001), or verify a complete external "
+            "proof packet offline with zero disk I/O."
+        ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": True,
+        "open_world_hint": False,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "episode_id": {
+                    "type": "string",
+                    "description": "Optional episode ID to verify against the local Trust Ledger (e.g. EP-0001).",
+                },
+                "proof_packet": {
+                    "type": "object",
+                    "description": "Optional complete proof packet for offline third-party verification without reading the local ledger.",
+                },
+                "expected_root": {
+                    "type": "string",
+                    "description": "Optional 64-char hex Merkle Root to assert against (defaults to ledger or packet root).",
                 },
             },
         },
@@ -790,11 +843,168 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "worm_ledger_file": str(store.ledger_file),
                 "linear_chain_and_hmac_valid": chain_valid,
                 "merkle_chain_and_hmac_valid": chain_valid,  # alias for backward-compatibility
+                "merkle_root": store.get_merkle_root(),
                 "total_matching_episodes": len(episodes),
                 "episodes": episodes[-limit:],
             }
             return {
                 "content": [{"type": "text", "text": json.dumps(payload, indent=2, ensure_ascii=False)}],
+                "isError": False,
+            }
+
+        elif name == "get_ledger_status":
+            store_dir = os.environ.get("EVIDENCE_STORE_DIR", str(REPO_ROOT / "state" / "episodes"))
+            store = EvidenceStore(store_dir)
+            chain_valid = store.verify_chain()
+            episodes = store.load_all_episodes()
+            merkle_root = store.get_merkle_root()
+
+            payload = {
+                "worm_ledger_file": str(store.ledger_file),
+                "total_episodes": len(episodes),
+                "linear_chain_valid": chain_valid,
+                "hmac_signatures_valid": chain_valid,
+                "merkle_root": merkle_root,
+                "is_empty": len(episodes) == 0,
+                "latest_episode_id": episodes[-1].get("episode_id") if episodes else None,
+                "status": "HEALTHY" if chain_valid else "CORRUPTED_OR_TAMPERED",
+            }
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, indent=2, ensure_ascii=False)}],
+                "isError": False,
+            }
+
+        elif name == "verify_ledger_inclusion":
+            store_dir = os.environ.get("EVIDENCE_STORE_DIR", str(REPO_ROOT / "state" / "episodes"))
+            store = EvidenceStore(store_dir)
+            target_ep = arguments.get("episode_id")
+            proof_packet = arguments.get("proof_packet")
+            expected_root = arguments.get("expected_root")
+
+            if not target_ep and not proof_packet:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps({
+                            "error": "Missing parameter. Please provide either 'episode_id' (to look up in local ledger) or 'proof_packet' (for offline zero-I/O verification).",
+                            "verified": False,
+                        }, indent=2)
+                    }],
+                    "isError": True,
+                }
+
+            if target_ep and not proof_packet:
+                proof_packet = store.get_merkle_proof(target_ep)
+                if not proof_packet:
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": f"Episode '{target_ep}' not found in WORM Trust Ledger.",
+                                "episode_id": target_ep,
+                                "verified": False,
+                                "status": "NOT_FOUND",
+                            }, indent=2)
+                        }],
+                        "isError": False,
+                    }
+
+            if not isinstance(proof_packet, dict):
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps({
+                            "error": "Invalid proof_packet format: expected a JSON object.",
+                            "verified": False,
+                            "status": "MALFORMED_PROOF",
+                        }, indent=2)
+                    }],
+                    "isError": True,
+                }
+
+            # Security validation on required fields
+            for field in ["leaf_hash", "merkle_root", "episode_id", "audit_path"]:
+                if field not in proof_packet:
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": f"Malformed proof packet: missing required field '{field}'.",
+                                "verified": False,
+                                "status": "MALFORMED_PROOF",
+                            }, indent=2)
+                        }],
+                        "isError": False,
+                    }
+
+            # Hex string validation
+            leaf_hash = str(proof_packet.get("leaf_hash", "")).strip()
+            merkle_root = str(proof_packet.get("merkle_root", "")).strip()
+            if len(leaf_hash) != 64 or len(merkle_root) != 64:
+                return {
+                    "content": [{
+                        "type": "text",
+                        "text": json.dumps({
+                            "error": "Invalid cryptographic hash length: leaf_hash and merkle_root must be 64-character hex strings.",
+                            "verified": False,
+                            "status": "INVALID_HASH_LENGTH",
+                        }, indent=2)
+                    }],
+                    "isError": False,
+                }
+
+            # Root assertion check
+            if expected_root:
+                expected_root_clean = str(expected_root).strip()
+                if len(expected_root_clean) != 64:
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "error": "Invalid expected_root: must be a 64-character hex string.",
+                                "verified": False,
+                                "status": "INVALID_EXPECTED_ROOT_LENGTH",
+                            }, indent=2)
+                        }],
+                        "isError": False,
+                    }
+                if merkle_root.lower() != expected_root_clean.lower():
+                    return {
+                        "content": [{
+                            "type": "text",
+                            "text": json.dumps({
+                                "verified": False,
+                                "episode_id": proof_packet.get("episode_id"),
+                                "leaf_hash": leaf_hash,
+                                "merkle_root": merkle_root,
+                                "expected_root": expected_root_clean,
+                                "error": f"Root mismatch: packet declared Merkle root '{merkle_root}' differs from trusted expected root '{expected_root_clean}'.",
+                                "status": "ROOT_MISMATCH",
+                            }, indent=2)
+                        }],
+                        "isError": False,
+                    }
+
+            # Cryptographic O(log N) verification
+            is_valid = EvidenceStore.verify_merkle_proof(proof_packet)
+            total_leaves = proof_packet.get("total_leaves", 1)
+            audit_path = proof_packet.get("audit_path", [])
+
+            result = {
+                "verified": is_valid,
+                "episode_id": proof_packet.get("episode_id"),
+                "leaf_index": proof_packet.get("leaf_index"),
+                "total_leaves": total_leaves,
+                "leaf_hash": leaf_hash,
+                "merkle_root": merkle_root,
+                "expected_root": expected_root or merkle_root,
+                "audit_path_steps": len(audit_path),
+                "audit_path": audit_path,
+                "complexity": f"O(log2({total_leaves})) = {len(audit_path)} hashing steps",
+                "status": "VALID_INCLUSION_PROOF" if is_valid else "TAMPERING_OR_INVALID_PROOF",
+            }
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2, ensure_ascii=False)}],
                 "isError": False,
             }
 
