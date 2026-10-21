@@ -185,8 +185,8 @@ Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à éla
 
 | Jalon d'Ingénierie | Protocole de Transport | Garantie de Sécurité | Norme Cryptographique | Mode de Contrôle Humain |
 | :--- | :--- | :--- | :--- | :--- |
-| **Actuel (`v0.1.13`)** | HTTP Streamable / Stdio | PolicyEngine Déterministe (0 token) | Chaîne SHA-256 + HMAC-SHA512 + Merkle RFC 6962 | Slack HITL (L2/L3) |
-| **Phase 1 (`v0.2.0`)** | SSE + HTTP Streamable | Bac à sable de télémétrie non bloquant | Idem v0.1.13 + empreinte de flux continu | Échantillonnage de Prompt dans l'IDE |
+| **Actuel (`v0.1.14`)** | HTTP Streamable / Stdio | PolicyEngine Déterministe (0 token) | Chaîne SHA-256 + HMAC-SHA512 + Merkle RFC 6962 | Slack HITL (L2/L3) |
+| **Phase 1 (`v0.2.0`)** | SSE + HTTP Streamable | Bac à sable de télémétrie non bloquant | Idem v0.1.14 + empreinte de flux continu | Échantillonnage de Prompt dans l'IDE |
 | **Phase 2 (`v0.3.0`)** | SSE + HTTP Streamable | Vérification d'inclusion en $\mathcal{O}(\log N)$ | Preuves Merkle RFC 6962 + Pack Art. 12 EU AI Act | Attestation Cryptographique |
 | **Phase 3 (`v0.4.0`)** | Double Maillage (HTTP + WireGuard) | Quorum Multi-Agents Judiciaire + Veto | Consensus multi-parties + Scellement WORM | Quorum multi-agents + Opérateur |
 

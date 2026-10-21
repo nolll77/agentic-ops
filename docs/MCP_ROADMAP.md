@@ -185,8 +185,8 @@ Allowing a single AI agent or single LLM provider to both formulate remediation 
 
 | Engineering Milestone | Transport Protocol | Security Guarantee | Cryptographic Standard | Human Oversight Mode |
 | :--- | :--- | :--- | :--- | :--- |
-| **Current (`v0.1.13`)** | Streamable HTTP / Stdio | Deterministic PolicyEngine (0 tokens) | SHA-256 chain + HMAC-SHA512 + RFC 6962 Merkle | Slack HITL (L2/L3) |
-| **Phase 1 (`v0.2.0`)** | SSE + Streamable HTTP | Non-blocking telemetry sandbox | Same as v0.1.13 + streaming digest | Dynamic Prompt Sampling in IDE |
+| **Current (`v0.1.14`)** | Streamable HTTP / Stdio | Deterministic PolicyEngine (0 tokens) | SHA-256 chain + HMAC-SHA512 + RFC 6962 Merkle | Slack HITL (L2/L3) |
+| **Phase 1 (`v0.2.0`)** | SSE + Streamable HTTP | Non-blocking telemetry sandbox | Same as v0.1.14 + streaming digest | Dynamic Prompt Sampling in IDE |
 | **Phase 2 (`v0.3.0`)** | SSE + Streamable HTTP | $\mathcal{O}(\log N)$ inclusion verification | RFC 6962 Merkle Proofs + EU AI Act Art. 12 pack | Cryptographic Attestation |
 | **Phase 3 (`v0.4.0`)** | Dual Mesh (HTTP + WireGuard) | Judicial Multi-Agent Quorum + Veto | Multi-party consensus + WORM seals | Multi-agent quorum + Operator |
 
