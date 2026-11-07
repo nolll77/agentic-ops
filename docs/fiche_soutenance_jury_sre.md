@@ -89,6 +89,18 @@
 
 ---
 
+### ❓ Question 7 : Le piège du Cloud Gratuit ("Cold Start Render") & du Score d'Annuaire Public (`mcptry.com` `61/100` vs `M8ven`)
+**Le Jury :**  
+*« Votre instance de démo tourne à `0 €` sur Render Free Tier, qui s'endort normalement toutes les 15 minutes, et l'annuaire public `mcptry.com` vous affiche un score de `61/100` avec `"Needs sign-in"` et `0/15` en qualité d'outils. Pourquoi ne pas viser `100/100` ? »*
+
+**💡 Votre réponse chirurgicale :**  
+> « Parce qu'en ingénierie SecOps/SRE, **refuser de dégrader sa sécurité pour gonfler une métrique d'annuaire est un principe non négociable**, et que ce rapport tiers indépendant constitue au contraire une triple preuve factuelle en notre faveur :
+> 1. **`98.4 %` d'Uptime Externe Vérifié depuis l'Allemagne (`< 10 s`)** : Sans aucune intervention de notre part, le sondeur indépendant de `mcptry.com` (basé en Allemagne, timeout strict de `10 s`) interroge `https://agentic-ops-5ebv.onrender.com/mcp` toutes les 30 minutes 24h/24. Un Render Free Tier endormi (~45 s de *cold start*) aurait obtenu `0 %`. Le score `10/10` (`98.4 %` sur 30/90 jours) prouve par un tiers neutre que notre maintien en éveil (`cron-job.org` + empreinte mémoire bridée `< 512 MiB`) fonctionne réellement en continu.
+> 2. **Pourquoi `61/100` est la Signature Mathématique du Zero-Trust (`401 auth required`)** : Les `30` points "manquants" (`-10` sur `Works right now`, `-15` sur `Tool quality`, `-5` sur `Speed`) découlent d'une cause unique : `AdminAPIKeyMiddleware` bloque le robot anonyme avec `HTTP 401 Unauthorized` avant `tools/list` (exactement comme les serveurs MCP officiels `GitHub`, `Sentry`, `Stripe` ou `Cloudflare`). Ouvrir `/mcp` sans clé API pour obtenir `95+/100` exposerait le conteneur au déni de service (`read_console_diagnostic`) et au spam du ledger, tout en cassant la découverte d'authentification `401` standard des clients MCP.
+> 3. **Complémentarité avec l'Audit Statique `AST` (`M8ven`) & `OIDC` (`v0.2.0 GitHub verified`)** : Là où `mcptry.com` prouve en boîte noire la disponibilité (`98.4 %`), le verrouillage périmétrique (`auth required`) et la chaîne `OIDC` (`v0.2.0`), le scanner statique `M8ven` audite directement l'`AST` Python sur GitHub et valide nos 4 annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) sur 100 % des 20 outils. »
+
+---
+
 ## 📊 3. Formalisation Mathématique de la Machine à États Finis (FSM)
 
 ```mermaid

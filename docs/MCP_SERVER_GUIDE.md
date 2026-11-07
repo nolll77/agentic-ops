@@ -510,13 +510,13 @@ To achieve autonomous production grade on public Model Context Protocol indexes 
   3. **Traceability & Zero-Regression Testing (`Tool Test Coverage`)**: 100% of declared tools must be tested and referenced by name in automated unit suites (`tests/entrypoints/test_mcp_server.py`).
 
 * **Solo Engineering Reality**:
-  Public crawlers such as `M8ven` do not restrict their audit to the primary JSON-RPC list (`MCP_TOOLS` in `agentic_ops/entrypoints/mcp_server.py`, which exposes 8 control plane tools). They execute deep AST (Abstract Syntax Tree) parsing across all Python modules in the repository, detecting operational tools under `agentic_ops/tools/` (9 specialized classes inheriting from `AgentTool`). To guarantee flawless evaluation, all 17 tools have been systematically annotated and verified.
+  Public crawlers such as `M8ven` do not restrict their audit to the primary JSON-RPC list (`MCP_TOOLS` in `agentic_ops/entrypoints/mcp_server.py`, which exposes 11 governed control-plane tools in `v0.2.0`). They execute deep `AST` (Abstract Syntax Tree) parsing across all Python modules in the repository, detecting operational tools under `agentic_ops/tools/` (9 specialized classes inheriting from `AgentTool`). To guarantee consistent evaluation, all **20 tools** are systematically annotated and verified in CI.
 
 ---
 
-### 9.2 Comprehensive Taxonomy of the 19 Annotated Tools
+### 9.2 Comprehensive Taxonomy of the 20 Annotated Tools
 
-All 19 tools declare explicit boolean hints formatted in both `camelCase` (for official MCP and OpenAI directory compatibility) and `snake_case` (for native Python client compatibility):
+All 20 tools declare explicit boolean hints formatted in both `camelCase` (for official MCP and OpenAI directory compatibility) and `snake_case` (for native Python client compatibility):
 
 | # | Tool Identifier | Source File | `readOnlyHint` | `destructiveHint` | `idempotentHint` | `openWorldHint` | SRE Safety & Blast Radius Rationale |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
@@ -530,32 +530,68 @@ All 19 tools declare explicit boolean hints formatted in both `camelCase` (for o
 | **8** | `get_scenario_blueprint` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Reads scenario registry Markdown and executable YAML scenario contracts. |
 | **9** | `poll_target_mlops_snapshot` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `True` | Pulls external telemetry via `CacPullCollector` over Tailscale SOCKS5 (`127.0.0.1:1055`). |
 | **10** | `inspect_control_plane_vitals` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `True` | `False` | Inspects local Unix sockets, cgroup v2 memory telemetry, and active `PolicyBundle` hash. |
-| **11** | `get_mlflow_model_info` | `agentic_ops/tools/model.py` | `True` | `False` | `True` | `True` | Queries remote MLflow Model Registry metadata via read-only GET requests. |
-| **12** | `get_prometheus_metric` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Queries Prometheus metric endpoints over the observability network. |
-| **13** | `get_evidently_report` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Fetches Evidently AI data drift reports from external storage. |
-| **14** | `check_database_health` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `True` | Performs low-overhead TCP socket ping against the PostgreSQL instance. |
-| **15** | `check_docker_container` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `False` | Queries local Docker daemon socket for container status. |
-| **16** | `check_dvc_status` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | Reads local `.dvc` lock files to verify dataset cryptographic hash parity. |
-| **17** | `validate_pandera_schema` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | In-memory schema validation against data contract specifications. |
-| **18** | `execute_sql` | `agentic_ops/tools/data.py` | `False` | `True` | `False` | `True` | Executes raw SQL (DML/DDL) on target database; strictly guarded by Least Privilege and human approval (`requires_approval=True`). |
-| **19** | `create_github_issue` | `agentic_ops/tools/github.py` | `False` | `False` | `False` | `True` | Calls GitHub REST API to post incident tracking issues; guarded by approval. |
-
+| **11** | `request_client_sampling` | `agentic_ops/entrypoints/mcp_server.py` | `True` | `False` | `False` | `True` | Initiates `sampling/createMessage` on connected client LLM; wraps untrusted reply in `<untrusted_data>`, zero mutation capability. |
+| **12** | `get_mlflow_model_info` | `agentic_ops/tools/model.py` | `True` | `False` | `True` | `True` | Queries remote MLflow Model Registry metadata via read-only GET requests. |
+| **13** | `get_prometheus_metric` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Queries Prometheus metric endpoints over the observability network. |
+| **14** | `get_evidently_report` | `agentic_ops/tools/observability.py` | `True` | `False` | `True` | `True` | Fetches Evidently AI data drift reports from external storage. |
+| **15** | `check_database_health` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `True` | Performs low-overhead TCP socket ping against the PostgreSQL instance. |
+| **16** | `check_docker_container` | `agentic_ops/tools/infra.py` | `True` | `False` | `True` | `False` | Queries local Docker daemon socket for container status. |
+| **17** | `check_dvc_status` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | Reads local `.dvc` lock files to verify dataset cryptographic hash parity. |
+| **18** | `validate_pandera_schema` | `agentic_ops/tools/data.py` | `True` | `False` | `True` | `False` | In-memory schema validation against data contract specifications. |
+| **19** | `execute_sql` | `agentic_ops/tools/data.py` | `False` | `True` | `False` | `True` | Executes raw SQL (DML/DDL) on target database; strictly guarded by Least Privilege and human approval (`requires_approval=True`). |
+| **20** | `create_github_issue` | `agentic_ops/tools/github.py` | `False` | `False` | `False` | `True` | Calls GitHub REST API to post incident tracking issues; guarded by approval. |
 
 ---
 
 ### 9.3 Automated Verification & Suite Coverage
 
 The verification suite in `tests/entrypoints/test_mcp_server.py` validates this architecture through:
-* `test_mcp_tools_declare_all_four_hints`: Programmatically asserts that all 10 tools exposed via JSON-RPC declare `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` as genuine `bool` instances.
+* `test_mcp_tools_declare_all_four_hints`: Programmatically asserts that all governed tools exposed via JSON-RPC declare `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint` as genuine `bool` instances.
 * `test_mcp_tool_poll_target_mlops_snapshot`: Validates full mocked HTTP pull pipeline execution.
-* Individual unit tests for each of the 9 operational `AgentTool` implementations (`test_tool_get_mlflow_model_info`, `test_tool_execute_sql`, etc.) ensuring sub-process OS isolation, SIGTERM timeouts, and proper argument schema validation.
-* `test_all_19_tools_audit_and_coverage`: Comprehensive parity audit ensuring all 19 tools are unique, declared, and covered without omission.
+* Individual unit tests for each of the 9 operational `AgentTool` implementations (`test_tool_get_mlflow_model_info`, `test_tool_execute_sql`, etc.) ensuring sub-process OS isolation, `SIGTERM` timeouts, and proper argument schema validation.
+* `test_all_19_tools_audit_and_coverage`: Comprehensive parity audit ensuring all registered tools are unique, declared, and covered without omission.
+
+---
+
+### 9.4 Independent External Audits: Static `AST` Verification (`M8ven`) vs. Live Zero-Trust Probing (`mcptry.com`)
+
+Because `io.github.nolll77/agentic-ops` is published on the **Official Anthropic Model Context Protocol Registry**, independent third-party evaluators continuously audit it using two orthogonal methodologies:
+
+| Dimension | `M8ven Trust Index` (`m8ven.ai`) | `mcptry.com` Live Directory Monitor |
+| :--- | :--- | :--- |
+| **Audit Mechanism** | **Static GitHub Source & `AST` Scanner** (reads Python modules, `LICENSE`, CI workflows, hardcoded secret checks, and all 4 tool hints). | **Live Anonymous HTTPS Probe** from Germany every 30 minutes (`10s` hard timeout, `User-Agent: mcptry.com indexer`, zero credentials). |
+| **Engineering Signal vs. Vanity** | **High SecOps/CI value**: directly drove 100% `Hint` coverage, full `pytest` CI execution, and `MIT` / `OIDC` hygiene *(only capped socially by GitHub stars/adoption via their "Trust Pyramid")*. | **High SRE Uptime & Auth-Gate proof, ZERO reason to chase `100/100`**: penalizes authenticated servers by `-30 pts` because the anonymous bot cannot pass `401`. |
+
+#### Mathematical Breakdown of the `61 / 100` Score on `mcptry.com` (Why `100/100` Is a Security Anti-Pattern)
+
+On [`mcptry.com`](https://mcptry.com/), `Agentic-Ops` (`v0.2.0`) scores **`61 / 100`** (`Status: Needs sign-in — auth required`). Out of the `39` missing points, **`30` points derive from a single intentional Zero-Trust security control** — [`AdminAPIKeyMiddleware`](../agentic_ops/entrypoints/auth_middleware.py) enforcing `HTTP 401 Unauthorized` on `/mcp` when no `ADMIN_API_KEY` or `Entra` bearer token is supplied:
+
+| `mcptry.com` Signal | Score | Exact Technical Cause | SRE & SecOps Architectural Verdict |
+| :--- | :---: | :--- | :--- |
+| **`Works right now`** | **`30 / 40`** | `-10 pts` because `POST /mcp` returns `401` (`Needs sign-in`) instead of unauthenticated `200 OK`. | **Keep at `30/40` (Zero-Trust Badge)**. Enterprise MCP servers (`GitHub`, `Sentry`, `Linear`, `Stripe`, `Cloudflare`) share this exact status. |
+| **`Tool quality`** | **`0 / 15`** | Cascading effect of `401`: the anonymous probe stops before `tools/list` (*"We haven't seen a tool list from this server yet"*). | **Expected false zero** (all 20 tools and schemas are typed and annotated in source, gated behind `ADMIN_API_KEY`). |
+| **`Speed`** | **`0 / 5`** | Cascading effect of `401`: latency `ping` is timed *only* on unauthenticated public servers. | **Expected false zero**. |
+| **`Uptime, 30 days`** | **`10 / 10`** | **`98.4%` uptime** across 30/90 days measured every 30 min from Germany (`< 10s` timeout; `401` counts as alive). | **Independent Third-Party SRE Evidence**: proves `Render` + `cron-job.org` auto-wake avoids Free-Tier 45s cold-start timeouts. |
+| **`Verified publisher`** | **`5 / 5`** | `GitHub verified` via `OIDC` cryptographic signing on the Official Anthropic Registry. | **Genuine supply-chain provenance proof**. |
+| **`Recently updated`** | **`5 / 5`** | Automatic synchronization within 30 minutes of each Quintuple Push (`v0.2.0`). | **Confirms live CI/CD registry pipeline**. |
+| **`Complete listing`** | **`11 / 15`** | `title` (`2`), `description` (`3`), `repository` (`3`), `website` (`3`); only optional `icons` (`-4`) omitted in `server.json`. | Cosmetic only. |
+| **`Claimed`** | **`0 / 5`** | Requires manual GitHub account linking on `mcptry.com`. | Pure directory vanity (`0` technical impact). |
+
+> [!CAUTION]
+> **SecOps Anti-Pattern — Never Disable `/mcp` Authentication to Chase Directory Scores (`Vanity-Metric Security Downgrade`)**:
+> Removing `AdminAPIKeyMiddleware` on `/mcp` to reach `95+/100` on public directories would allow anonymous internet bots to trigger in-container `pytest` runs (`read_console_diagnostic`, exhausting Render's 512 MiB RAM budget) or spam `ledger.jsonl` (`run_governed_incident_episode`). Even selectively opening `initialize` + `tools/list` without authentication while gating `tools/call` behind `401` is an anti-pattern: (1) it misleads directory users into believing no token is required until every tool call fails in the Playground, and (2) it breaks standard MCP HTTP client authentication discovery, which relies on receiving `401 Unauthorized` during `initialize`.
+
+#### Using `mcptry.com` as Objective SRE Evidence (Jury & Engineering Reviews)
+Without changing a single line of security code, the public `mcptry.com` report serves as an **unsolicited, independent external monitor in Germany** demonstrating three factual properties to skeptical reviewers of a `0 EUR` cloud deployment:
+1. **Continuous Availability (`98.4% Uptime` under `< 10s` timeout)**: Proves the Render container is actively kept warm 24/7 rather than suffering 50-second Free-Tier cold starts.
+2. **Enforced Perimeter Security (`Last check: auth required`)**: Proves externally every 30 minutes that `/mcp` is live on the public internet yet strictly rejects unauthenticated callers (`401`).
+3. **End-to-End Supply Chain Automation (`v0.2.0 · GitHub verified`)**: Proves `publish.yml` (`OIDC`) propagates signed releases to the Official Anthropic Registry and downstream global indexes automatically.
 
 ---
 
 ## 10. Architectural Roadmap & Community Contributions
 
-For upcoming R&D phases covering Server-Sent Events (`SSE`), EU AI Act Article 12 cryptographic compliance packs, and Judicial Multi-Agent Quorum architectures, please consult:
+For delivered `v0.2.0` milestones (Server-Sent Events `SSE`, `sampling/createMessage`, EU AI Act Article 12 technical evidence packs, and `InspectorAgent` Judicial Quorum) and remaining R&D items, please consult:
 
 - **[Model Context Protocol (`MCP`) Engineering Roadmap (`docs/MCP_ROADMAP.md`)](MCP_ROADMAP.md)** (Version française : [`docs/MCP_ROADMAP_FR.md`](MCP_ROADMAP_FR.md))
 - **[Community Collaboration & Contributing Guide (`CONTRIBUTING.md`)](../CONTRIBUTING.md)** (Version française : [`docs/CONTRIBUTING_FR.md`](CONTRIBUTING_FR.md))
