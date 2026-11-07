@@ -241,6 +241,41 @@ class ApprovalRepo:
         finally:
             conn.close()
 
+    def stats(self) -> dict:
+        """Read-only aggregate counters for compliance reporting (EU AI Act Art. 12/14).
+
+        Uses a plain SELECT on a short-lived connection: no write lock, no mutation,
+        never interferes with the BEGIN IMMEDIATE approval state machine.
+        """
+        conn = self._conn()
+        try:
+            requests_by_status = {
+                row["status"]: row["n"]
+                for row in conn.execute("SELECT status, COUNT(*) AS n FROM requests GROUP BY status")
+            }
+            outbox_by_status = {
+                row["status"]: row["n"]
+                for row in conn.execute("SELECT status, COUNT(*) AS n FROM execution_outbox GROUP BY status")
+            }
+            approvals_total = conn.execute("SELECT COUNT(*) AS n FROM approvals").fetchone()["n"]
+            distinct_approvers = conn.execute(
+                "SELECT COUNT(DISTINCT approver) AS n FROM approvals"
+            ).fetchone()["n"]
+            approvals_by_group = {
+                row["grp"]: row["n"]
+                for row in conn.execute("SELECT grp, COUNT(*) AS n FROM approvals GROUP BY grp")
+            }
+            return {
+                "requests_total": sum(requests_by_status.values()),
+                "requests_by_status": requests_by_status,
+                "approvals_total": approvals_total,
+                "distinct_approvers": distinct_approvers,
+                "approvals_by_group": approvals_by_group,
+                "execution_outbox_by_status": outbox_by_status,
+            }
+        finally:
+            conn.close()
+
     def finish_execution(
         self,
         episode_id: str,

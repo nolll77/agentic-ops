@@ -28,16 +28,16 @@ app = FastAPI(
     description=(
         "**Agentic-Ops** is a cloud-agnostic MLOps/SRE control-plane prototype. Production capabilities depend on qualified adapters and deployment profiles.\n\n"
         "### Key Capabilities & Endpoints:\n"
-        "- **🧠 Multi-Agent System (MAS)**: 5 Specialized Cognitive LLM brains (Remediation, Infra, Data, Model, Chat) "
+        "- **🧠 Multi-Agent System (MAS)**: 6 Specialized Cognitive LLM brains (Remediation, Inspector, Infra, Data, Model, Chat) "
         "and 6 Zero-Token Deterministic Actuators (`/api/mas/topology`, `/api/llm/status`, `/api/llm/probe`).\n"
         "- **🎯 Deterministic In-Memory RAG Engine**: Zero-token & zero-cost grounding over the 435 MLOps Failure Modes "
         "and 36 SRE Simulation Scenarios (`/chat`, `/api/chat`).\n"
-        "- **📚 20 Governed MCP Prompts & Tools**: Model Context Protocol JSON-RPC gateway for IDEs and autonomous agents (`/mcp`, `/api/prompts`).\n"
+        "- **📚 20 Governed MCP Prompts, 8 Resources & SSE Stream**: Model Context Protocol JSON-RPC + SSE gateway for IDEs and autonomous agents (`/mcp`, `/mcp/events`, `/api/prompts`).\n"
         "- **🛡️ Remote Tailscale Telemetry**: Passive read-only ingestion across 5 observability targets on `jakatt/cac_mlops` (`/api/cac/snapshot`).\n"
         "- **🔒 Cryptographic WORM Ledger & Slack HITL**: Linear hash chain tamper detection and HMAC-SHA256 human oversight (`/slack/interactive`).\n"
         "- **🖥️ Live Sandbox Glass-Box Console**: 12 whitelisted OS/Pytest diagnostic commands for zero-cost auditing (`/console`, `/api/diagnostics/{command}`)."
     ),
-    version="0.1.14",
+    version="0.2.0",
 )
 
 app.add_middleware(AdminAPIKeyMiddleware)
@@ -418,6 +418,35 @@ def get_mas_topology():
             "worm_ledger": True,
             "promql_metric": 'agentic_ops_llm_requests_total{role="remediation"}',
             "failure_fallback": "Bascule transparente sur FallbackLLMAdapter (5 modèles gratuits), puis repli CIRCUIT_BREAKER_FALLBACK si quota épuisé.",
+        },
+        {
+            "id": "inspector",
+            "name": "InspectorAgent",
+            "layer": "Quorum Judiciaire Multi-Agents (Phase 3)",
+            "type": "cognitive",
+            "type_label": "Cerveau Cognitif (LLM)",
+            "role": "inspector",
+            "status": "ONLINE" if os.environ.get("AGENTIC_OPS_INSPECTOR_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"} else "STANDBY (OPT-IN)",
+            "mission": "Auditeur judiciaire indépendant vérifiant la proportionnalité, l'hygiène de cible et l'absence d'injection sur l'ActionProposal du RemediationAgent.",
+            "fsm_trigger": "Exécuté après PolicyEngine.decide() sur décision ALLOW lorsque AGENTIC_OPS_INSPECTOR_ENABLED=true.",
+            "anti_bias_rule": "Durcissement monotone strict : peut uniquement transformer ALLOW en DENY (VETO) ou REQUIRE_APPROVAL (fail-closed), jamais assouplir un DENY/REQUIRE_APPROVAL.",
+            "active_model": roles_top.get("inspector", {}).get("model", "openrouter/google/gemma-4-31b-it:free"),
+            "provider": roles_top.get("inspector", {}).get("provider", "openrouter"),
+            "fallback_models": roles_top.get("inspector", {}).get("fallback_models", []),
+            "override_env": "LLM_MODEL_INSPECTOR",
+            "temperature": roles_top.get("inspector", {}).get("temperature", 0.0),
+            "max_tokens": roles_top.get("inspector", {}).get("max_tokens", 1024),
+            "timeout_seconds": roles_top.get("inspector", {}).get("timeout_seconds", 30),
+            "reasoning_mode": "Audit contradictoire structuré (PASS | VETO) avec prompt_guard.wrap_untrusted",
+            "selection_rationale": "Famille de modèle indépendante (Google Gemma 4 vs NVIDIA Nemotron du RemediationAgent) afin d'éviter tout angle mort partagé.",
+            "input_contract": "Diagnosis + ActionProposal (encapsulés via wrap_untrusted)",
+            "output_contract": "InspectorVerdict (verdict: PASS | VETO, rationale, concerns, inspector_model)",
+            "dependencies": ["PolicyEngine (OPA gate)", "prompt_guard.wrap_untrusted", "WORM Trust Ledger"],
+            "allowed_tools": ["Aucun (Isolation judiciaire totale : zéro outil exécutable)"],
+            "blast_radius_limit": "0 (Audit pur, durcissement monotone uniquement)",
+            "worm_ledger": True,
+            "promql_metric": 'agentic_ops_llm_requests_total{role="inspector"}',
+            "failure_fallback": "Fail-closed strict : toute erreur ou timeout LLM bascule ALLOW vers REQUIRE_APPROVAL (approbation humaine requise).",
         },
         {
             "id": "infra",

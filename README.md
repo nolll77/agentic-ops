@@ -8,13 +8,13 @@
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 [![Merkle Tree](https://img.shields.io/badge/Merkle%20Tree-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-246%20Passed-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-288%20Passed-brightgreen)](tests/)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
 
 > **Language / Langue** : **English (Main Documentation)** | **[Lire la documentation complète en Français (README_FR.md)](README_FR.md)**
-> **Official Anthropic Model Context Protocol Registry**: [`io.github.nolll77/agentic-ops` (`v0.1.12` Active)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions) | **Glama MCP Catalog**: [`glama.ai/mcp/servers/nolll77/agentic-ops`](https://glama.ai/mcp/servers/nolll77/agentic-ops)
+> **Official Anthropic Model Context Protocol Registry**: [`io.github.nolll77/agentic-ops` (`v0.2.0` Active)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions) | **Glama MCP Catalog**: [`glama.ai/mcp/servers/nolll77/agentic-ops`](https://glama.ai/mcp/servers/nolll77/agentic-ops)
 > `mcp-name: io.github.nolll77/agentic-ops`
 
 **Agentic-Ops** is a personal MLOps control-plane project for exploring how AI agents (LLMs) can help investigate operational signals such as `Data Drift`, `Model Staleness`, and `OOMKilled Pods`.
@@ -29,7 +29,8 @@ Unlike frameworks that prioritize agent autonomy, it explores SRE-inspired contr
 - Release `v0.1.4` adds a fail-closed local inventory, SQLite backup/restore commands, and a synthetic load/crash-recovery benchmark. These tools do not themselves qualify a production deployment.
 - Release `v0.1.5` improves protected console/LLM-probe authentication UX. Render must still have a private `ADMIN_API_KEY` configured for these protected actions.
 - Release `v0.1.6` adds verified multi-database/evidence backup sets, a simulation-only approval continuation on the original episode, expanded worker crash and inventory lifecycle tests, and a size-matrix benchmark. It does not certify an off-host restore or enable live actions.
-- Production qualification is **not claimed**. Entra/SCIM, multi-node HA, deployment-target backup restoration, recovery objectives, synchronization of local inventory with a live source, and action-by-action live execution remain unqualified.
+- Release `v0.2.0` implements MCP Roadmaps Phases 1, 2, and 3.1 (`docs/MCP_ROADMAP.md`): bidirectional `HTTP + SSE` (`GET /mcp/events` with bounded drop-oldest backpressure and `Last-Event-ID` replay), dynamic telemetry streams (`mlops://telemetry/live/drift` defaulting honestly to `source="simulated"`, `mlops://telemetry/live/latency`), server-initiated `sampling/createMessage` (`request_client_sampling`), memoized $\mathcal{O}(\log N)$ Merkle proof generation (`< 0.1 ms` at $10^5$ indexed leaves), the `HMAC-SHA512`-sealed technical evidence resource `mlops://compliance/eu-ai-act/article-12/audit-pack` (explicitly marked `third_party_verifiable: false`, not legal certification), and an opt-in independent `InspectorAgent` (`AGENTIC_OPS_INSPECTOR_ENABLED=true`) enforcing strict monotonic tightening (`288` tests passed).
+- Production qualification is **not claimed**. Entra/SCIM, multi-node HA, deployment-target backup restoration, recovery objectives, synchronization of local inventory with a live source, `< 500 ms` sovereign local LLM failover, and action-by-action live execution remain unqualified.
 - The detailed repository-to-production mapping, missing target-specific values, owners, validation evidence, and promotion gates are documented in [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Render console/chat probe setup and the exact `ADMIN_API_KEY` prerequisite are documented in [`docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md`](docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md).
 - A solo, single-node observation/simulation profile does **not** require an Entra tenant. Its scope and remaining self-operated qualification work are in [`docs/SELF_HOSTED_PRODUCTION_PATH.md`](docs/SELF_HOSTED_PRODUCTION_PATH.md). This is distinct from enterprise SSO, HA and independent audit anchoring.

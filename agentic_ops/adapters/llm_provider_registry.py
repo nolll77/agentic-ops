@@ -121,12 +121,16 @@ PROVIDER_PROFILES: dict[str, dict[str, Any]] = {
 }
 
 
-SUPPORTED_ROLES: tuple[str, ...] = ("remediation", "infra", "data", "model", "chat")
+SUPPORTED_ROLES: tuple[str, ...] = ("remediation", "inspector", "infra", "data", "model", "chat")
 
 ROLE_RECOMMENDED_MODELS: dict[str, dict[str, str]] = {
     "remediation": {
         "model": "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
         "reason": "Raisonnement CoT délibéré pour planification d'actions et calcul blast radius",
+    },
+    "inspector": {
+        "model": "openrouter/google/gemma-4-31b-it:free",
+        "reason": "Famille de modèle indépendante (Google Gemma vs NVIDIA Nemotron) pour quorum judiciaire sans angle mort partagé",
     },
     "infra": {
         "model": "openrouter/google/gemma-4-31b-it:free",

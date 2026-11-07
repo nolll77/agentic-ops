@@ -1,9 +1,9 @@
 # Agentic-Ops — Model Context Protocol (`MCP`) Governance Gateway Guide
 
-> **Module Entrypoint**: `agentic_ops/entrypoints/mcp_server.py` (`agentic-mcp`)
+> **Module Entrypoint**: `agentic_ops/entrypoints/mcp_server.py` (`agentic-mcp`), `agentic_ops/entrypoints/mcp_sse.py`, `agentic_ops/entrypoints/mcp_transport.py`
 > **Protocol Specification**: Anthropic `Model Context Protocol` (`JSON-RPC 2.0`, `protocolVersion: "2024-11-05"`)
-> **Live Cloud Endpoint**: `https://agentic-ops-5ebv.onrender.com/mcp` | **Manifest Discovery**: `https://agentic-ops-5ebv.onrender.com/mcp/manifest`
-> **Automated Validation Suite**: `tests/entrypoints/test_mcp_server.py` (`24 passed` · 100% Tool Coverage) | Full Suite: `69 passed`
+> **Live Cloud Endpoints**: `https://agentic-ops-5ebv.onrender.com/mcp` (`POST`) | `https://agentic-ops-5ebv.onrender.com/mcp/events` (`GET` `text/event-stream`) | **Manifest**: `https://agentic-ops-5ebv.onrender.com/mcp/manifest`
+> **Automated Validation Suite**: `tests/entrypoints/test_mcp_server.py`, `test_mcp_sse.py`, `test_mcp_sampling.py` & `tests/core/test_compliance_pack.py` | Full Suite: `288 passed, 3 skipped`
 
 ---
 
@@ -18,26 +18,29 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 | EXTERNAL AI CLIENTS (Claude Desktop / Cursor / Windsurf / Google Antigravity)     |
 +-----------------------------------------+-----------------------------------------+
                                           |
-                     1. STDIO (Local CLI) | or 2. HTTP JSON-RPC 2.0 (POST /mcp)
+       1. STDIO (Local CLI) | 2. HTTP POST /mcp | 3. SSE Stream GET /mcp/events
                                           v
 +-----------------------------------------------------------------------------------+
-| AGENTIC-OPS MCP GOVERNANCE GATEWAY (agentic_ops/entrypoints/mcp_server.py)        |
+| AGENTIC-OPS MCP GOVERNANCE GATEWAY (mcp_server.py + mcp_sse.py + mcp_transport.py)|
 |                                                                                   |
 |  +---------------------------+  +-----------------------+  +-------------------+  |
-|  | 8 Governed MCP Tools      |  | 5 Knowledge Resources |  | 20 Starter Prompts|  |
+|  | 11 Governed MCP Tools     |  | 8 MCP Resources       |  | 20 Starter Prompts|  |
 |  | - read_console_diagnostic |  | - 435 Failure Modes   |  | - Console Audits  |  |
 |  | - evaluate_governance_pol.|  | - 20 Scenarios Reg.   |  | - Policy Vetoes   |  |
 |  | - run_governed_incident   |  | - Autonomy Policy     |  | - WORM Forensics  |  |
 |  | - inspect_worm_ledger     |  | - Known Gaps Matrix   |  | - Taxonomy Search |  |
-|  | - search_failure_taxonomy |  | - Live Console Vitals |  | - SecOps & Jury   |  |
-|  | - get_scenario_blueprint  |  +-----------------------+  +-------------------+  |
-|  | - poll_target_mlops_snap. |                                                    |
+|  | - get_ledger_status       |  | - Live Console Vitals |  | - SecOps & Jury   |  |
+|  | - verify_ledger_inclusion |  | - Live Drift Stream   |  +-------------------+  |
+|  | - search_failure_taxonomy |  | - Live Latency Stream |                         |
+|  | - get_scenario_blueprint  |  | - EU AI Act Art.12 Pk |                         |
+|  | - poll_target_mlops_snap. |  +-----------------------+                         |
 |  | - inspect_control_vitals  |                                                    |
+|  | - request_client_sampling |  (+9 Modular Operational Tools = 20 Total Tools)   |
 |  +-------------+-------------+                                                    |
 |                |                                                                  |
 |                v                                                                  |
 |  +-----------------------------------------------------------------------------+  |
-|  | DETERMINISTIC CORE (PolicyEngine + FSM + WORM EvidenceStore + Tailscale)    |  |
+|  | DETERMINISTIC CORE (PolicyEngine + InspectorAgent Quorum + FSM + WORM)      |  |
 |  | -> Verdicts: ALLOW (L1) | REQUIRE_APPROVAL (Slack HITL L2/L3) | DENY (Veto) |  |
 |  | -> Cryptographic Sealing: Canonical JSON + SHA-256 Chain + HMAC-SHA512      |  |
 |  +-----------------------------------------------------------------------------+  |
@@ -55,7 +58,9 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 
 ---
 
-## 3. Reference of the 10 Governed `MCP Tools`
+## 3. Reference of the 11 Governed `MCP Tools`
+
+*(Note: Alongside these 11 governed gateway tools, `mcp_tools.py` registers 9 modular operational tools — totaling **20 MCP tools** exposed by `tools/list`.)*
 
 | Tool Name | Underlying Module | Input Arguments | Deterministic Guarantee & Output |
 | :--- | :--- | :--- | :--- |
@@ -69,18 +74,27 @@ In standard enterprise deployments, connecting autonomous AI clients (`Claude De
 | `get_scenario_blueprint` | `docs/mlops_simulation_scenarios_registry.md` & `tests/scenarios/data/` | `scenario_id` (`SC-101`, `SC-001`, `SIM-1`, `all`) | Retrieves both the prose architectural blueprint and the executable YAML test contract. |
 | `poll_target_mlops_snapshot` | `agentic_ops/adapters/cac_pull_collector.py` | `use_proxy` (`bool`), `timeout` (`float`) | Performs a `100% Read-Only` (`HTTP GET`) collection across the 5 `jakatt/cac_mlops` endpoints via the `Tailscale SOCKS5` proxy (`127.0.0.1:1055`). |
 | `inspect_control_plane_vitals` | `agentic_ops/cli/main.py` | *(none)* | Returns live TCP socket checks (`Redis :6379`, `Tailscale :1055`), active `PolicyBundle` SHA-256 version, and governed action counts. |
+| `request_client_sampling` | `agentic_ops/entrypoints/mcp_transport.py` (`run_sampling_tool`) | `incident_summary` (`str`), `max_tokens` (`int`), `system_prompt` (optional) | Initiates server-to-client `sampling/createMessage` (`includeContext="none"`) over `STDIO` or `HTTP+SSE` (`Mcp-Session-Id`) when the client declares `capabilities.sampling`. Wraps client response in `<untrusted_data source="client_sampling">`; never triggers mutations. Returns `SAMPLING_UNAVAILABLE` on stateless HTTP. |
 
 ---
 
-## 4. Reference of the 5 Foundational `MCP Resources`
+## 4. Reference of the 8 `MCP Resources` & Streaming `SSE` (`v0.2.0`)
 
-| Resource URI | Source File | MIME Type | Purpose in LLM Context |
+| Resource URI | Source / Collector | MIME Type | Purpose in LLM Context |
 | :--- | :--- | :--- | :--- |
 | `agentic-ops://taxonomy/failure-modes` | `docs/mlops_failure_modes_taxonomy.md` | `text/markdown` | Injects the 10-dimension ontology of `435` MLOps failure modes into the LLM context window. |
 | `agentic-ops://registry/scenarios` | `docs/mlops_simulation_scenarios_registry.md` | `text/markdown` | Injects the 20 MLOps crisis blueprints (`SIM-1` to `SIM-20`) and target metric invariants. |
 | `agentic-ops://governance/autonomy-policy` | `agentic_ops/governance/*.yaml` | `application/json` | Exposes the compiled `PolicyBundle` (`autonomy_policy.yaml`, `action_catalog.yaml`, `risk_register.yaml`). |
 | `agentic-ops://governance/known-gaps` | `tests/known_gaps.yaml` | `text/yaml` | Exposes the adversarial boundary matrix and test coverage mappings. |
 | `agentic-ops://console/vitals` | Live Runtime State | `application/json` | Exposes live daemon health and all whitelisted `/console` diagnostic commands. |
+| `mlops://telemetry/live/drift` | `agentic_ops/core/telemetry_stream.py` | `application/json` | Non-blocking live drift snapshot (`source="simulated"` deterministic synthetic generator by default; `source="cac_pull"` when `AGENTIC_OPS_TELEMETRY_LIVE_CAC=true`). Subscribable via `resources/subscribe`. |
+| `mlops://telemetry/live/latency` | `agentic_ops/core/telemetry_stream.py` | `application/json` | Local Prometheus histogram quantiles (`p50`, `p95`, `p99`) over `agentic_ops_llm_latency_seconds` (`source="agentic_ops_local"`). Subscribable via `resources/subscribe`. |
+| `mlops://compliance/eu-ai-act/article-12/audit-pack` | `agentic_ops/core/compliance_pack.py` | `application/json` | `HMAC-SHA512`-sealed technical evidence bundle aggregating WORM chain integrity, RFC 6962 Merkle root, decision/FSM counts, active `PolicyBundle` digest/rules, and read-only `ApprovalRepo.stats()` (zero side-effect when DB absent; `third_party_verifiable: false`). |
+
+### Bidirectional `HTTP + SSE` Streaming (`GET /mcp/events`)
+- **Authentication**: Protected by `AdminAPIKeyMiddleware` (`X-API-Key` or `Authorization: Bearer`).
+- **Session Correlation**: Opening `GET /mcp/events` emits `retry: 3000`, response header `Mcp-Session-Id`, and `event: endpoint` (`data: /mcp?sessionId=<id>`). Subsequent `POST /mcp` calls pass `Mcp-Session-Id` to bind `resources/subscribe`, `resources/unsubscribe`, and server-initiated `sampling/createMessage` RPCs to that stream.
+- **Backpressure & Replay**: Bounded 64-event ring buffer per subscriber with **drop-oldest** eviction (slow IDE clients never stall producers; `50` concurrent subscribers benchmarked at `p50 = 2.40 ms`, `p95 = 4.78 ms`), `: ping` heartbeats, `Last-Event-ID` replay, and `503 SSE_SESSION_LIMIT_REACHED` above `MCP_SSE_MAX_SESSIONS` (`100` default, single-worker in-memory registry).
 
 ---
 

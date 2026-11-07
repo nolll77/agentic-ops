@@ -44,41 +44,41 @@ Cette feuille de route formalise les trois prochaines phases d'ingénierie conç
 
 ---
 
-## Phase 1 : Sondes Sensorielles Temps Réel & Streaming de Télémétrie
+## Phase 1 : Sondes Sensorielles Temps Réel & Streaming de Télémétrie (`Livré en v0.2.0`)
 
 ### 1.1 Objectif & Contexte
-Actuellement, `Agentic-Ops` expose 8 outils gouvernés et 5 ressources de connaissance via HTTP synchrone `POST /mcp` (JSON-RPC 2.0 avec streaming de chunks) et `stdio` local. Bien qu'adaptée aux requêtes transactionnelles, la réponse aux incidents MLOps à haute cadence exige une observation sensorielle continue sans boucles de scrutation (*polling*) côté client.
+`Agentic-Ops` expose désormais **11 outils gouvernés** et **8 ressources** via HTTP synchrone `POST /mcp` (JSON-RPC 2.0), `GET /mcp/events` (`Server-Sent Events`) et `stdio` local, permettant une observation sensorielle continue non bloquante sans boucles de scrutation (*polling*) côté client.
 
 ### 1.2 Livrables Architecturaux
 
 1. **Prise en Charge Double Transport (`SSE` + `HTTP Streamable`)** :
-   - Introduire un point de terminaison natif Server-Sent Events (`SSE`) sur `GET /mcp/events` parallèlement au `POST /mcp` existant.
-   - Préserver une rétrocompatibilité intégrale avec la spécification Anthropic MCP `2024-11-05`.
-   - Gérer le battement de cœur (*heartbeat*) et la reconnexion automatique des sessions clientes sans perte d'état.
+   - Point de terminaison natif Server-Sent Events (`SSE`) sur `GET /mcp/events` parallèlement au `POST /mcp` existant (`agentic_ops/entrypoints/mcp_sse.py`).
+   - Rétrocompatibilité intégrale avec la spécification Anthropic MCP `2024-11-05`.
+   - Battement de cœur (`: ping`), en-tête `Mcp-Session-Id` et rejeu à la reconnexion via `Last-Event-ID` sur l'historique en mémoire.
 
 2. **Diffusion Continue de Télémétrie via Ressources Dynamiques** :
-   - Exposer des schémas d'URI dynamiques :
-     - `mlops://telemetry/live/drift` : Streaming continu des métriques de distance de Wasserstein et de Kolmogorov-Smirnov calculées par `Evidently AI`.
-     - `mlops://telemetry/live/latency` : Flux de latence P95/P99 sub-seconde collecté depuis les points de terminaison Prometheus.
-   - Les LLMs externes peuvent s'abonner aux notifications de ressources (`notifications/resources/updated`) plutôt que de scruter périodiquement `poll_target_mlops_snapshot`.
+   - Schémas d'URI dynamiques (`agentic_ops/core/telemetry_stream.py`) :
+     - `mlops://telemetry/live/drift` : Relaie `drift_share` et `n_drifted_columns` du rapport `Evidently AI` via `CacPullCollector` lorsque `MCP_TELEMETRY_SOURCE=cac_pull`, ou émet par défaut une ligne de base explicitement étiquetée `source="simulated"` (aucune fausse dérive fabriquée).
+     - `mlops://telemetry/live/latency` : Quantiles (`p50`/`p95`/`p99`) interpolés depuis l'histogramme Prometheus local `agentic_ops_llm_latency_seconds` (mesurant les appels LLM propres à `Agentic-Ops`, étiqueté `source="agentic_ops_local"`).
+   - Les LLMs externes s'abonnent aux notifications (`resources/subscribe` $\rightarrow$ `notifications/resources/updated`) sur session `SSE` active.
 
 3. **Échantillonnage Dynamique de Prompts (`sampling/createMessage`)** :
-   - Implémenter l'échantillonnage de requêtes initié par le serveur MCP, permettant au plan de contrôle de déléguer une analyse heuristique locale au modèle client connecté.
-   - Permet une étape de validation humaine interactive (*Human-in-the-Loop* / `HITL`) au sein des environnements de développement (`Cursor`, `Claude Desktop`) avant d'exécuter des actions de niveau `REQUIRE_APPROVAL`.
+   - Outil gouverné `request_client_sampling` (`agentic_ops/entrypoints/mcp_transport.py`) déléguant une analyse heuristique locale au modèle client connecté (`STDIO` ou `HTTP+SSE`) ayant déclaré `capabilities.sampling`.
+   - Encapsule systématiquement la réponse du modèle client dans `prompt_guard.wrap_untrusted(..., source="client_sampling")` avec `includeContext="none"`.
 
 ### 1.3 Critères de Vérification Technique
-- [ ] Test de charge SSE : soutenir 50 connexions de streaming concurrentes avec une latence de distribution d'événements $< 15\,\text{ms}$.
-- [ ] Boucle d'événements non bloquante : s'assurer que la télémétrie sensorielle en direct ne bloque pas les appels d'outils synchrones dans `mcp_server.py`.
-- [ ] Validation de schéma sans dérive : s'assurer que tous les flux d'événements respectent les schémas stricts Pydantic v2 (`TelemetrySnapshot`).
+- [x] Test de charge SSE : soutenir 50 connexions de streaming concurrentes avec une latence de distribution d'événements $< 15\,\text{ms}$ *(vérifié dans `tests/entrypoints/test_mcp_sse.py` : latence fan-out in-process $p_{50} = 2.40\,\text{ms}$, $p_{95} = 4.78\,\text{ms}$, $\max = 5.34\,\text{ms}$ sur 50 flux concurrents)*.
+- [x] Boucle d'événements non bloquante : s'assurer que la télémétrie sensorielle en direct ne bloque pas les appels d'outils synchrones dans `mcp_server.py` *(vérifié via collecteurs `asyncio.to_thread`, files bornées drop-oldest et `run_in_threadpool` dans `test_mcp_sse.py` & `test_mcp_sampling.py`)*.
+- [x] Validation de schéma sans dérive : s'assurer que tous les flux d'événements respectent les schémas stricts Pydantic v2 (`TelemetrySnapshot` avec `ConfigDict(extra="forbid")`).
 
 ---
 
-## Phase 2 : Auditabilité Cryptographique & Conformité EU AI Act
+## Phase 2 : Auditabilité Cryptographique & Conformité EU AI Act (`Livré en v0.2.0`)
 
 ### 2.1 Objectif & Contexte
 Les cadres réglementaires encadrant les systèmes autonomes — au premier rang desquels le **Règlement sur l'Intelligence Artificielle de l'Union Européenne (`Règlement (UE) 2024/1689`)** — imposent une journalisation rigoureuse (Article 12 : *Tenue de registres*) et une surveillance humaine effective (Article 14 : *Contrôle humain*) pour les systèmes d'IA à haut risque opérant sur des infrastructures critiques.
 
-La Phase 2 intègre la génération de preuves mathématiques formelles directement au niveau du protocole MCP.
+La Phase 2 intègre la génération de preuves mathématiques formelles et l'export d'éléments probants techniques en lecture seule directement au niveau du protocole MCP *(outil de preuve technique, ne constituant pas à lui seul une évaluation juridique de conformité)*.
 
 ### 2.2 Livrables Architecturaux
 
@@ -92,39 +92,39 @@ La Phase 2 intègre la génération de preuves mathématiques formelles directem
      ) -> Dict[str, Any]:
          """Vérifie le chemin d'audit RFC 6962 en complexité O(log N)."""
      ```
-   - Connecté directement à `agentic_ops/core/merkle_tree.py` (`RFC6962MerkleTree`).
+   - Connecté directement à `agentic_ops/core/merkle.py` (`MerkleTree`).
    - Restitue un certificat d'audit de preuve structuré :
-     - Hashes des nœuds frères du chemin d'audit : `[\"0x00...\", \"0x01...\"]`.
-     - Verdict d'égalité entre racine calculée et racine attendue (`MATCH` / `TAMPERING_DETECTED`).
+     - Hashes des nœuds frères du chemin d'audit : `[{"position": "left"|"right", "hash": "..."}]`.
+     - Verdict d'égalité entre racine calculée et racine attendue (`VALID_AUTHENTICATED_INCLUSION_PROOF` / `ROOT_MISMATCH` / `TAMPERING_OR_INVALID_PROOF`).
      - Complexité de vérification computationnelle : $\mathcal{O}(\log_2 N)$ opérations de hachage.
 
 2. **Dossier de Conformité Automatisé EU AI Act Article 12** :
-   - Exposer une ressource MCP `mlops://compliance/eu-ai-act/article-12/audit-pack` fournissant un export consolidé et signé numériquement comprenant :
-     - Journal d'événements WORM continu (`ledger.jsonl`).
-     - Certificat de continuité de la chaîne linéaire de hashes SHA-256.
-     - Traces de décisions déterministes du Moteur de Règles avec journaux de vetos à 0 token (`R-001` à `R-005`).
-     - Enregistrements des approbations humaines signés par HMAC-SHA512.
+   - Ressource MCP `mlops://compliance/eu-ai-act/article-12/audit-pack` (`agentic_ops/core/compliance_pack.py`) fournissant un export consolidé en lecture seule scellé par `HMAC-SHA512` comprenant :
+     - État d'intégrité du journal WORM (`ledger.jsonl`), racine `Merkle` et compteurs de décisions/états FSM.
+     - Continuité de la chaîne linéaire `SHA-256` et validité des signatures `HMAC-SHA512`.
+     - Règles actives du `PolicyBundle`, empreinte de version et résumé du catalogue d'actions.
+     - Statistiques d'approbation humaine en lecture seule (`ApprovalRepo.stats()`) avec traçabilité explicite `signing_key_provenance` (`CONFIGURED` vs `INSECURE_DEFAULT_DUMMY_KEY`) et `third_party_verifiable: false`.
 
 3. **Preuve de Rejet d'Altération en CI/CD** :
-   - Ajouter des cas de tests contradictoires automatisés validant que toute altération d'un seul bit dans l'historique des épisodes provoque l'échec immédiat de la vérification avec codes diagnostics précis.
+   - Tests contradictoires automatisés validant que toute altération d'un seul bit dans l'historique des épisodes ou du pack d'audit provoque l'échec immédiat de la vérification (`tests/adversarial/test_merkle_tree.py`, `tests/core/test_compliance_pack.py`).
 
 ### 2.3 Critères de Vérification Technique
-- [ ] La génération de preuve en $\mathcal{O}(\log N)$ s'exécute en $< 2\,\text{ms}$ pour des registres dépassant $10^5$ épisodes.
-- [ ] Suite cryptographique intégralement validée par les tests automatisés dans `tests/entrypoints/test_mcp_server.py`.
-- [ ] Conformité stricte à 100% avec la norme RFC 6962 pour le préfixe de hachage des feuilles (`0x00`) et des nœuds intérieurs (`0x01`).
+- [x] La génération de preuve en $\mathcal{O}(\log N)$ s'exécute en $< 2\,\text{ms}$ pour des registres dépassant $10^5$ épisodes *(vérifié dans `tests/adversarial/test_merkle_tree.py` : `0.040 ms` pour la génération et `0.047 ms` pour la vérification sur un `MerkleTree` pré-indexé de $100\,005$ feuilles ; un appel à froid de `EvidenceStore.get_merkle_proof` effectue toujours une lecture initiale $\mathcal{O}(N)$ de `ledger.jsonl`)*.
+- [x] Suite cryptographique intégralement validée par les tests automatisés dans `tests/entrypoints/test_mcp_server.py` et `tests/core/test_compliance_pack.py`.
+- [x] Conformité stricte à 100% avec la norme RFC 6962 pour le préfixe de hachage des feuilles (`0x00`) et des nœuds intérieurs (`0x01`).
 
 ---
 
-## Phase 3 : Quorum Multi-Agents Judiciaire & Maillage Souverain
+## Phase 3 : Quorum Multi-Agents Judiciaire & Maillage Souverain (`3.1 Livré en v0.2.0` · `3.2–3.3 Planifié v0.3.0+`)
 
 ### 3.1 Objectif & Contexte
-Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à élaborer un plan de remédiation et à valider sa propre sécurité crée un point de défaillance unique et un biais cognitif systémique inacceptable. La Phase 3 implémente une **Gouvernance par Quorum Judiciaire** et des **Replis par Maillage Réseau Souverain**.
+Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à élaborer un plan de remédiation et à valider sa propre sécurité crée un point de défaillance unique et un biais cognitif systémique inacceptable. La Phase 3 implémente une **Gouvernance par Quorum Judiciaire** (`Livré en v0.2.0`) et des **Replis par Maillage Réseau Souverain** (`Planifié`).
 
 ### 3.2 Livrables Architecturaux
 
 ```text
                                +----------------------------------+
-                               |      INCIDENT DÉTECTÉ VIA        |
+                               |      INCIDENT DÉTETECTÉ VIA      |
                                |    STREAMING TÉLÉMÉTRIE (P1)     |
                                +-----------------+----------------+
                                                  |
@@ -143,8 +143,8 @@ Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à éla
 |    NOYAU DÉTERMINISTE |                                                   |    AGENT INSPECTEUR   |
 | (Moteur de Règles)    |                                                   |   (Quorum Judiciaire) |
 | Python pur 0 Token    |                                                   | Modèle Indépendant    |
-| * Rayon impact < 0.2  |                                                   | (ex: DeepSeek / Llama |
-| * Quota de fréquence  |                                                   | via nœud souverain)   |
+| * Rayon impact < 0.2  |                                                   | (ex: Gemma 4 vs       |
+| * Quota de fréquence  |                                                   |  NVIDIA Nemotron)     |
 | * Masquage amont      |                                                   | * Évalue hypothèses   |
 +-----------+-----------+                                                   +-----------+-----------+
             |                                                                           |
@@ -159,25 +159,25 @@ Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à éla
                                +----------------------------------+
 ```
 
-1. **Séparation Judiciaire des Pouvoirs (Proposeur vs Inspecteur)** :
+1. **Séparation Judiciaire des Pouvoirs (Proposeur vs Inspecteur)** *(Livré en `v0.2.0` — `agentic_ops/core/inspector_agent.py`, opt-in via `AGENTIC_OPS_INSPECTOR_ENABLED=true`)* :
    - Découplage des rôles cognitifs durant la remédiation d'incidents :
-     - **Agent Proposeur** : Génère des hypothèses de diagnostic et soumet une proposition d'action (`ActionProposal`).
-     - **Agent Inspecteur (Auditeur)** : Opère sous une famille de LLM distincte avec des contraintes de prompt indépendantes. Il audite la proposition pour identifier tout effet de bord masqué, hypothèse non démontrée ou masquage de dérive.
-   - Toute exécution est bloquée tant que le **Moteur de Règles Déterministe** ET le **Quorum d'Inspecteurs** n'ont pas émis un accord unanime.
+     - **Agent Proposeur (`RemediationAgent`)** : Formule l'`ActionIntent` / `ActionProposal` (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` par défaut).
+     - **Agent Inspecteur (`InspectorAgent`, rôle `"inspector"`)** : Opère sous une famille de LLM distincte (`google/gemma-4-31b-it:free` par défaut) avec isolation `prompt_guard.wrap_untrusted`.
+   - **Durcissement Monotone & Fail-Closed** : `apply_inspector_verdict` ne peut QUE durcir un `ALLOW` du `PolicyEngine` en `DENY` (sur `VETO`) ou en `REQUIRE_APPROVAL` (*fail-closed* sur erreur/timeout LLM) ; il ne peut jamais assouplir un `DENY` ou `REQUIRE_APPROVAL`.
 
-2. **Routage sur Maillage Chiffré Souverain (`Tailscale` + `Ollama`)** :
+2. **Routage sur Maillage Chiffré Souverain (`Tailscale` + `Ollama`)** *(Planifié — `v0.3.0+`)* :
    - Approfondir l'intégration avec `agentic_ops/adapters/cac_pull_collector.py` et les réseaux privés maillés.
    - En cas de partition cloud, de limitation de débit (`HTTP 429`) ou de rupture d'accès externe :
      - Le serveur MCP bascule automatiquement les appels d'outils et l'évaluation des prompts sur des tunnels WireGuard chiffrés (`Tailscale`) vers des nœuds d'inférence souverains locaux (`Ollama` exécutant `qwen2.5-coder` ou `deepseek-r1`).
      - Garantit une capacité d'intervention d'urgence 100% étanche (air-gapped) sans dépendance cloud externe.
 
-3. **Fédération Multi-Clusters** :
+3. **Fédération Multi-Clusters** *(Planifié — `v0.4.0`)* :
    - Permettre à une passerelle MCP `Agentic-Ops` maîtresse d'orchestrer des nœuds travailleurs répartis sur des clusters Kubernetes et des serveurs physiques hétérogènes via TLS mutuel authentifié (`mTLS`) ou sur-réseaux WireGuard.
 
 ### 3.3 Critères de Vérification Technique
-- [ ] Consensus du quorum judiciaire validé sous des simulations d'injection de prompt contradictoires (`SC-101`, `SC-102`).
-- [ ] Bascule automatique vers le nœud souverain local exécutée en $< 500\,\text{ms}$ en cas de défaillance d'API externe.
-- [ ] Zéro régression sur la suite existante de 231 tests unitaires et d'intégration.
+- [x] Consensus du quorum judiciaire validé sous des simulations d'injection de prompt contradictoires (`SC-101`, `SC-102`) *(vérifié dans `tests/core/test_inspector_agent.py::test_judicial_quorum_under_sc101_and_sc102_adversarial_injections`, `forbidden_executed=0`)*.
+- [ ] Bascule automatique vers le nœud souverain local exécutée en $< 500\,\text{ms}$ en cas de défaillance d'API externe *(planifié pour `v0.3.0+`)*.
+- [x] Zéro régression sur la suite existante de tests unitaires et d'intégration *(`288 passed, 3 skipped, 0 failed` en `v0.2.0`)*.
 
 ---
 
@@ -185,10 +185,9 @@ Autoriser un agent d'IA unique ou un fournisseur LLM exclusif à la fois à éla
 
 | Jalon d'Ingénierie | Protocole de Transport | Garantie de Sécurité | Norme Cryptographique | Mode de Contrôle Humain |
 | :--- | :--- | :--- | :--- | :--- |
-| **Actuel (`v0.1.14`)** | HTTP Streamable / Stdio | PolicyEngine Déterministe (0 token) | Chaîne SHA-256 + HMAC-SHA512 + Merkle RFC 6962 | Slack HITL (L2/L3) |
-| **Phase 1 (`v0.2.0`)** | SSE + HTTP Streamable | Bac à sable de télémétrie non bloquant | Idem v0.1.14 + empreinte de flux continu | Échantillonnage de Prompt dans l'IDE |
-| **Phase 2 (`v0.3.0`)** | SSE + HTTP Streamable | Vérification d'inclusion en $\mathcal{O}(\log N)$ | Preuves Merkle RFC 6962 + Pack Art. 12 EU AI Act | Attestation Cryptographique |
-| **Phase 3 (`v0.4.0`)** | Double Maillage (HTTP + WireGuard) | Quorum Multi-Agents Judiciaire + Veto | Consensus multi-parties + Scellement WORM | Quorum multi-agents + Opérateur |
+| **Socle (`v0.1.14`)** | HTTP Streamable / Stdio | PolicyEngine Déterministe (0 token) | Chaîne SHA-256 + HMAC-SHA512 + Merkle RFC 6962 | Slack HITL (L2/L3) |
+| **Actuel (`v0.2.0` — P1 + P2 + P3.1)** | SSE (`GET /mcp/events`) + HTTP Streamable + Stdio | Télémétrie non bloquante + Merkle $\mathcal{O}(\log N)$ + Quorum monotone `InspectorAgent` | Preuves Merkle RFC 6962 + Pack signé Art. 12 EU AI Act | Slack HITL + `sampling/createMessage` + Quorum Fail-Closed |
+| **Planifié (`v0.3.0+` — P3.2 & P3.3)** | Double Maillage (HTTP + WireGuard + `mTLS`) | Bascule souveraine `< 500 ms` `Tailscale`/`Ollama` + Isolation multi-clusters | Consensus multi-parties + Ancrage WORM externe | Quorum souverain air-gapped + Opérateur |
 
 ---
 

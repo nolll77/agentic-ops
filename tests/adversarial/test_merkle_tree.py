@@ -213,3 +213,28 @@ def test_merkle_proof_binding_tampering(tmp_path):
     empty_payload_packet["canonical_payload"] = ""
     assert EvidenceStore.verify_merkle_proof(empty_payload_packet) is False
 
+
+def test_merkle_100k_proof_generation_and_verification_under_2ms():
+    """Roadmap Phase 2 criterion: O(log N) proof generation & verification in < 2 ms for > 10^5 leaves."""
+    import time
+
+    n = 100_005  # strictly > 10^5, non-power-of-two to exercise RFC 6962 unbalanced splits
+    leaf_hashes = [f"{i:064x}" for i in range(n)]
+    tree = MerkleTree(leaf_hashes)
+    root = tree.root  # pre-index tree (O(N) construction)
+    assert len(root) == 64
+
+    for idx in (0, 50_000, n - 1):
+        t0 = time.perf_counter()
+        proof = tree.get_audit_proof(idx)
+        gen_ms = (time.perf_counter() - t0) * 1000.0
+        assert gen_ms < 2.0, f"O(log N) proof generation took {gen_ms:.3f}ms >= 2.0ms for idx={idx}"
+        assert len(proof) <= 17  # ceil(log2(100_005)) == 17
+
+        t1 = time.perf_counter()
+        ok = MerkleTree.verify_audit_proof(leaf_hashes[idx], proof, root)
+        ver_ms = (time.perf_counter() - t1) * 1000.0
+        assert ok is True
+        assert ver_ms < 2.0, f"O(log N) proof verification took {ver_ms:.3f}ms >= 2.0ms for idx={idx}"
+
+

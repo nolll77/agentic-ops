@@ -45,6 +45,7 @@ class Orchestrator:
         approval_repo: Any = None,
         approval_requester_id: str | None = None,
         approval_ttl_seconds: int = 86_400,
+        inspector_enabled: bool | None = None,
     ):
         self.observability = observability
         self.policy_engine = policy_engine
@@ -57,6 +58,14 @@ class Orchestrator:
         self.approval_ttl_seconds = approval_ttl_seconds
         self.llm = llm
         self.llm_by_role = llm_by_role or {}
+        self.inspector_enabled = inspector_enabled
+
+    def _inspector_active(self) -> bool:
+        if self.inspector_enabled is not None:
+            return bool(self.inspector_enabled)
+        from agentic_ops.core.inspector_agent import is_inspector_enabled
+
+        return is_inspector_enabled()
 
     def _get_llm_for_role(self, role: str) -> LLMPort:
         """
@@ -132,7 +141,7 @@ class Orchestrator:
             diagnosis = Diagnosis(
                 risk_id=risk_id,
                 agent="CIRCUIT_BREAKER_FALLBACK",
-                confidence=1.0,
+                confidence_score=1.0,
                 findings=[Finding(description="LLM Circuit Breaker activé. Mode dégradé.")]
             )
             if forced_action is None:
@@ -197,6 +206,25 @@ class Orchestrator:
             f"(règle: {decision.matched_rule}, raisons: {', '.join(decision.reason_codes)})"
         )
 
+        # JUDICIAL QUORUM (Phase 3): independent InspectorAgent audit (monotonic tightening only)
+        inspector_verdict = None
+        if (
+            self._inspector_active()
+            and not global_circuit_breaker.is_tripped()
+            and decision.decision == DecisionEnum.ALLOW
+        ):
+            from agentic_ops.core.inspector_agent import InspectorAgent, apply_inspector_verdict
+
+            try:
+                inspector_agent = InspectorAgent(llm=self._get_llm_for_role("inspector"))
+                inspector_verdict = inspector_agent.inspect_proposal(diagnosis, action)
+                decision = apply_inspector_verdict(decision, inspector_verdict, error=None)
+                print(f"[INSPECTOR] {inspector_verdict.verdict} — {inspector_verdict.rationale}")
+            except Exception as exc:
+                logging.getLogger(__name__).warning("InspectorAgent failed (fail-closed -> REQUIRE_APPROVAL): %s", exc)
+                decision = apply_inspector_verdict(decision, None, error=exc)
+                print(f"[INSPECTOR] FAIL-CLOSED -> {decision.decision.value} ({exc})")
+
         execution: ExecutionResult | None = None
         human_approval_required = False
 
@@ -232,6 +260,7 @@ class Orchestrator:
             inventory_version=ep_mock.inventory_version,
             facts=ep_mock.facts,
             shadow_divergence=ep_mock.shadow_divergence,
+            inspector_verdict=inspector_verdict,
             execution=execution,
         )
 

@@ -78,6 +78,17 @@
 
 ---
 
+### ❓ Question 6 : Le piège du Quorum Multi-Agents ("Collusion LLM") & de la Contre-Pression Streaming `SSE` (`v0.2.0`)
+**Le Jury :**  
+*« Ajouter un deuxième LLM (`InspectorAgent`) pour auditer le `RemediationAgent`, n'est-ce pas du théâtre de sécurité qui double la latence et risque de contourner vos règles YAML si le second LLM hallucine un "ALLOW" ? Et si 50 clients IDE écoutent vos événements `SSE` en continu, un client lent ne va-t-il pas bloquer votre boucle d'orchestration ? »*
+
+**💡 Votre réponse chirurgicale :**  
+> « Deux invariants mathématiques éliminent ces deux risques :
+> 1. **Resserrement Monotone Unidirectionnel (*Strict Monotonic Tightening*)** : Dans `inspector_agent.py`, l'`InspectorAgent` (famille de modèle distincte `gemma-4-31b-it` face à `nemotron-3` pour la remédiation, activable via `AGENTIC_OPS_INSPECTOR_ENABLED=true`) n'est **jamais** appelé sur un `DENY` ou `REQUIRE_APPROVAL` du `PolicyEngine` YAML (`0` appel LLM inutile). Il n'intervient que lorsqu'une action a déjà franchi toutes les règles déterministes avec `ALLOW`. La fonction pure `apply_inspector_verdict()` ne peut **que durcir** la décision (`ALLOW` $\to$ `REQUIRE_APPROVAL` ou `DENY`), jamais l'assouplir. En cas de timeout ou d'erreur JSON du LLM inspecteur, le système bascule en **Fail-Closed** vers `REQUIRE_APPROVAL` (`inspector_unavailable_fail_closed`).
+> 2. **Isolation `SSE` *Drop-Oldest* Non-Bloquante** : Sur `GET /mcp/events` (`mcp_sse.py` & `telemetry_stream.py`), chaque abonné possède un anneau borné de `64` événements avec éviction *drop-oldest* en $\mathcal{O}(1)$ sans jamais bloquer le producteur (`50` abonnés simultanés mesurés à `p50 = 2.40 ms`, `p95 = 4.78 ms`, plafond `503` à `MCP_SSE_MAX_SESSIONS=100`). Enfin, le rapport `mlops://compliance/eu-ai-act/article-12/audit-pack` scelle l'ensemble en `HMAC-SHA512` tout en déclarant honnêtement `third_party_verifiable: false` tant qu'une clé asymétrique Cloud KMS externe n'est pas provisionnée. »
+
+---
+
 ## 📊 3. Formalisation Mathématique de la Machine à États Finis (FSM)
 
 ```mermaid

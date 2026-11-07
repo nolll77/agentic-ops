@@ -122,8 +122,8 @@ def test_get_llm_status_includes_roles_topology():
     data = resp.json()
     assert "roles_topology" in data
     roles = data["roles_topology"]
-    assert set(roles.keys()) == {"remediation", "infra", "data", "model", "chat"}
-    for role_name in ("remediation", "infra", "data", "model", "chat"):
+    assert set(roles.keys()) == {"remediation", "inspector", "infra", "data", "model", "chat"}
+    for role_name in ("remediation", "inspector", "infra", "data", "model", "chat"):
         assert "provider" in roles[role_name]
         assert "model" in roles[role_name]
         assert "fallback_models" in roles[role_name]
@@ -132,18 +132,18 @@ def test_get_llm_status_includes_roles_topology():
 
 
 def test_get_mas_topology_endpoint():
-    """GET /api/mas/topology must return the 11 components (5 cognitive + 6 deterministic)."""
+    """GET /api/mas/topology must return the 12 components (6 cognitive + 6 deterministic)."""
     resp = client.get("/api/mas/topology")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
-    assert data["total_components"] == 11
-    assert data["cognitive_count"] == 5
+    assert data["total_components"] == 12
+    assert data["cognitive_count"] == 6
     assert data["deterministic_count"] == 6
 
     # Verify cognitive agents
     cog_ids = {a["id"] for a in data["cognitive_agents"]}
-    assert cog_ids == {"remediation", "infra", "data", "model", "chat"}
+    assert cog_ids == {"remediation", "inspector", "infra", "data", "model", "chat"}
     for agent in data["cognitive_agents"]:
         assert agent["type"] == "cognitive"
         assert "active_model" in agent

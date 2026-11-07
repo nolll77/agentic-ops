@@ -8,13 +8,13 @@
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![M8ven Trust](https://m8ven.ai/badge/mcp/nolll77-agentic-ops-1ogfsr?v=ccffd1d26d212de101328dba6fea5547)](https://m8ven.ai/mcp/nolll77-agentic-ops-1ogfsr?s=readme)
 [![Arbre de Merkle](https://img.shields.io/badge/Arbre%20de%20Merkle-RFC%206962%20%7C%20O(log%20N)-059669)](docs/WORM_TRUST_LEDGER_GUIDE.md)
-[![Tests](https://img.shields.io/badge/Tests-246%20Validés-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-288%20Validés-brightgreen)](tests/)
 ![Security](https://img.shields.io/badge/Security-Red%20Teamed-critical)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-purple)
 
 > **Language / Langue** : **[Read the main documentation in English (README.md)](README.md)** | **Version Française (actuelle)**
-> **Registre Officiel Anthropic Model Context Protocol** : [`io.github.nolll77/agentic-ops` (`v0.1.12` Actif)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions) | **Catalogue MCP Glama** : [`glama.ai/mcp/servers/nolll77/agentic-ops`](https://glama.ai/mcp/servers/nolll77/agentic-ops)
+> **Registre Officiel Anthropic Model Context Protocol** : [`io.github.nolll77/agentic-ops` (`v0.2.0` Actif)](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.nolll77%2Fagentic-ops/versions) | **Catalogue MCP Glama** : [`glama.ai/mcp/servers/nolll77/agentic-ops`](https://glama.ai/mcp/servers/nolll77/agentic-ops)
 > `mcp-name: io.github.nolll77/agentic-ops`
 
 **Agentic-Ops** est un projet personnel de control plane MLOps qui explore comment des agents IA (LLMs) peuvent aider à investiguer des signaux opérationnels tels que `Data Drift`, `Model Staleness` et `OOMKilled Pods`.
@@ -29,7 +29,8 @@ Contrairement aux frameworks privilégiant l'autonomie des agents, il explore de
 - La release `v0.1.4` ajoute un inventaire local fail-closed, les commandes SQLite de sauvegarde/restauration et un benchmark synthétique de charge/reprise. Ces outils ne qualifient pas à eux seuls un déploiement de production.
 - La release `v0.1.5` améliore l'authentification de l'interface console et des sondes LLM protégées. Render doit toujours avoir une variable secrète `ADMIN_API_KEY` configurée pour autoriser ces actions.
 - La release `v0.1.6` ajoute les sauvegardes multi-bases avec preuves vérifiées, la reprise d'approbation en simulation sur l'épisode d'origine, des tests élargis de pannes/inventaire et un benchmark multi-tailles. Elle ne qualifie pas une restauration hors machine et n'active aucune action réelle.
-- La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration depuis une sauvegarde de la cible, les objectifs de reprise, la synchronisation de l'inventaire local avec une source réelle et l'exécution réelle des actions restent à qualifier.
+- La release `v0.2.0` implémente les Phases 1, 2 et 3.1 de la feuille de route MCP (`docs/MCP_ROADMAP_FR.md`) : streaming bidirectionnel `HTTP + SSE` (`GET /mcp/events` avec contre-pression bornée *drop-oldest* et rejeu `Last-Event-ID`), ressources dynamiques de télémétrie (`mlops://telemetry/live/drift` étiquetée honnêtement `source="simulated"` par défaut, `mlops://telemetry/live/latency`), échantillonnage serveur `sampling/createMessage` (`request_client_sampling`), mémoïsation $\mathcal{O}(\log N)$ des preuves Merkle (`< 0.1 ms` sur $10^5$ feuilles indexées), pack technique de preuves `mlops://compliance/eu-ai-act/article-12/audit-pack` scellé en `HMAC-SHA512` (`third_party_verifiable: false` explicite — preuve d'ingénierie, non certification juridique) et quorum judiciaire opt-in `InspectorAgent` (`AGENTIC_OPS_INSPECTOR_ENABLED=true`) à resserrement monotone strict (`288` tests validés).
+- La **qualification de production n'est pas revendiquée**. Entra/SCIM, la haute disponibilité multi-nœud, la restauration depuis une sauvegarde de la cible, les objectifs de reprise, la synchronisation de l'inventaire local avec une source réelle, la bascule automatique `< 500 ms` vers un LLM souverain local et l'exécution réelle des actions restent à qualifier.
 - Le mapping détaillé entre le dépôt et une vraie cible (valeurs à fournir, responsables, preuves et gates de promotion) est documenté dans [`docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md`](docs/INDUSTRIAL_PRODUCTION_BLUEPRINT.md).
 - Le diagnostic Console/Chat Render et le prérequis exact `ADMIN_API_KEY` sont documentés dans [`docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md`](docs/RENDER_CONSOLE_CHAT_TROUBLESHOOTING.md).
 - Un profil solo, mono-nœud, limité à l'observation et à la simulation **n'exige pas de tenant Entra**. Ses travaux de qualification réalisables en solo et ses limites sont décrits dans [`docs/SELF_HOSTED_PRODUCTION_PATH.md`](docs/SELF_HOSTED_PRODUCTION_PATH.md). Ce profil ne vaut pas SSO d'entreprise, HA ou ancrage d'audit indépendant.

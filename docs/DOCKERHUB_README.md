@@ -4,15 +4,15 @@
 [![Docker Hub](https://img.shields.io/badge/Docker%20Hub-nolll78%2Fagentic--ops-blue?logo=docker&logoColor=white)](https://hub.docker.com/r/nolll78/agentic-ops)
 [![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Fnolll77-blue?logo=github)](https://github.com/nolll77/agentic-ops/pkgs/container/agentic-ops)
 [![GitHub](https://img.shields.io/badge/GitHub-nolll77%2Fagentic--ops-black?logo=github)](https://github.com/nolll77/agentic-ops)
-[![Tests](https://img.shields.io/badge/Tests-231%20Passed-brightgreen)](https://github.com/nolll77/agentic-ops/actions)
+[![Tests](https://img.shields.io/badge/Tests-288%20Passed-brightgreen)](https://github.com/nolll77/agentic-ops/actions)
 
 **Agentic-Ops** is an autonomous, deterministic Multi-Agent System (MAS) designed to investigate, diagnose, and remediate operational MLOps signals (Data Drift, Concept Drift, Model Staleness, OOMKilled Pods, Latency Spikes) under strict Site Reliability Engineering (SRE) governance.
 
 Unlike open-ended agentic frameworks, **Agentic-Ops** enforces a **Zero-Trust, Fail-Closed Security Model**:
-- **Deterministic Policy Engine**: Pre-execution vetoes (`DENY`), rate-limiting, and human-in-the-loop (`HITL`) approval gateways.
-- **WORM Trust Ledger**: Append-only cryptographic audit trail with RFC 6962 binary Merkle trees.
+- **Deterministic Policy Engine + Opt-In Judicial Quorum**: Pre-execution YAML vetoes (`DENY`), rate-limiting, human-in-the-loop (`HITL`) approval gateways, and an independent `InspectorAgent` enforcing strict monotonic tightening.
+- **WORM Trust Ledger & EU AI Act Art. 12 Pack**: Append-only cryptographic audit trail with $\mathcal{O}(\log N)$ RFC 6962 binary Merkle trees and `HMAC-SHA512`-sealed technical evidence packs.
 - **Hexagonal Architecture**: Complete domain decoupling driven by declarative YAML policies.
-- **Multi-Role MAS Routing**: Specialized agents (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `WebChatAssistant`).
+- **6-Role Cognitive MAS Routing**: Specialized agents (`DataSpecialist`, `ModelSpecialist`, `InfraSpecialist`, `RemediationAgent`, `InspectorAgent`, `WebChatAssistant`).
 
 ---
 
@@ -34,7 +34,7 @@ Once started, access the built-in services in your browser:
 - 🤖 **Web Chat Assistant**: [http://localhost:8000/chat](http://localhost:8000/chat)
 - 🖥️ **Live SRE Console & MAS Topology**: [http://localhost:8000/console](http://localhost:8000/console)
 - 📚 **Interactive Swagger API**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- 🔌 **Model Context Protocol (MCP)**: [http://localhost:8000/mcp](http://localhost:8000/mcp)
+- 🔌 **Model Context Protocol (`MCP` HTTP + `SSE` Stream)**: [http://localhost:8000/mcp](http://localhost:8000/mcp) & `/mcp/events`
 - 📊 **Prometheus Metrics**: [http://localhost:8000/metrics](http://localhost:8000/metrics)
 
 ---

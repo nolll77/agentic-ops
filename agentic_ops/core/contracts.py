@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from datetime import datetime
 
 class Signal(BaseModel):
@@ -67,6 +67,14 @@ class Diagnosis(BaseModel):
     risk_id: Optional[str] = None
     agent: Optional[str] = None
 
+
+class InspectorVerdict(BaseModel):
+    verdict: Literal["PASS", "VETO"]
+    rationale: str = ""
+    concerns: List[str] = Field(default_factory=list)
+    inspector_model: Optional[str] = None
+
+
 class Episode(BaseModel):
     episode_id: str
     dedup_key: str
@@ -83,6 +91,7 @@ class Episode(BaseModel):
     inventory_version: Optional[str] = None
     facts: Optional[dict] = None
     shadow_divergence: Optional[dict] = None
+    inspector_verdict: Optional[InspectorVerdict] = None
 
 
 class ModelRegistryStatusEnum(str, Enum):

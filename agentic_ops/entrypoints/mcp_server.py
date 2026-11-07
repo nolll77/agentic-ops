@@ -49,20 +49,32 @@ from agentic_ops.core.policy_engine import (
     ProposalView,
     evaluate,
 )
+from agentic_ops.core.telemetry_stream import read_channel_snapshot, uri_channel
+from agentic_ops.entrypoints.mcp_sse import events_response
+from agentic_ops.entrypoints.mcp_transport import (
+    CURRENT_CHANNEL,
+    EOF,
+    SESSION_HEADER,
+    StdioChannel,
+    bind_channel,
+    get_registry,
+    run_sampling_tool,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOVERNANCE_DIR = REPO_ROOT / "agentic_ops" / "governance"
 KNOWN_GAPS_PATH = REPO_ROOT / "tests" / "known_gaps.yaml"
 DOCS_DIR = REPO_ROOT / "docs"
 SCENARIOS_DATA_DIR = REPO_ROOT / "tests" / "scenarios" / "data"
+COMPLIANCE_PACK_URI = "mlops://compliance/eu-ai-act/article-12/audit-pack"
 
 MCP_PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "agentic-ops-mcp-gateway",
-    "version": "0.1.14",
+    "version": "0.2.0",
     "description": (
         "Deterministic MLOps & SRE Governance Control Plane MCP Server "
-        "(10 Governed Tools, 5 Knowledge Resources, 20 Starter Prompts)"
+        "(11 Governed Tools, 8 Resources incl. compliance and live telemetry, 20 Starter Prompts)"
     ),
 }
 
@@ -391,11 +403,39 @@ MCP_TOOLS: List[Dict[str, Any]] = [
         "open_world_hint": False,
         "inputSchema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "request_client_sampling",
+        "description": (
+            "Asks the CONNECTED CLIENT's own model (MCP `sampling/createMessage`, normally behind a human "
+            "approval prompt in the IDE) for a local analysis. Requires a bidirectional channel: the STDIO "
+            "transport, or an open `GET /mcp/events` SSE session (send its `Mcp-Session-Id` header), AND the "
+            "`sampling` client capability declared in `initialize`. The answer is untrusted client-model "
+            "output returned as data: this tool cannot execute, approve or modify anything."
+        ),
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+        "read_only_hint": True,
+        "destructive_hint": False,
+        "idempotent_hint": False,
+        "open_world_hint": True,
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string", "maxLength": 4000},
+                "system_prompt": {"type": "string", "maxLength": 2000},
+                "max_tokens": {"type": "integer", "minimum": 1, "maximum": 2048, "default": 512},
+                "timeout_seconds": {"type": "number", "minimum": 1, "maximum": 120, "default": 30},
+            },
+            "required": ["prompt"],
+        },
+    },
 ]
 
 
 # ============================================================================
-# 2. MCP RESOURCES DEFINITIONS (5 KNOWLEDGE RESOURCES)
+# 2. MCP RESOURCES DEFINITIONS (KNOWLEDGE, COMPLIANCE & LIVE TELEMETRY RESOURCES)
 # ============================================================================
 
 MCP_RESOURCES: List[Dict[str, Any]] = [
@@ -427,6 +467,35 @@ MCP_RESOURCES: List[Dict[str, Any]] = [
         "uri": "agentic-ops://console/vitals",
         "name": "Live Control Plane Vitals & Console Commands",
         "description": "Real-time status of Redis, Tailscale SOCKS5, PolicyBundle version, and available /console diagnostics.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "mlops://compliance/eu-ai-act/article-12/audit-pack",
+        "name": "EU AI Act Article 12/14 Audit Pack",
+        "description": (
+            "Read-only evidence bundle: WORM chain validity, RFC 6962 Merkle root, decision counts, "
+            "active PolicyEngine rules and human-approval statistics, sealed with HMAC-SHA512 "
+            "(internal integrity seal; not third-party verifiable)."
+        ),
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "mlops://telemetry/live/drift",
+        "name": "Live Drift Telemetry (relayed Evidently report)",
+        "description": (
+            "Latest drift snapshot (`drift_share`, drifted-column count). Subscribe via `resources/subscribe` "
+            "on an SSE session to be notified on every update. Source is explicit in each snapshot: `cac_pull` "
+            "(opt-in remote relay) or `simulated` (constant baseline). Does not compute Wasserstein/KS itself."
+        ),
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "mlops://telemetry/live/latency",
+        "name": "Live LLM Latency Telemetry (Agentic-Ops own calls)",
+        "description": (
+            "Latest latency snapshot of Agentic-Ops' OWN LLM calls (mean and histogram-interpolated P50/P95/P99 "
+            "estimates). It is not the latency of a production model under observation."
+        ),
         "mimeType": "application/json",
     },
 ]
@@ -1135,6 +1204,13 @@ def _execute_mcp_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
                 "isError": False,
             }
 
+        elif name == "request_client_sampling":
+            outcome = run_sampling_tool(arguments)
+            return {
+                "content": [{"type": "text", "text": json.dumps(outcome, indent=2, ensure_ascii=False)}],
+                "isError": not outcome.get("ok", False),
+            }
+
         elif name == "inspect_control_plane_vitals":
             from agentic_ops.cli.main import DiagnosticCommand, _is_port_open
 
@@ -1215,6 +1291,43 @@ def _read_mcp_resource(uri: str) -> Dict[str, Any]:
             ]
         }
 
+    telemetry_channel = uri_channel(uri)
+    if telemetry_channel is not None:
+        payload = read_channel_snapshot(telemetry_channel)
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(payload, indent=2, sort_keys=True),
+                }
+            ]
+        }
+
+    if uri == COMPLIANCE_PACK_URI:
+        from agentic_ops.core.compliance_pack import build_audit_pack
+
+        store_dir = os.environ.get("EVIDENCE_STORE_DIR", str(REPO_ROOT / "state" / "episodes"))
+        approval_db = os.environ.get("APPROVAL_DB_PATH", "state/approvals.db")
+        try:
+            bundle = PolicyBundle.load(
+                GOVERNANCE_DIR / "autonomy_policy.yaml",
+                GOVERNANCE_DIR / "action_catalog.yaml",
+                GOVERNANCE_DIR / "risk_register.yaml",
+            )
+        except Exception:
+            bundle = None  # reported as policy.available=false, never raised
+        pack = build_audit_pack(store_dir, bundle, approval_db)
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(pack, indent=2, sort_keys=True),
+                }
+            ]
+        }
+
     raise ValueError(f"Unknown MCP resource URI: {uri}")
 
 
@@ -1243,11 +1356,32 @@ def _get_mcp_prompt(name: str, arguments: Optional[Dict[str, Any]] = None) -> Di
 # ============================================================================
 
 
+def _is_jsonrpc_response(payload: Any) -> bool:
+    """A client reply to a server-initiated request (e.g. sampling/createMessage)."""
+    return (
+        isinstance(payload, dict)
+        and "method" not in payload
+        and "id" in payload
+        and ("result" in payload or "error" in payload)
+    )
+
+
 def handle_mcp_jsonrpc(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Handles a single JSON-RPC 2.0 MCP message and returns a JSON-RPC 2.0 response."""
+    if not isinstance(payload, dict):
+        return {
+            "jsonrpc": "2.0",
+            "id": None,
+            "error": {"code": -32600, "message": "Invalid Request: expected a JSON object."},
+        }
+    # A response to one of OUR requests must never be answered with "Method not found".
+    if _is_jsonrpc_response(payload):
+        return None
+
     method = payload.get("method", "")
     req_id = payload.get("id")
     params = payload.get("params") or {}
+    channel = CURRENT_CHANNEL.get()
 
     # Notifications (no id) do not return a response
     if req_id is None and method.startswith("notifications/"):
@@ -1255,11 +1389,18 @@ def handle_mcp_jsonrpc(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
     try:
         if method == "initialize":
+            if channel is not None:
+                declared = params.get("capabilities") if isinstance(params, dict) else None
+                channel.client_capabilities = declared if isinstance(declared, dict) else {}
             result = {
                 "protocolVersion": MCP_PROTOCOL_VERSION,
                 "capabilities": {
                     "tools": {"listChanged": False},
-                    "resources": {"subscribe": False, "listChanged": False},
+                    # `subscribe` is honest: true only where a push channel (SSE session) exists.
+                    "resources": {
+                        "subscribe": bool(channel is not None and channel.supports_subscriptions),
+                        "listChanged": False,
+                    },
                     "prompts": {"listChanged": False},
                 },
                 "serverInfo": SERVER_INFO,
@@ -1274,6 +1415,20 @@ def handle_mcp_jsonrpc(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             result = _execute_mcp_tool(tool_name, tool_args)
         elif method == "resources/list":
             result = {"resources": MCP_RESOURCES}
+        elif method in ("resources/subscribe", "resources/unsubscribe"):
+            uri = params.get("uri", "")
+            if channel is None or not channel.supports_subscriptions:
+                raise ValueError(
+                    "resources/subscribe requires an active SSE session: open `GET /mcp/events` and send "
+                    f"its `{SESSION_HEADER}` header. It is not available on STDIO or stateless HTTP."
+                )
+            if uri_channel(uri) is None:
+                raise ValueError(f"Resource is static or unknown; only live telemetry URIs can be subscribed: {uri!r}")
+            if method == "resources/subscribe":
+                channel.subscriptions.add(uri)
+            else:
+                channel.subscriptions.discard(uri)
+            result = {}
         elif method == "resources/read":
             uri = params.get("uri", "")
             result = _read_mcp_resource(uri)
@@ -1309,21 +1464,22 @@ def handle_mcp_jsonrpc(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 # ============================================================================
-# 6. FASTAPI HTTP ENDPOINTS (/mcp and /mcp/manifest)
+# 6. FASTAPI HTTP ENDPOINTS (/mcp, /mcp/events and /mcp/manifest)
 # ============================================================================
 
 
 @router.get("/mcp/manifest")
 def get_mcp_manifest():
     """
-    Human- and machine-readable discovery endpoint listing all 8 Governed MCP Tools,
-    5 Knowledge Resources, and 20 Cognitive Starter Prompts exposed by Agentic-Ops.
+    Human- and machine-readable discovery endpoint listing the Governed MCP Tools,
+    Knowledge / Compliance / Live-Telemetry Resources and 20 Cognitive Starter Prompts.
     """
     return {
         "server": SERVER_INFO,
         "protocol_version": MCP_PROTOCOL_VERSION,
         "transports": {
             "http_jsonrpc": "/mcp (POST JSON-RPC 2.0)",
+            "sse": "/mcp/events (GET text/event-stream; yields Mcp-Session-Id)",
             "stdio": "python -m agentic_ops.entrypoints.mcp_server",
         },
         "counts": {
@@ -1337,21 +1493,76 @@ def get_mcp_manifest():
     }
 
 
+@router.get("/mcp/events")
+async def get_mcp_events(request: Request):
+    """Server-Sent Events stream: live telemetry, resource-update notifications, server requests."""
+    return await events_response(request)
+
+
+def _jsonrpc_http_error(status: int, code: int, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content={"jsonrpc": "2.0", "id": None, "error": {"code": code, "message": message}},
+    )
+
+
 @router.post("/mcp")
 async def post_mcp_jsonrpc(request: Request):
     """
     Standard Model Context Protocol (MCP) JSON-RPC 2.0 HTTP endpoint.
     Accepts `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`,
-    `prompts/list`, and `prompts/get`.
+    `resources/subscribe`, `resources/unsubscribe`, `prompts/list`, and `prompts/get`, plus client
+    *responses* to server-initiated requests (`sampling/createMessage`) when the request carries
+    the `Mcp-Session-Id` of an open `GET /mcp/events` stream.
     """
-    body = await request.json()
-    if isinstance(body, list):
-        responses = [r for item in body if (r := handle_mcp_jsonrpc(item)) is not None]
-        return JSONResponse(content=responses)
-    resp = handle_mcp_jsonrpc(body)
-    if resp is None:
+    from starlette.concurrency import run_in_threadpool
+
+    try:
+        body = await request.json()
+    except ValueError:
+        return _jsonrpc_http_error(400, -32700, "Parse error: body is not valid JSON.")
+
+    is_batch = isinstance(body, list)
+    items = body if is_batch else [body]
+    if is_batch and not items:
+        return _jsonrpc_http_error(400, -32600, "Invalid Request: empty batch.")
+
+    session = get_registry().get(request.headers.get(SESSION_HEADER))
+
+    # Client replies are routed on the event loop, never queued behind a blocked tool call.
+    requests_only: List[Any] = []
+    unmatched_response = False
+    for item in items:
+        if _is_jsonrpc_response(item):
+            if session is None or not session.resolve_response(item):
+                unmatched_response = True
+        else:
+            requests_only.append(item)
+
+    if not requests_only:
+        if unmatched_response:
+            return _jsonrpc_http_error(
+                400, -32600, "No pending server request matches this response (check Mcp-Session-Id and id)."
+            )
         return JSONResponse(content={"status": "accepted"}, status_code=202)
-    return JSONResponse(content=resp)
+
+    def _process() -> List[Dict[str, Any]]:
+        # Runs in a worker thread: a tool waiting for a sampling answer must not block the
+        # event loop that has to receive that very answer (anti-deadlock), nor other requests.
+        out: List[Dict[str, Any]] = []
+        with bind_channel(session):
+            for item in requests_only:
+                resp = handle_mcp_jsonrpc(item)
+                if resp is not None:
+                    out.append(resp)
+        return out
+
+    responses = await run_in_threadpool(_process)
+    if is_batch:
+        return JSONResponse(content=responses)
+    if not responses:
+        return JSONResponse(content={"status": "accepted"}, status_code=202)
+    return JSONResponse(content=responses[0])
 
 
 # ============================================================================
@@ -1359,28 +1570,60 @@ async def post_mcp_jsonrpc(request: Request):
 # ============================================================================
 
 
-def run_stdio_server() -> None:
-    """Runs the MCP JSON-RPC 2.0 server over standard input/output (STDIO)."""
-    for raw_line in sys.stdin:
-        line = raw_line.strip()
-        if not line:
-            continue
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as exc:
-            err_resp = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": f"Parse error: {exc}"},
-            }
-            sys.stdout.write(json.dumps(err_resp) + "\n")
-            sys.stdout.flush()
-            continue
+class _StdioParseError:
+    def __init__(self, message: str) -> None:
+        self.message = message
 
-        response = handle_mcp_jsonrpc(payload)
+
+def run_stdio_server(stdin: Any = None, stdout: Any = None) -> None:
+    """Runs the MCP JSON-RPC 2.0 server over standard input/output (STDIO).
+
+    A daemon reader thread feeds an inbox so that, while a tool waits for the client's answer to a
+    server-initiated `sampling/createMessage`, unrelated client messages are kept (in order)
+    instead of being lost, and the wait can time out.
+    """
+    import collections
+    import queue
+    import threading
+
+    stdin = stdin if stdin is not None else sys.stdin
+    stdout = stdout if stdout is not None else sys.stdout
+    inbox: "queue.Queue[Any]" = queue.Queue()
+    write_lock = threading.Lock()
+
+    def write(message: Dict[str, Any]) -> None:
+        with write_lock:
+            stdout.write(json.dumps(message) + "\n")
+            stdout.flush()
+
+    def reader() -> None:
+        try:
+            for raw_line in stdin:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    inbox.put(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    inbox.put(_StdioParseError(str(exc)))
+        finally:
+            inbox.put(EOF)
+
+    threading.Thread(target=reader, name="mcp-stdio-reader", daemon=True).start()
+
+    deferred: "collections.deque[Any]" = collections.deque()
+    channel = StdioChannel(inbox, write, deferred)
+    while True:
+        item = deferred.popleft() if deferred else inbox.get()
+        if item is EOF:
+            break
+        if isinstance(item, _StdioParseError):
+            write({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": f"Parse error: {item.message}"}})
+            continue
+        with bind_channel(channel):
+            response = handle_mcp_jsonrpc(item)
         if response is not None:
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+            write(response)
 
 
 if __name__ == "__main__":

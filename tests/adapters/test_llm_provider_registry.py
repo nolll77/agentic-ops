@@ -231,9 +231,12 @@ The target is baac_rf.
         monkeypatch.delenv("LLM_MODEL_MODEL", raising=False)
         monkeypatch.delenv("LLM_MODEL_CHAT", raising=False)
         monkeypatch.delenv("LLM_MODEL_REMEDIATION", raising=False)
+        monkeypatch.delenv("LLM_MODEL_INSPECTOR", raising=False)
 
         topology = LLMProviderRegistry.get_roles_topology()
         assert topology["remediation"]["model"] == "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        assert topology["inspector"]["model"] == "openrouter/google/gemma-4-31b-it:free"
+        assert topology["remediation"]["model"] != topology["inspector"]["model"]
         assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
         assert topology["data"]["model"] == "openrouter/google/gemma-4-26b-a4b-it:free"
         assert topology["model"]["model"] == "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
@@ -254,17 +257,18 @@ The target is baac_rf.
         assert data_cfg.fallback_models == ["global/fb1", "global/fb2"]
 
     def test_get_roles_topology_returns_all_supported_roles(self, monkeypatch):
-        """Verifies get_roles_topology exposes all 5 roles and their recommendations."""
+        """Verifies get_roles_topology exposes all 6 roles and their recommendations."""
         monkeypatch.delenv("LLM_MODEL", raising=False)
         topology = LLMProviderRegistry.get_roles_topology()
 
-        expected_roles = {"remediation", "infra", "data", "model", "chat"}
+        expected_roles = {"remediation", "inspector", "infra", "data", "model", "chat"}
         assert set(topology.keys()) == expected_roles
 
         assert topology["infra"]["model"] == "openrouter/google/gemma-4-31b-it:free"
         assert topology["infra"]["is_specialized"] is True
         assert "recommendation" in topology["infra"]
         assert topology["remediation"]["model"] == "openrouter/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        assert topology["inspector"]["model"] == "openrouter/google/gemma-4-31b-it:free"
 
     @patch("agentic_ops.adapters.llm_protocol.LiteLLMAdapter.__init__", return_value=None)
     def test_build_adapter_for_role_applies_role_label(self, mock_litellm_init, monkeypatch):

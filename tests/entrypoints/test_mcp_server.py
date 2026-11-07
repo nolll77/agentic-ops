@@ -39,10 +39,10 @@ def test_mcp_initialize_handshake():
     assert "prompts" in resp["result"]["capabilities"]
 
 
-def test_mcp_tools_list_exposes_10_governed_tools():
+def test_mcp_tools_list_exposes_11_governed_tools():
     resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     tools = resp["result"]["tools"]
-    assert len(tools) == 10
+    assert len(tools) == 11
     names = {t["name"] for t in tools}
     assert names == {
         "read_console_diagnostic",
@@ -55,6 +55,7 @@ def test_mcp_tools_list_exposes_10_governed_tools():
         "get_scenario_blueprint",
         "poll_target_mlops_snapshot",
         "inspect_control_plane_vitals",
+        "request_client_sampling",
     }
 
 
@@ -274,7 +275,7 @@ def test_mcp_tool_inspect_control_plane_vitals():
 
 def test_mcp_resources_list_and_read():
     list_resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 12, "method": "resources/list"})
-    assert len(list_resp["result"]["resources"]) == 5
+    assert len(list_resp["result"]["resources"]) == len(MCP_RESOURCES)
 
     read_resp = handle_mcp_jsonrpc(
         {
@@ -321,9 +322,11 @@ def test_fastapi_http_mcp_endpoints():
     manifest_res = client.get("/mcp/manifest")
     assert manifest_res.status_code == 200
     m = manifest_res.json()
-    assert m["counts"]["tools"] == 10
-    assert m["counts"]["resources"] == 5
+    assert m["counts"]["tools"] == 11
+    assert m["counts"]["resources"] == len(MCP_RESOURCES)
     assert m["counts"]["starter_prompts"] == 20
+    assert "sse" in m["transports"]
+    assert m["transports"]["sse"].startswith("/mcp/events")
 
     rpc_res = client.post(
         "/mcp",
@@ -368,7 +371,7 @@ def test_mcp_tool_poll_target_mlops_snapshot(monkeypatch):
 def test_mcp_tools_declare_all_four_hints():
     resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 17, "method": "tools/list"})
     tools = resp["result"]["tools"]
-    assert len(tools) == 10
+    assert len(tools) == 11
     for tool in tools:
         assert isinstance(tool.get("readOnlyHint"), bool), f"Missing readOnlyHint in {tool['name']}"
         assert isinstance(tool.get("destructiveHint"), bool), f"Missing destructiveHint in {tool['name']}"
@@ -498,9 +501,9 @@ def test_tool_create_github_issue():
     assert "DATA-042" in res
 
 
-def test_all_19_tools_audit_and_coverage():
-    all_19_tools = [
-        # 10 Governed MCP Gateway Tools
+def test_all_20_tools_audit_and_coverage():
+    all_20_tools = [
+        # 11 Governed MCP Gateway Tools
         "read_console_diagnostic",
         "evaluate_governance_policy",
         "run_governed_incident_episode",
@@ -511,6 +514,7 @@ def test_all_19_tools_audit_and_coverage():
         "get_scenario_blueprint",
         "poll_target_mlops_snapshot",
         "inspect_control_plane_vitals",
+        "request_client_sampling",
         # 9 Modular Operational Tools
         "get_mlflow_model_info",
         "get_prometheus_metric",
@@ -522,8 +526,8 @@ def test_all_19_tools_audit_and_coverage():
         "execute_sql",
         "create_github_issue",
     ]
-    assert len(all_19_tools) == 19
-    assert len(set(all_19_tools)) == 19
+    assert len(all_20_tools) == 20
+    assert len(set(all_20_tools)) == 20
 
 
 def test_mcp_tool_get_ledger_status():
